@@ -34,6 +34,7 @@ class MenuCatalogView extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         try {
+          ref.invalidate(brandsListProvider);
           ref.invalidate(menuItemsProvider);
           await ref.read(menuItemsProvider.future);
         } catch (_) {
@@ -113,7 +114,10 @@ class MenuCatalogView extends ConsumerWidget {
                   title: "Couldn't load the menu",
                   body: 'Check the connection, then try again.',
                   actionLabel: 'Try again',
-                  onAction: () => ref.invalidate(menuItemsProvider),
+                  onAction: () {
+                    ref.invalidate(brandsListProvider);
+                    ref.invalidate(menuItemsProvider);
+                  },
                 ),
               ),
               data: (items) {

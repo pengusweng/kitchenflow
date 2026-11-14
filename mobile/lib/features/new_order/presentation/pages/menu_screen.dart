@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_panel.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/menu_catalog_view.dart';
+import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 import 'package:mobile/shared/widgets/app_header.dart';
 import 'package:mobile/shared/widgets/kkfc_scaffold.dart';
@@ -104,6 +105,7 @@ class _ResponsiveMenuLayoutState extends ConsumerState<_ResponsiveMenuLayout>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      ref.invalidate(brandsListProvider);
       ref.invalidate(menuItemsProvider);
     }
   }

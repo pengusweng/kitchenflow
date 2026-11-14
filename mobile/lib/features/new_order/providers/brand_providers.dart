@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/models/brand_models.dart';
 import 'package:mobile/features/auth/providers/auth_profile_provider.dart';
+import 'package:mobile/features/auth/providers/session_provider.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
 import 'package:mobile/features/new_order/data/repositories/brand_repository.dart';
 import 'package:mobile/features/new_order/data/repositories/menu_repository.dart';
@@ -13,6 +14,9 @@ const _preferredBrandOrder = ['GC', 'AI', 'KK'];
 /// Fetches all active brands from the API. Falls back to sample brands if
 /// the API is unreachable (e.g. offline / mock unit tests).
 final brandsListProvider = FutureProvider<List<AssignedBrand>>((ref) async {
+  // Re-fetch when the authentication state changes (e.g. user signs in or out).
+  ref.watch(sessionTokenProvider);
+
   try {
     final fetched = await ref.watch(brandRepositoryProvider).getAll();
     if (fetched.isNotEmpty) {

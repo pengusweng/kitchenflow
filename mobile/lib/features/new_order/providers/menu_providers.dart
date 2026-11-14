@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
 import 'package:mobile/features/new_order/data/repositories/menu_repository.dart';
+import 'package:mobile/features/new_order/data/seed/sample_menu.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/order_draft_provider.dart';
 import 'package:flutter/foundation.dart' show mapEquals;
@@ -73,6 +74,10 @@ final storeReferenceProvider = NotifierProvider<StoreReferenceNotifier, String>(
   StoreReferenceNotifier.new,
 );
 
+final _uuidRegex = RegExp(
+  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+);
+
 final menuItemsProvider = FutureProvider.autoDispose<List<MenuItem>>((
   ref,
 ) async {
@@ -82,8 +87,7 @@ final menuItemsProvider = FutureProvider.autoDispose<List<MenuItem>>((
   // Ensure targetBrandId is a valid UUID before sending to the backend.
   // If activeBrand.id is still a placeholder slug (e.g. 'gamcheon'),
   // wait for the backend brands to load and resolve the matching UUID.
-  final isUuid = RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(targetBrandId);
-  if (!isUuid) {
+  if (!_uuidRegex.hasMatch(targetBrandId)) {
     try {
       final brands = await ref.watch(brandsListProvider.future);
       final match = brands.firstWhere(
@@ -92,10 +96,19 @@ final menuItemsProvider = FutureProvider.autoDispose<List<MenuItem>>((
             b.name.toLowerCase() == activeBrand.name.toLowerCase(),
         orElse: () => brands.first,
       );
-      targetBrandId = match.id;
+      if (_uuidRegex.hasMatch(match.id)) {
+        targetBrandId = match.id;
+      }
     } catch (_) {
       // In tests with mock IDs, leave targetBrandId as-is
     }
+  }
+
+  // If targetBrandId is still not a valid UUID (e.g. offline fallback,
+  // sample brands, or unauthenticated), return the sample menu directly
+  // rather than firing a request that causes 400 Bad Request on the backend.
+  if (!_uuidRegex.hasMatch(targetBrandId)) {
+    return sampleMenuForBrand(activeBrand.code);
   }
 
   return ref.watch(menuRepositoryProvider).getByBrand(targetBrandId);
