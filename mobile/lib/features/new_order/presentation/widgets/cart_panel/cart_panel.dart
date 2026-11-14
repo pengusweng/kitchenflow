@@ -35,12 +35,48 @@ class CartPanel extends ConsumerStatefulWidget {
   ConsumerState<CartPanel> createState() => _CartPanelState();
 }
 
-class _CartPanelState extends ConsumerState<CartPanel> {
+class _CartPanelState extends ConsumerState<CartPanel>
+    with SingleTickerProviderStateMixin {
   bool _clearPressed = false;
   bool _continuePressed = false;
+  late final AnimationController _bumpController;
+  late final Animation<double> _bumpAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _bumpController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _bumpAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.25)
+            .chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.25, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 60,
+      ),
+    ]).animate(_bumpController);
+  }
+
+  @override
+  void dispose() {
+    _bumpController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(cartCountProvider, (previous, next) {
+      if (next > (previous ?? 0)) {
+        _bumpController.forward(from: 0.0);
+      }
+    });
+
     final lines = ref.watch(cartProvider);
     final channel = ref.watch(menuChannelProvider);
     final total = ref.watch(cartTotalProvider);
@@ -53,14 +89,14 @@ class _CartPanelState extends ConsumerState<CartPanel> {
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: KkfcColors.surface,
         borderRadius: widget.isSheet
             ? const BorderRadius.vertical(top: Radius.circular(20.0))
             : BorderRadius.zero,
         border: widget.isSheet
             ? null
             : const Border(
-                left: BorderSide(color: Color(0xFFEDE8DF), width: 1.0),
+                left: BorderSide(color: KkfcColors.divider, width: 1.0),
               ),
         boxShadow: widget.isSheet
             ? [
@@ -88,7 +124,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                     width: 38.0,
                     height: 4.5,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFD0D5DD),
+                      color: KkfcColors.border,
                       borderRadius: BorderRadius.circular(2.5),
                     ),
                   ),
@@ -110,14 +146,28 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Current order',
-                            style: TextStyle(
-                              fontFamily: KkfcFonts.ibmPlexSans,
-                              fontSize: 18.0,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF19293E),
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ScaleTransition(
+                                scale: _bumpAnimation,
+                                child: const Icon(
+                                  Icons.shopping_cart_outlined,
+                                  size: 20.0,
+                                  color: KkfcColors.ink,
+                                ),
+                              ),
+                              const SizedBox(width: KkfcSpace.space2),
+                              const Text(
+                                'Current order',
+                                style: TextStyle(
+                                  fontFamily: KkfcFonts.ibmPlexSans,
+                                  fontSize: 18.0,
+                                  fontWeight: FontWeight.w700,
+                                  color: KkfcColors.ink,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 2),
                           AnimatedSwitcher(
@@ -131,7 +181,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                               ),
                               style: const TextStyle(
                                 fontSize: 13.0,
-                                color: Color(0xFF586579),
+                                color: KkfcColors.ink3,
                               ),
                             ),
                           ),
@@ -162,10 +212,10 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: KkfcColors.surface,
                                 borderRadius: BorderRadius.circular(8.0),
                                 border: Border.all(
-                                  color: const Color(0xFFEDB3AF),
+                                  color: KkfcColors.dangerBorder,
                                   width: 1.0,
                                 ),
                               ),
@@ -175,7 +225,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                   fontFamily: KkfcFonts.ibmPlexSans,
                                   fontSize: 13.0,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFFB3261E),
+                                  color: KkfcColors.danger,
                                 ),
                               ),
                             ),
@@ -188,7 +238,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                         icon: const Icon(
                           Icons.close_rounded,
                           size: 22,
-                          color: Color(0xFF586579),
+                          color: KkfcColors.ink3,
                         ),
                         tooltip: 'Close cart',
                         onPressed: () {
@@ -203,7 +253,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                   ],
                 ),
               ),
-              const Divider(height: 1, color: Color(0xFFEDE8DF)),
+              const Divider(height: 1, color: KkfcColors.divider),
 
               // Empty state or Items
               if (lines.isEmpty)
@@ -217,7 +267,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                         const Icon(
                           Icons.shopping_cart_outlined,
                           size: 44,
-                          color: Color(0xFF76849A),
+                          color: KkfcColors.borderStrong,
                         ),
                         const SizedBox(height: 16),
                         const Text(
@@ -226,7 +276,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                           style: TextStyle(
                             fontSize: 15.0,
                             height: 1.4,
-                            color: Color(0xFF586579),
+                            color: KkfcColors.ink3,
                           ),
                         ),
                         if (widget.isSheet) ...[
@@ -240,8 +290,8 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                               }
                             },
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF19293E),
-                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                              foregroundColor: KkfcColors.ink,
+                              side: const BorderSide(color: KkfcColors.ticketDisabledBg),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
@@ -260,7 +310,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                     children: [
                       for (var index = 0; index < lines.length; index++) ...[
                         if (index > 0)
-                          const Divider(height: 24, color: Color(0xFFEDE8DF)),
+                          const Divider(height: 24, color: KkfcColors.divider),
                         Builder(
                           builder: (context) {
                             final line = lines[index];
@@ -285,7 +335,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                             fontFamily: KkfcFonts.ibmPlexSans,
                                             fontSize: 15.0,
                                             fontWeight: FontWeight.w700,
-                                            color: Color(0xFF19293E),
+                                            color: KkfcColors.ink,
                                           ),
                                         ),
                                       ),
@@ -317,7 +367,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                             fontFamily: KkfcFonts.ibmPlexSans,
                                             fontSize: 15.0,
                                             fontWeight: FontWeight.w700,
-                                            color: Color(0xFF19293E),
+                                            color: KkfcColors.ink,
                                             fontFeatures: [
                                               FontFeature.tabularFigures(),
                                             ],
@@ -341,7 +391,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFEDF0F4),
+                                          color: KkfcColors.neutralBg,
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
@@ -351,7 +401,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                           style: const TextStyle(
                                             fontSize: 11.0,
                                             fontWeight: FontWeight.w600,
-                                            color: Color(0xFF43536A),
+                                            color: KkfcColors.ink2,
                                           ),
                                         ),
                                       ),
@@ -359,7 +409,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                         '${formatPeso(line.unitCentavos(channel))} each',
                                         style: const TextStyle(
                                           fontSize: 12.0,
-                                          color: Color(0xFF586579),
+                                          color: KkfcColors.ink3,
                                           fontFeatures: [
                                             FontFeature.tabularFigures(),
                                           ],
@@ -375,7 +425,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                       modifiers.join(' · '),
                                       style: const TextStyle(
                                         fontSize: 12.0,
-                                        color: Color(0xFF586579),
+                                        color: KkfcColors.ink3,
                                       ),
                                     ),
                                   ],
@@ -390,10 +440,10 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFFDF4E2),
+                                        color: KkfcColors.ticketNoteBg,
                                         borderRadius: BorderRadius.circular(4),
                                         border: Border.all(
-                                          color: const Color(0xFFE8D3A7),
+                                          color: KkfcColors.ticketNoteBorder,
                                         ),
                                       ),
                                       child: Row(
@@ -402,7 +452,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                           const Icon(
                                             Icons.edit_note,
                                             size: 14,
-                                            color: Color(0xFF855B14),
+                                            color: KkfcColors.warning,
                                           ),
                                           const SizedBox(width: 4),
                                           Flexible(
@@ -411,7 +461,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                               style: const TextStyle(
                                                 fontStyle: FontStyle.italic,
                                                 fontSize: 11.5,
-                                                color: Color(0xFF855B14),
+                                                color: KkfcColors.warning,
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
@@ -467,7 +517,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                                         KkfcFonts.ibmPlexSans,
                                                     fontSize: 15.0,
                                                     fontWeight: FontWeight.w700,
-                                                    color: Color(0xFF19293E),
+                                                    color: KkfcColors.ink,
                                                     fontFeatures: [
                                                       FontFeature.tabularFigures(),
                                                     ],
@@ -503,9 +553,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                             .read(cartProvider.notifier)
                                             .removeLine(line.id),
                                         style: TextButton.styleFrom(
-                                          foregroundColor: const Color(
-                                            0xFFB3261E,
-                                          ),
+                                          foregroundColor: KkfcColors.danger,
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 8,
                                           ),
@@ -539,7 +587,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Divider(height: 1, color: Color(0xFFEDE8DF)),
+                    const Divider(height: 1, color: KkfcColors.divider),
                     Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
@@ -552,7 +600,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                   'Subtotal',
                                   style: TextStyle(
                                     fontSize: 14.0,
-                                    color: Color(0xFF586579),
+                                    color: KkfcColors.ink3,
                                   ),
                                 ),
                               ),
@@ -577,7 +625,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                     fontFamily: KkfcFonts.ibmPlexSans,
                                     fontSize: 14.0,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF19293E),
+                                    color: KkfcColors.ink,
                                     fontFeatures: [
                                       FontFeature.tabularFigures(),
                                     ],
@@ -596,7 +644,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                     fontFamily: KkfcFonts.ibmPlexSans,
                                     fontSize: 18.0,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF19293E),
+                                    color: KkfcColors.ink,
                                   ),
                                 ),
                               ),
@@ -621,7 +669,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                     fontFamily: KkfcFonts.ibmPlexSans,
                                     fontSize: 18.0,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF19293E),
+                                    color: KkfcColors.ink,
                                     fontFeatures: [
                                       FontFeature.tabularFigures(),
                                     ],
@@ -649,9 +697,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                 height: 50.0,
                                 child: FilledButton(
                                   style: FilledButton.styleFrom(
-                                    backgroundColor: const Color(
-                                      0xFFA8562A,
-                                    ), // Burnished copper
+                                    backgroundColor: KkfcColors.action, // Burnished copper
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10.0),
                                     ),
@@ -671,7 +717,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                                       fontFamily: KkfcFonts.ibmPlexSans,
                                       fontSize: 16.0,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                                      color: KkfcColors.surface,
                                     ),
                                   ),
                                 ),
@@ -721,12 +767,12 @@ class _EditButtonState extends State<_EditButton> {
           child: Ink(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: _pressed ? const Color(0xFFEEE8DC) : Colors.white,
+              color: _pressed ? KkfcColors.canvasSunken : KkfcColors.surface,
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(
                 color: _pressed
-                    ? const Color(0xFF19293E)
-                    : const Color(0xFF76849A),
+                    ? KkfcColors.ink
+                    : KkfcColors.borderStrong,
                 width: 1.0,
               ),
             ),
@@ -736,7 +782,7 @@ class _EditButtonState extends State<_EditButton> {
                 fontFamily: KkfcFonts.ibmPlexSans,
                 fontSize: 13.0,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF19293E),
+                color: KkfcColors.ink,
               ),
             ),
           ),
@@ -777,16 +823,16 @@ class _QtyButtonState extends State<_QtyButton> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: _pressed ? const Color(0xFFEEE8DC) : Colors.white,
+              color: _pressed ? KkfcColors.canvasSunken : KkfcColors.surface,
               borderRadius: BorderRadius.circular(6.0),
               border: Border.all(
                 color: _pressed
-                    ? const Color(0xFF19293E)
-                    : const Color(0xFF76849A),
+                    ? KkfcColors.ink
+                    : KkfcColors.borderStrong,
                 width: 1.0,
               ),
             ),
-            child: Icon(widget.icon, size: 16, color: const Color(0xFF19293E)),
+            child: Icon(widget.icon, size: 16, color: KkfcColors.ink),
           ),
         ),
       ),

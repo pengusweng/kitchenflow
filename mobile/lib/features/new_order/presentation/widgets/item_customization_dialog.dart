@@ -1,6 +1,8 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
 import 'package:mobile/features/new_order/data/repositories/menu_item_modifier_repository.dart';
@@ -20,7 +22,7 @@ Future<bool?> showItemCustomizationDialog(
     context: context,
     barrierDismissible: true,
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-    barrierColor: Colors.black.withValues(alpha: 0.5),
+    barrierColor: Colors.transparent,
     transitionDuration: const Duration(milliseconds: 220),
     pageBuilder: (ctx, anim1, anim2) => ItemCustomizationDialog(
       item: item,
@@ -65,12 +67,22 @@ class ItemCustomizationDialog extends ConsumerStatefulWidget {
 }
 
 class _ItemCustomizationDialogState
-    extends ConsumerState<ItemCustomizationDialog> {
+    extends ConsumerState<ItemCustomizationDialog>
+    with SingleTickerProviderStateMixin {
   late MenuItem _item;
   late final Map<String, String> _selections;
   late int _quantity;
   late final TextEditingController _kitchenNoteController;
   bool _submitting = false;
+
+  late final AnimationController _flyController;
+  late final Animation<double> _scrimFade;
+  late final Animation<double> _cardScale;
+  late final Animation<double> _cardFade;
+  late final Animation<double> _circlePop;
+  late final Animation<double> _circleScale;
+  late final Animation<double> _circleFade;
+  late final Animation<double> _flightProgress;
 
   @override
   void initState() {
@@ -87,6 +99,65 @@ class _ItemCustomizationDialogState
     };
 
     _loadAdditionalModifiersIfNeeded();
+
+    _flyController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
+
+    // 1. Scrim dissolves quickly (0% -> 28%)
+    _scrimFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _flyController,
+        curve: const Interval(0.0, 0.28, curve: Curves.easeOut),
+      ),
+    );
+
+    // 2. Main dialog card shrinks down toward center (0% -> 24%)
+    _cardScale = Tween<double>(begin: 1.0, end: 0.12).animate(
+      CurvedAnimation(
+        parent: _flyController,
+        curve: const Interval(0.0, 0.24, curve: Curves.easeInBack),
+      ),
+    );
+
+    // 3. Main dialog card fades out as it implodes (0% -> 20%)
+    _cardFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _flyController,
+        curve: const Interval(0.0, 0.20, curve: Curves.easeIn),
+      ),
+    );
+
+    // 4. Circle badge pops out right at center as the card collapses (8% -> 26%)
+    _circlePop = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _flyController,
+        curve: const Interval(0.08, 0.26, curve: Curves.easeOutBack),
+      ),
+    );
+
+    // 5. Circle's parabolic flight progression across the screen (20% -> 92%)
+    _flightProgress = CurvedAnimation(
+      parent: _flyController,
+      curve: const Interval(0.20, 0.92, curve: Curves.easeInOutCubic),
+    );
+
+    // 6. Circle shrinks down and absorbs into the cart icon (86% -> 100%)
+    _circleScale = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _flyController,
+        curve: const Interval(0.86, 1.0, curve: Curves.easeInBack),
+      ),
+    );
+
+    // 7. Circle fades out on impact (90% -> 100%)
+    _circleFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _flyController,
+        curve: const Interval(0.90, 1.0, curve: Curves.easeIn),
+      ),
+    );
   }
 
   Future<void> _loadAdditionalModifiersIfNeeded() async {
@@ -113,6 +184,7 @@ class _ItemCustomizationDialogState
 
   @override
   void dispose() {
+    _flyController.dispose();
     _kitchenNoteController.dispose();
     super.dispose();
   }
@@ -141,30 +213,37 @@ class _ItemCustomizationDialogState
     final note = _kitchenNoteController.text.trim();
     final noteOrNull = note.isEmpty ? null : note;
 
-    final cartNotifier = ref.read(cartProvider.notifier);
-    if (widget.editing == null) {
-      cartNotifier.addConfigured(
-        _item,
-        Map<String, String>.from(_selections),
-        _quantity,
-        kitchenNote: noteOrNull,
-      );
-    } else {
-      cartNotifier.updateLine(
-        widget.editing!.id,
-        Map<String, String>.from(_selections),
-        _quantity,
-        item: _item,
-        kitchenNote: noteOrNull,
-      );
-    }
+    _flyController.forward().then((_) {
+      if (!mounted) return;
 
-    Navigator.of(context).pop(true);
+      final cartNotifier = ref.read(cartProvider.notifier);
+      if (widget.editing == null) {
+        cartNotifier.addConfigured(
+          _item,
+          Map<String, String>.from(_selections),
+          _quantity,
+          kitchenNote: noteOrNull,
+        );
+      } else {
+        cartNotifier.updateLine(
+          widget.editing!.id,
+          Map<String, String>.from(_selections),
+          _quantity,
+          item: _item,
+          kitchenNote: noteOrNull,
+        );
+      }
+
+      HapticFeedback.lightImpact();
+      Navigator.of(context).pop(true);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
+    final screenSize = mediaQuery.size;
+    final isWide = screenSize.width >= 850.0;
     final isEditing = widget.editing != null;
 
     final singleChoiceGroups = _item.modifierGroups
@@ -172,35 +251,93 @@ class _ItemCustomizationDialogState
         .toList();
     final addOnGroups = _item.modifierGroups.where((g) => g.isAddOn).toList();
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 420,
-          maxHeight: mediaQuery.size.height * 0.92,
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16.0),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
+    // Flight target coordinates relative to dialog center
+    final double targetDx;
+    final double targetDy;
+
+    if (isWide) {
+      // Land right inside the docked right CartPanel header cart icon
+      targetDx = (screenSize.width * 0.5) - 340.0;
+      targetDy = 94.0 - (screenSize.height * 0.5);
+    } else {
+      // Fly directly to the floating CartBar at the bottom
+      final bottomInset = mediaQuery.padding.bottom;
+      targetDx = 0.0;
+      targetDy = (screenSize.height * 0.5) - bottomInset - 44.0;
+    }
+
+    return AnimatedBuilder(
+      animation: _flyController,
+      builder: (context, _) {
+        final flightVal = _flightProgress.value;
+        final arcOffset =
+            math.sin(flightVal * math.pi) * (isWide ? 52.0 : 28.0);
+        final currentDx = targetDx * flightVal;
+        final currentDy = (targetDy * flightVal) - arcOffset;
+        final rotation =
+            isWide ? (0.28 * math.sin(flightVal * math.pi)) : 0.0;
+
+        return Stack(
+          children: [
+            // Internal dismissible dark scrim that dissolves away as the card collapses
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (!_submitting) Navigator.of(context).pop(false);
+                },
+                child: FadeTransition(
+                  opacity: _scrimFade,
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.5),
+                  ),
+                ),
               ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            ),
+
+            // The dialog card that collapses at center
+            if (_cardFade.value > 0.001)
+              Center(
+                child: IgnorePointer(
+                  ignoring: _submitting,
+                  child: Transform.scale(
+                    scale: _cardScale.value,
+                    child: FadeTransition(
+                      opacity: _cardFade,
+                      child: Dialog(
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        insetPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 24,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: 420,
+                            maxHeight: mediaQuery.size.height * 0.92,
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: KkfcColors.surface,
+                              borderRadius: BorderRadius.circular(16.0),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: 0.18 * _cardFade.value,
+                                  ),
+                                  blurRadius: 28,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Header
               Container(
-                color: Colors.white,
+                color: KkfcColors.surface,
                 padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,7 +352,7 @@ class _ItemCustomizationDialogState
                               fontFamily: KkfcFonts.ibmPlexSans,
                               fontSize: 18.0,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF19293E),
+                              color: KkfcColors.ink,
                               height: 1.25,
                             ),
                           ),
@@ -225,7 +362,7 @@ class _ItemCustomizationDialogState
                             style: const TextStyle(
                               fontFamily: KkfcFonts.text,
                               fontSize: 13.0,
-                              color: Color(0xFF5A6778),
+                              color: KkfcColors.ink3,
                             ),
                           ),
                         ],
@@ -236,9 +373,9 @@ class _ItemCustomizationDialogState
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: KkfcColors.surface,
                         borderRadius: BorderRadius.circular(8.0),
-                        border: Border.all(color: const Color(0xFFDDD6C9)),
+                        border: Border.all(color: KkfcColors.border),
                       ),
                       child: Material(
                         color: Colors.transparent,
@@ -249,7 +386,7 @@ class _ItemCustomizationDialogState
                             child: Icon(
                               Icons.close,
                               size: 18,
-                              color: Color(0xFF19293E),
+                              color: KkfcColors.ink,
                             ),
                           ),
                         ),
@@ -259,12 +396,12 @@ class _ItemCustomizationDialogState
                 ),
               ),
 
-              const Divider(height: 1, thickness: 1, color: Color(0xFFEDE8DF)),
+              const Divider(height: 1, thickness: 1, color: KkfcColors.divider),
 
               // Scrollable Body
               Flexible(
                 child: Container(
-                  color: const Color(0xFFF7F3EC), // Warm Sand canvas ground
+                  color: KkfcColors.canvas, // Warm Sand canvas ground
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
@@ -281,7 +418,7 @@ class _ItemCustomizationDialogState
                               fontFamily: KkfcFonts.text,
                               fontSize: 13.5,
                               height: 1.4,
-                              color: Color(0xFF4A5568),
+                              color: KkfcColors.ink2,
                             ),
                           ),
                           const SizedBox(height: 18),
@@ -297,7 +434,7 @@ class _ItemCustomizationDialogState
                                   fontFamily: KkfcFonts.ibmPlexSans,
                                   fontSize: 16.0,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF19293E),
+                                  color: KkfcColors.ink,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -307,10 +444,10 @@ class _ItemCustomizationDialogState
                                   vertical: 3,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE3F4E9),
+                                  color: KkfcColors.successBg,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: const Color(0xFFA3D9B5),
+                                    color: KkfcColors.successBorder,
                                     width: 1.0,
                                   ),
                                 ),
@@ -320,7 +457,7 @@ class _ItemCustomizationDialogState
                                     Icon(
                                       Icons.check,
                                       size: 12,
-                                      color: Color(0xFF166B3A),
+                                      color: KkfcColors.success,
                                     ),
                                     SizedBox(width: 3),
                                     Text(
@@ -329,7 +466,7 @@ class _ItemCustomizationDialogState
                                         fontFamily: KkfcFonts.ibmPlexSans,
                                         fontSize: 11.0,
                                         fontWeight: FontWeight.w700,
-                                        color: Color(0xFF166B3A),
+                                        color: KkfcColors.success,
                                       ),
                                     ),
                                   ],
@@ -365,7 +502,7 @@ class _ItemCustomizationDialogState
                                   fontFamily: KkfcFonts.ibmPlexSans,
                                   fontSize: 16.0,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF19293E),
+                                  color: KkfcColors.ink,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -375,10 +512,10 @@ class _ItemCustomizationDialogState
                                   vertical: 3,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFECEFF3),
+                                  color: KkfcColors.neutralBg,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: const Color(0xFFD2D9E2),
+                                    color: KkfcColors.neutralBorder,
                                     width: 1.0,
                                   ),
                                 ),
@@ -388,7 +525,7 @@ class _ItemCustomizationDialogState
                                     fontFamily: KkfcFonts.text,
                                     fontSize: 11.0,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF5A687A),
+                                    color: KkfcColors.neutralSolid,
                                   ),
                                 ),
                               ),
@@ -439,7 +576,7 @@ class _ItemCustomizationDialogState
                                 fontFamily: KkfcFonts.ibmPlexSans,
                                 fontSize: 15.0,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF19293E),
+                                color: KkfcColors.ink,
                               ),
                             ),
                             CustomizationQuantityStepper(
@@ -462,7 +599,7 @@ class _ItemCustomizationDialogState
                                 fontFamily: KkfcFonts.ibmPlexSans,
                                 fontSize: 14.0,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF19293E),
+                                color: KkfcColors.ink,
                               ),
                             ),
                             Text(
@@ -470,7 +607,7 @@ class _ItemCustomizationDialogState
                               style: TextStyle(
                                 fontFamily: KkfcFonts.text,
                                 fontSize: 13.0,
-                                color: Color(0xFF6B7787),
+                                color: KkfcColors.ink3,
                               ),
                             ),
                           ],
@@ -484,17 +621,17 @@ class _ItemCustomizationDialogState
                           style: const TextStyle(
                             fontFamily: KkfcFonts.text,
                             fontSize: 14.0,
-                            color: Color(0xFF19293E),
+                            color: KkfcColors.ink,
                           ),
                           decoration: InputDecoration(
                             hintText: 'For example: no onions',
                             hintStyle: const TextStyle(
                               fontFamily: KkfcFonts.text,
                               fontSize: 14.0,
-                              color: Color(0xFF8C97A5),
+                              color: KkfcColors.borderStrong,
                             ),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: KkfcColors.surface,
                             isDense: true,
                             counterText: '',
                             contentPadding: const EdgeInsets.symmetric(
@@ -504,21 +641,21 @@ class _ItemCustomizationDialogState
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0),
                               borderSide: const BorderSide(
-                                color: Color(0xFF76849A),
+                                color: KkfcColors.borderStrong,
                                 width: 1.0,
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0),
                               borderSide: const BorderSide(
-                                color: Color(0xFF76849A),
+                                color: KkfcColors.borderStrong,
                                 width: 1.0,
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0),
                               borderSide: const BorderSide(
-                                color: Color(0xFF19293E),
+                                color: KkfcColors.ink,
                                 width: 1.5,
                               ),
                             ),
@@ -530,7 +667,7 @@ class _ItemCustomizationDialogState
                           style: TextStyle(
                             fontFamily: KkfcFonts.text,
                             fontSize: 12.0,
-                            color: Color(0xFF6B7787),
+                            color: KkfcColors.ink3,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -540,11 +677,11 @@ class _ItemCustomizationDialogState
                 ),
               ),
 
-              const Divider(height: 1, thickness: 1, color: Color(0xFFEDE8DF)),
+              const Divider(height: 1, thickness: 1, color: KkfcColors.divider),
 
               // Footer: Action Button
               Container(
-                color: Colors.white,
+                color: KkfcColors.surface,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 child: SafeArea(
                   top: false,
@@ -552,7 +689,7 @@ class _ItemCustomizationDialogState
                     height: 52,
                     width: double.infinity,
                     child: Material(
-                      color: const Color(0xFFA8562A), // Burnished Copper
+                      color: KkfcColors.action, // Burnished Copper
                       borderRadius: BorderRadius.circular(10.0),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10.0),
@@ -568,7 +705,7 @@ class _ItemCustomizationDialogState
                                   fontFamily: KkfcFonts.ibmPlexSans,
                                   fontSize: 16.0,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  color: KkfcColors.surface,
                                 ),
                               ),
                               AnimatedSwitcher(
@@ -587,7 +724,7 @@ class _ItemCustomizationDialogState
                                     fontFamily: KkfcFonts.ibmPlexSans,
                                     fontSize: 16.0,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                                    color: KkfcColors.surface,
                                     fontFeatures: [
                                       FontFeature.tabularFigures(),
                                     ],
@@ -606,6 +743,54 @@ class _ItemCustomizationDialogState
           ),
         ),
       ),
+    ),
+  ),
+),
+),
+),
+
+            // The small circle token that emerges from center and flies over to the cart
+            if (_circlePop.value > 0.001 && _circleFade.value > 0.001)
+              Center(
+                child: IgnorePointer(
+                  child: Transform.translate(
+                    offset: Offset(currentDx, currentDy),
+                    child: Transform.rotate(
+                      angle: rotation,
+                      child: Transform.scale(
+                        scale: _circlePop.value * _circleScale.value,
+                        child: Opacity(
+                          opacity: _circleFade.value.clamp(0.0, 1.0),
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: KkfcColors.action, // Burnished copper
+                              boxShadow: [
+                                BoxShadow(
+                                  color: KkfcColors.ink.withValues(alpha: 0.25),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                                BoxShadow(
+                                  color:
+                                      KkfcColors.action.withValues(alpha: 0.40),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -635,12 +820,10 @@ class _RadioOptionTile extends StatelessWidget {
           height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFE7ECF4) : Colors.white,
+            color: isSelected ? KkfcColors.selectedTint : KkfcColors.surface,
             borderRadius: BorderRadius.circular(8.0),
             border: Border.all(
-              color: isSelected
-                  ? const Color(0xFF19293E)
-                  : const Color(0xFF76849A),
+              color: isSelected ? KkfcColors.ink : KkfcColors.borderStrong,
               width: isSelected ? 1.5 : 1.0,
             ),
           ),
@@ -654,11 +837,11 @@ class _RadioOptionTile extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF19293E)
-                        : const Color(0xFF76849A),
+                        ? KkfcColors.ink
+                        : KkfcColors.borderStrong,
                     width: isSelected ? 2.0 : 1.5,
                   ),
-                  color: Colors.white,
+                  color: KkfcColors.surface,
                 ),
                 child: isSelected
                     ? Center(
@@ -667,7 +850,7 @@ class _RadioOptionTile extends StatelessWidget {
                           height: 10,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Color(0xFF19293E),
+                            color: KkfcColors.ink,
                           ),
                         ),
                       )
@@ -681,7 +864,7 @@ class _RadioOptionTile extends StatelessWidget {
                     fontFamily: KkfcFonts.text,
                     fontSize: 14.5,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF19293E),
+                    color: KkfcColors.ink,
                   ),
                 ),
               ),
@@ -692,7 +875,7 @@ class _RadioOptionTile extends StatelessWidget {
                     fontFamily: KkfcFonts.mono,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF3C4858),
+                    color: KkfcColors.ink2,
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
@@ -729,12 +912,10 @@ class _CheckboxOptionTile extends StatelessWidget {
           height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: isChecked ? const Color(0xFFE7ECF4) : Colors.white,
+            color: isChecked ? KkfcColors.selectedTint : KkfcColors.surface,
             borderRadius: BorderRadius.circular(8.0),
             border: Border.all(
-              color: isChecked
-                  ? const Color(0xFF19293E)
-                  : const Color(0xFF76849A),
+              color: isChecked ? KkfcColors.ink : KkfcColors.borderStrong,
               width: isChecked ? 1.5 : 1.0,
             ),
           ),
@@ -747,15 +928,15 @@ class _CheckboxOptionTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4.0),
                   border: Border.all(
                     color: isChecked
-                        ? const Color(0xFF19293E)
-                        : const Color(0xFF76849A),
+                        ? KkfcColors.ink
+                        : KkfcColors.borderStrong,
                     width: isChecked ? 2.0 : 1.5,
                   ),
-                  color: isChecked ? const Color(0xFF19293E) : Colors.white,
+                  color: isChecked ? KkfcColors.ink : KkfcColors.surface,
                 ),
                 child: isChecked
                     ? const Center(
-                        child: Icon(Icons.check, size: 14, color: Colors.white),
+                        child: Icon(Icons.check, size: 14, color: KkfcColors.surface),
                       )
                     : null,
               ),
@@ -767,7 +948,7 @@ class _CheckboxOptionTile extends StatelessWidget {
                     fontFamily: KkfcFonts.text,
                     fontSize: 14.5,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF19293E),
+                    color: KkfcColors.ink,
                   ),
                 ),
               ),
@@ -778,7 +959,7 @@ class _CheckboxOptionTile extends StatelessWidget {
                     fontFamily: KkfcFonts.mono,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF3C4858),
+                    color: KkfcColors.ink2,
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
