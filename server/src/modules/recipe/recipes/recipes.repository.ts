@@ -123,10 +123,12 @@ export class RecipesRepository {
   async update(
     recipeId: string,
     dto: UpdateRecipeDTO,
+    includeFormulationNotes = false,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
     return tx.recipe.update({
       where: { recipe_id: recipeId, is_active: true },
+      omit: { formulation_notes: !includeFormulationNotes },
       data: {
         code: dto.code,
         name: dto.name,
