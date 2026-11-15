@@ -156,7 +156,7 @@ export async function seedDatabase(prisma: Prisma.TransactionClient) {
       formulation_notes: recipe.formulation_notes,
     };
     const saved = await prisma.recipe.upsert({
-      where: { code_version: { code: recipe.code, version: recipe.version } },
+      where: { code: recipe.code },
       update: {},
       create: { ...data, is_active: recipe.is_active },
     });

@@ -179,8 +179,7 @@ async function check() {
             (brand) => brand.brand_id === args.create.brand_id,
           ),
         );
-        const { code, version } = args.where.code_version!;
-        return upsert(recipes, `${code}:${version}`, args, 'recipe_id');
+        return upsert(recipes, args.where.code!, args, 'recipe_id');
       },
     },
     unit: {
@@ -338,7 +337,7 @@ async function check() {
     ),
   );
 
-  const firstRecipe = recipes.get('RCP-AI-PAA-INASAL:1');
+  const firstRecipe = recipes.get('RCP-AI-PAA-INASAL');
   firstRecipe.is_active = false;
   firstRecipe.formulation_notes = 'Existing formulation notes';
   const firstRecipeId = firstRecipe.recipe_id;
@@ -400,7 +399,7 @@ async function check() {
   users.delete('test_ai_kitchen');
   const missingPinUserId = users.get('test_owner').user_id;
   pinCredentials.delete(missingPinUserId);
-  recipes.delete('RCP-AI-PAA-INASAL:1');
+  recipes.delete('RCP-AI-PAA-INASAL');
   // Mirror the onDelete: Cascade on recipe ingredients and steps.
   for (const rows of [recipeIngredients, recipeSteps]) {
     for (const [key, row] of rows) {
@@ -427,7 +426,7 @@ async function check() {
   );
   assert.equal(users.get('test_ai_kitchen').brand_id, undefined);
   assert.equal(recipes.size, 16);
-  assert(recipes.has('RCP-AI-PAA-INASAL:1'));
+  assert(recipes.has('RCP-AI-PAA-INASAL'));
   assert.equal(units.size, 7);
   assert.equal(units.get('tbsp').to_base, 14.787);
   assert.equal(recipeIngredients.size, 60);

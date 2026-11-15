@@ -354,12 +354,8 @@ model MenuItemModifier {
 model Recipe {
   recipe_id           String   @id @default(uuid()) @db.Uuid
   brand_id            String   @db.Uuid
-  code                String   @db.VarChar(64)
+  code                String   @unique @db.VarChar(64)
   name                String   @db.VarChar(150)
-  // serving_description String?  @db.VarChar(255)
-  /// Restricted field; exclude from unauthorized API responses
-  // instructions        String?  @db.VarChar(10000)
-  // notes               String?  @db.VarChar(2000)
   version             Int      @default(1)
   is_active           Boolean  @default(true)
   created_at          DateTime @default(now()) @db.Timestamp(6)
@@ -371,7 +367,6 @@ model Recipe {
   order_items_applied_recipe OrderItem[] @relation("OrderItemAppliedRecipe")
   ingredients                RecipeIngredient[]  @relation("RecipeIngredientRecipe")
   steps                      RecipeStep[] @relation("RecipeStepRecipe")
-  @@unique([code, version])
   @@index([brand_id, is_active])
   
   @@map("recipes")
