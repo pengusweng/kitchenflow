@@ -106,9 +106,9 @@ enum MaterialCategories {
 }
 
 enum UnitDimension {
-  mass
-  volume
-  count
+  MASS
+  VOLUME
+  COUNT
 
   @@map("unit_dimension")
 }

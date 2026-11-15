@@ -65,7 +65,10 @@ async function check() {
   const brands = new Map();
   const users = new Map();
   const pinCredentials = new Map();
+  const units = new Map();
   const recipes = new Map();
+  const recipeIngredients = new Map();
+  const recipeSteps = new Map();
   const menuItems = new Map();
   const menuItemChannels = new Map();
   const modifiers = new Map();
@@ -180,6 +183,53 @@ async function check() {
         return upsert(recipes, `${code}:${version}`, args, 'recipe_id');
       },
     },
+    unit: {
+      upsert: async (args: Prisma.UnitUpsertArgs) => {
+        assert(Number(args.create.to_base) > 0);
+        return upsert(units, args.where.code!, args, 'code');
+      },
+    },
+    recipeIngredient: {
+      count: async (args: Prisma.RecipeIngredientCountArgs) =>
+        [...recipeIngredients.values()].filter(
+          (row) => row.recipe_id === args.where!.recipe_id,
+        ).length,
+      createMany: async (args: Prisma.RecipeIngredientCreateManyArgs) => {
+        const rows = [args.data].flat();
+        assert(rows.length > 0, 'Every seed recipe needs ingredients');
+        for (const row of rows) {
+          assert(
+            [...recipes.values()].some((r) => r.recipe_id === row.recipe_id),
+          );
+          assert(units.has(row.unit_code), `Unknown unit ${row.unit_code}`);
+          assert(Number(row.quantity) > 0);
+          const id = randomUUID();
+          recipeIngredients.set(id, { recipe_ingredient_id: id, ...row });
+        }
+        return { count: rows.length };
+      },
+    },
+    recipeStep: {
+      count: async (args: Prisma.RecipeStepCountArgs) =>
+        [...recipeSteps.values()].filter(
+          (row) => row.recipe_id === args.where!.recipe_id,
+        ).length,
+      createMany: async (args: Prisma.RecipeStepCreateManyArgs) => {
+        const rows = [args.data].flat();
+        assert(rows.length > 0, 'Every seed recipe needs steps');
+        rows.forEach((row, index) => {
+          assert(
+            [...recipes.values()].some((r) => r.recipe_id === row.recipe_id),
+          );
+          assert.equal(row.step_no, index + 1);
+          assert(row.instruction.length > 0);
+          const key = `${row.recipe_id}:${row.step_no}`;
+          assert(!recipeSteps.has(key), `Duplicate step ${key}`);
+          recipeSteps.set(key, row);
+        });
+        return { count: rows.length };
+      },
+    },
   } as unknown as Prisma.TransactionClient;
 
   await seedDatabase(database);
@@ -208,7 +258,22 @@ async function check() {
     assert.equal(saved.brand_code, undefined);
     assert.equal(saved.brand_id, undefined);
   }
+  assert.equal(units.size, 7);
   assert.equal(recipes.size, 16);
+  assert.equal(recipeIngredients.size, 60);
+  assert.equal(recipeSteps.size, 34);
+  for (const recipe of recipes.values()) {
+    assert(
+      [...recipeIngredients.values()].some(
+        (row) => row.recipe_id === recipe.recipe_id,
+      ),
+    );
+    assert(
+      [...recipeSteps.values()].some(
+        (row) => row.recipe_id === recipe.recipe_id,
+      ),
+    );
+  }
   assert.equal(menuItems.size, 25);
   assert([...menuItems.values()].every((row) => row.is_available === true));
   assert.equal(menuItemChannels.size, 50);
@@ -275,7 +340,19 @@ async function check() {
 
   const firstRecipe = recipes.get('RCP-AI-PAA-INASAL:1');
   firstRecipe.is_active = false;
-  firstRecipe.instructions = 'Existing recipe instructions';
+  firstRecipe.formulation_notes = 'Existing formulation notes';
+  const firstRecipeId = firstRecipe.recipe_id;
+  // Simulate an edit that removed all but one ingredient and step.
+  const firstRecipeIngredients = [...recipeIngredients.entries()].filter(
+    ([, row]) => row.recipe_id === firstRecipeId,
+  );
+  firstRecipeIngredients[0][1].quantity = 999;
+  firstRecipeIngredients
+    .slice(1)
+    .forEach(([key]) => recipeIngredients.delete(key));
+  recipeSteps.delete(`${firstRecipeId}:2`);
+  recipeSteps.get(`${firstRecipeId}:1`).instruction = 'Existing step';
+  units.get('tbsp').to_base = 14.787;
   brands.get('GC').name = 'Existing brand';
   const staff = users.get('test_inventory');
   staff.password_hash = await argon2.hash('ChangedPassword123!');
@@ -298,7 +375,10 @@ async function check() {
     brands,
     users,
     pinCredentials,
+    units,
     recipes,
+    recipeIngredients,
+    recipeSteps,
     menuItems,
     menuItemChannels,
     modifiers,
@@ -321,6 +401,13 @@ async function check() {
   const missingPinUserId = users.get('test_owner').user_id;
   pinCredentials.delete(missingPinUserId);
   recipes.delete('RCP-AI-PAA-INASAL:1');
+  // Mirror the onDelete: Cascade on recipe ingredients and steps.
+  for (const rows of [recipeIngredients, recipeSteps]) {
+    for (const [key, row] of rows) {
+      if (row.recipe_id === firstRecipeId) rows.delete(key);
+    }
+  }
+  units.delete('pc');
   const firstAssignmentKey = menuItemModifiers.keys().next().value!;
   menuItemModifiers.delete(firstAssignmentKey);
   await seedDatabase(database);
@@ -341,6 +428,10 @@ async function check() {
   assert.equal(users.get('test_ai_kitchen').brand_id, undefined);
   assert.equal(recipes.size, 16);
   assert(recipes.has('RCP-AI-PAA-INASAL:1'));
+  assert.equal(units.size, 7);
+  assert.equal(units.get('tbsp').to_base, 14.787);
+  assert.equal(recipeIngredients.size, 60);
+  assert.equal(recipeSteps.size, 34);
   assert.equal(menuItemModifiers.size, 34);
   assert(menuItemModifiers.has(firstAssignmentKey));
   assert.equal(modifiers.get('MOD-EXTRA-RICE').is_active, false);

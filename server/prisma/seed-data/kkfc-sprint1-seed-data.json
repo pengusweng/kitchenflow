@@ -18,150 +18,591 @@
       "logo_url": null
     }
   ],
+  "units": [
+    {
+      "code": "g",
+      "name": "Gram",
+      "dimension": "MASS",
+      "to_base": 1
+    },
+    {
+      "code": "kg",
+      "name": "Kilogram",
+      "dimension": "MASS",
+      "to_base": 1000
+    },
+    {
+      "code": "ml",
+      "name": "Milliliter",
+      "dimension": "VOLUME",
+      "to_base": 1
+    },
+    {
+      "code": "l",
+      "name": "Liter",
+      "dimension": "VOLUME",
+      "to_base": 1000
+    },
+    {
+      "code": "tsp",
+      "name": "Teaspoon",
+      "dimension": "VOLUME",
+      "to_base": 5
+    },
+    {
+      "code": "tbsp",
+      "name": "Tablespoon",
+      "dimension": "VOLUME",
+      "to_base": 15
+    },
+    {
+      "code": "pc",
+      "name": "Piece",
+      "dimension": "COUNT",
+      "to_base": 1
+    }
+  ],
   "recipes": [
     {
       "code": "RCP-GC-KIMCHI-FRIED-RICE",
       "brand_code": "GC",
       "name": "Kimchi Fried Rice",
       "version": 1,
-      "serving_description": "1 bowl",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Stir-fry kimchi and vegetables.\n2. Add rice and gochujang; fry 3 minutes.\n3. Finish with sesame oil.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 bowl.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Cooked rice",
+          "quantity": 250,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Kimchi",
+          "quantity": 80,
+          "unit": "g",
+          "note": "Chopped"
+        },
+        {
+          "ingredient_name": "Gochujang",
+          "quantity": 1,
+          "unit": "tbsp"
+        },
+        {
+          "ingredient_name": "Mixed vegetables",
+          "quantity": 40,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Sesame oil",
+          "quantity": 1,
+          "unit": "tsp"
+        }
+      ],
+      "steps": [
+        "Stir-fry kimchi and vegetables.",
+        "Add rice and gochujang; fry 3 minutes.",
+        "Finish with sesame oil."
+      ]
     },
     {
       "code": "RCP-GC-BIBIMBAP",
       "brand_code": "GC",
       "name": "Bibimbap",
       "version": 1,
-      "serving_description": "1 bowl",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Arrange vegetables on rice.\n2. Top with a fried egg and gochujang.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 bowl.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Cooked rice",
+          "quantity": 250,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Mixed vegetables",
+          "quantity": 120,
+          "unit": "g",
+          "note": "Julienned"
+        },
+        {
+          "ingredient_name": "Egg",
+          "quantity": 1,
+          "unit": "pc",
+          "note": "Fried sunny side up"
+        },
+        {
+          "ingredient_name": "Gochujang",
+          "quantity": 1,
+          "unit": "tbsp"
+        }
+      ],
+      "steps": [
+        "Arrange vegetables on rice.",
+        "Top with a fried egg and gochujang."
+      ]
     },
     {
       "code": "RCP-GC-TTEOKBOKKI",
       "brand_code": "GC",
       "name": "Tteokbokki",
       "version": 1,
-      "serving_description": "1 plate",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Simmer rice cakes in gochujang sauce until soft.\n2. Add onion and cook 2 minutes.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 plate.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Rice cakes",
+          "quantity": 200,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Gochujang sauce",
+          "quantity": 120,
+          "unit": "ml"
+        },
+        {
+          "ingredient_name": "Onion",
+          "quantity": 30,
+          "unit": "g",
+          "note": "Sliced"
+        }
+      ],
+      "steps": [
+        "Simmer rice cakes in gochujang sauce until soft.",
+        "Add onion and cook 2 minutes."
+      ]
     },
     {
       "code": "RCP-GC-KOREAN-FRIED-CHICKEN-6-PC",
       "brand_code": "GC",
       "name": "Korean Fried Chicken (6 pc)",
       "version": 1,
-      "serving_description": "6 pieces with side sauce",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Fry the wings, rest, then fry again until crisp.\n2. Serve with yangnyeom sauce on the side.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 6 pieces with side sauce.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Chicken wings",
+          "quantity": 6,
+          "unit": "pc"
+        },
+        {
+          "ingredient_name": "Frying batter",
+          "quantity": 80,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Yangnyeom sauce",
+          "quantity": 60,
+          "unit": "ml",
+          "note": "Served on the side"
+        }
+      ],
+      "steps": [
+        "Fry the wings, rest, then fry again until crisp.",
+        "Serve with yangnyeom sauce on the side."
+      ]
     },
     {
       "code": "RCP-GC-JAPCHAE",
       "brand_code": "GC",
       "name": "Japchae",
       "version": 1,
-      "serving_description": "1 plate",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Boil noodles and drain.\n2. Stir-fry with vegetables and soy sauce.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 plate.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Glass noodles",
+          "quantity": 100,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Mixed vegetables",
+          "quantity": 80,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Soy sauce",
+          "quantity": 2,
+          "unit": "tbsp"
+        }
+      ],
+      "steps": [
+        "Boil noodles and drain.",
+        "Stir-fry with vegetables and soy sauce."
+      ]
     },
     {
       "code": "RCP-GC-MANGO-BINGSU",
       "brand_code": "GC",
       "name": "Mango Bingsu",
       "version": 1,
-      "serving_description": "1 bowl",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Shave the ice into a chilled bowl.\n2. Top with mango and condensed milk.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 bowl.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Shaved ice",
+          "quantity": 250,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Mango",
+          "quantity": 120,
+          "unit": "g",
+          "note": "Cubed"
+        },
+        {
+          "ingredient_name": "Condensed milk",
+          "quantity": 45,
+          "unit": "ml"
+        }
+      ],
+      "steps": [
+        "Shave the ice into a chilled bowl.",
+        "Top with mango and condensed milk."
+      ]
     },
     {
       "code": "RCP-AI-PAA-INASAL",
       "brand_code": "AI",
       "name": "Paa Inasal",
       "version": 1,
-      "serving_description": "1 leg quarter with rice",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Grill the marinated leg, basting with chicken oil.\n2. Serve with rice, calamansi and soy sauce.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 leg quarter with rice.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Marinated chicken leg quarter",
+          "quantity": 1,
+          "unit": "pc"
+        },
+        {
+          "ingredient_name": "Chicken oil",
+          "quantity": 15,
+          "unit": "ml",
+          "note": "For basting"
+        },
+        {
+          "ingredient_name": "Cooked rice",
+          "quantity": 200,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Calamansi",
+          "quantity": 2,
+          "unit": "pc"
+        },
+        {
+          "ingredient_name": "Soy sauce",
+          "quantity": 1,
+          "unit": "tbsp"
+        }
+      ],
+      "steps": [
+        "Grill the marinated leg, basting with chicken oil.",
+        "Serve with rice, calamansi and soy sauce."
+      ]
     },
     {
       "code": "RCP-AI-PECHO-INASAL",
       "brand_code": "AI",
       "name": "Pecho Inasal",
       "version": 1,
-      "serving_description": "1 breast with rice",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Grill the marinated breast, basting with chicken oil.\n2. Serve with rice, calamansi and soy sauce.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 breast with rice.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Marinated chicken breast",
+          "quantity": 1,
+          "unit": "pc"
+        },
+        {
+          "ingredient_name": "Chicken oil",
+          "quantity": 15,
+          "unit": "ml",
+          "note": "For basting"
+        },
+        {
+          "ingredient_name": "Cooked rice",
+          "quantity": 200,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Calamansi",
+          "quantity": 2,
+          "unit": "pc"
+        },
+        {
+          "ingredient_name": "Soy sauce",
+          "quantity": 1,
+          "unit": "tbsp"
+        }
+      ],
+      "steps": [
+        "Grill the marinated breast, basting with chicken oil.",
+        "Serve with rice, calamansi and soy sauce."
+      ]
     },
     {
       "code": "RCP-AI-PORK-INASAL",
       "brand_code": "AI",
       "name": "Pork Inasal",
       "version": 1,
-      "serving_description": "1 serving with rice",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Grill the pork belly, basting with chicken oil.\n2. Slice and serve with rice.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 serving with rice.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Marinated pork belly",
+          "quantity": 180,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Chicken oil",
+          "quantity": 15,
+          "unit": "ml",
+          "note": "For basting"
+        },
+        {
+          "ingredient_name": "Cooked rice",
+          "quantity": 200,
+          "unit": "g"
+        }
+      ],
+      "steps": [
+        "Grill the pork belly, basting with chicken oil.",
+        "Slice and serve with rice."
+      ]
     },
     {
       "code": "RCP-AI-BATCHOY-SPECIAL",
       "brand_code": "AI",
       "name": "Batchoy Special",
       "version": 1,
-      "serving_description": "1 bowl",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Blanch the noodles into a bowl.\n2. Add sliced pork and hot broth.\n3. Top with chicharon, onion and garlic.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 bowl.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Egg noodles",
+          "quantity": 120,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Pork broth",
+          "quantity": 350,
+          "unit": "ml"
+        },
+        {
+          "ingredient_name": "Pork",
+          "quantity": 60,
+          "unit": "g",
+          "note": "Sliced"
+        },
+        {
+          "ingredient_name": "Chicharon",
+          "quantity": 15,
+          "unit": "g",
+          "note": "Crushed"
+        },
+        {
+          "ingredient_name": "Spring onion",
+          "quantity": 5,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Fried garlic",
+          "quantity": 5,
+          "unit": "g"
+        }
+      ],
+      "steps": [
+        "Blanch the noodles into a bowl.",
+        "Add sliced pork and hot broth.",
+        "Top with chicharon, onion and garlic."
+      ]
     },
     {
       "code": "RCP-AI-HALO-HALO",
       "brand_code": "AI",
       "name": "Halo-halo",
       "version": 1,
-      "serving_description": "1 glass",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Layer the mix in a glass.\n2. Add shaved ice and pour milk on top.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 glass.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Halo-halo mix",
+          "quantity": 120,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Shaved ice",
+          "quantity": 200,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Evaporated milk",
+          "quantity": 60,
+          "unit": "ml"
+        }
+      ],
+      "steps": [
+        "Layer the mix in a glass.",
+        "Add shaved ice and pour milk on top."
+      ]
     },
     {
       "code": "RCP-KK-AMERICANO",
       "brand_code": "KK",
       "name": "Americano",
       "version": 1,
-      "serving_description": "12 oz",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Pull a double shot.\n2. Top with hot water.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 12 oz.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Espresso",
+          "quantity": 60,
+          "unit": "ml",
+          "note": "Double shot"
+        },
+        {
+          "ingredient_name": "Hot water",
+          "quantity": 240,
+          "unit": "ml"
+        }
+      ],
+      "steps": [
+        "Pull a double shot.",
+        "Top with hot water."
+      ]
     },
     {
       "code": "RCP-KK-ICED-SPANISH-LATTE",
       "brand_code": "KK",
       "name": "Iced Spanish Latte",
       "version": 1,
-      "serving_description": "16 oz",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Mix condensed milk and milk over ice.\n2. Pour a double shot on top.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 16 oz.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Espresso",
+          "quantity": 60,
+          "unit": "ml",
+          "note": "Double shot"
+        },
+        {
+          "ingredient_name": "Fresh milk",
+          "quantity": 180,
+          "unit": "ml"
+        },
+        {
+          "ingredient_name": "Condensed milk",
+          "quantity": 30,
+          "unit": "ml"
+        },
+        {
+          "ingredient_name": "Ice",
+          "quantity": 150,
+          "unit": "g"
+        }
+      ],
+      "steps": [
+        "Mix condensed milk and milk over ice.",
+        "Pour a double shot on top."
+      ]
     },
     {
       "code": "RCP-KK-MATCHA-LATTE",
       "brand_code": "KK",
       "name": "Matcha Latte",
       "version": 1,
-      "serving_description": "16 oz",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Whisk matcha with a little hot water.\n2. Pour over milk and ice.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 16 oz.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Matcha powder",
+          "quantity": 4,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Hot water",
+          "quantity": 30,
+          "unit": "ml"
+        },
+        {
+          "ingredient_name": "Fresh milk",
+          "quantity": 200,
+          "unit": "ml"
+        },
+        {
+          "ingredient_name": "Ice",
+          "quantity": 150,
+          "unit": "g"
+        }
+      ],
+      "steps": [
+        "Whisk matcha with a little hot water.",
+        "Pour over milk and ice."
+      ]
     },
     {
       "code": "RCP-KK-CLUBHOUSE-SANDWICH",
       "brand_code": "KK",
       "name": "Clubhouse Sandwich",
       "version": 1,
-      "serving_description": "1 sandwich",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Toast the bread.\n2. Layer ham, egg, lettuce, tomato and mayonnaise.\n3. Cut into four.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 1 sandwich.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Sandwich bread",
+          "quantity": 3,
+          "unit": "pc"
+        },
+        {
+          "ingredient_name": "Ham",
+          "quantity": 2,
+          "unit": "pc"
+        },
+        {
+          "ingredient_name": "Egg",
+          "quantity": 1,
+          "unit": "pc",
+          "note": "Fried"
+        },
+        {
+          "ingredient_name": "Lettuce",
+          "quantity": 15,
+          "unit": "g"
+        },
+        {
+          "ingredient_name": "Tomato",
+          "quantity": 30,
+          "unit": "g",
+          "note": "Sliced"
+        },
+        {
+          "ingredient_name": "Mayonnaise",
+          "quantity": 1,
+          "unit": "tbsp"
+        }
+      ],
+      "steps": [
+        "Toast the bread.",
+        "Layer ham, egg, lettuce, tomato and mayonnaise.",
+        "Cut into four."
+      ]
     },
     {
       "code": "RCP-KK-UBE-CHEESE-PANDESAL-3-PC",
       "brand_code": "KK",
       "name": "Ube Cheese Pandesal (3 pc)",
       "version": 1,
-      "serving_description": "3 pieces",
-      "instructions": "SYNTHETIC test recipe, not a client recipe.\n1. Warm in the oven for 2 minutes.",
-      "is_active": true
+      "formulation_notes": "SYNTHETIC test recipe, not a client recipe. Yields 3 pieces.",
+      "is_active": true,
+      "ingredients": [
+        {
+          "ingredient_name": "Ube cheese pandesal",
+          "quantity": 3,
+          "unit": "pc"
+        }
+      ],
+      "steps": [
+        "Warm in the oven for 2 minutes."
+      ]
     }
   ],
   "menu_items": [

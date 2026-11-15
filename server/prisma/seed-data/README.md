@@ -75,13 +75,14 @@ Price rule: Takeaway = Dine-in; GrabFood = foodpanda, a little higher than dine-
 - Menu item `img_url` uses `images.example.invalid` on purpose: it never loads, so the app shows its missing-photo fallback.
 - `quantity_on_hand` stays 0 (no stock movements in Sprint 1).
 - Packaging items are listed for Sprint 2 receiving; recipes don't consume them yet.
+- Recipe ingredients and steps are seeded only when a recipe has none, so reruns never re-add rows that were deliberately edited or removed. Ingredient `unit` values refer to `units.code`.
 - Test users are maintained in `prisma/seed-test.ts`.
 
 ## Running the seeds
 
 Apply the pending migrations to the intended database, then run `npm run prisma:generate`. The role migration preserves users by mapping OWNER to SUPERADMIN, KITCHEN_PREPARER to KITCHEN_STAFF and ORDER_STAFF to CASHIER_STAFF. The manager-role migration maps MANAGER to SUPERVISOR. The recipe migration backfills brands from menu items only when ownership is unambiguous; existing recipes without an unambiguous menu brand need explicit backfill mappings in that migration before it can succeed.
 
-- `npm run db:seed` inserts missing fixtures for 3 brands, 17 users covering all 7 roles, 51 inventory items, 22 recipes and 83 recipe components, 25 menu items, 50 delivery channel overrides, 14 modifiers, and 34 menu item modifier assignments in one transaction. Existing rows are never overwritten, including passwords, stock balances, recipe instructions and component quantities, prices, and inactive records. Codes (and recipe versions) keep IDs stable; modifier assignments have their own UUID and remain unique by menu item and modifier. New seed users use `Password123!`. Use this seed only in development or test databases.
+- `npm run db:seed` inserts missing fixtures for 3 brands, 17 users covering all 7 roles, 7 units, 16 recipes with 60 ingredients and 34 steps, 25 menu items, 50 delivery channel overrides, 14 modifiers, and 34 menu item modifier assignments in one transaction. Existing rows are never overwritten, including passwords, stock balances, recipe formulation notes, ingredients and steps, prices, and inactive records. Codes (and recipe versions) keep IDs stable; modifier assignments have their own UUID and remain unique by menu item and modifier. New seed users use `Password123!`. Use this seed only in development or test databases.
 - `npm run db:seed:test` inserts missing brands and users for all 7 roles, including a supervisor, inventory staff, kitchen staff, and cashier staff for each brand, plus an unassigned supervisor. Existing users are preserved. New test users use `Password123!`. Use it only in a development or test database.
 
 Both seed commands create missing PIN credentials for seeded users whose stored
