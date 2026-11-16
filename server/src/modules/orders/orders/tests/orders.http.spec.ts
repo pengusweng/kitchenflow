@@ -796,7 +796,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     const response = await json(confirmed);
     expect(response.order_code).toBe(before.order_code);
     expect(JSON.stringify(response)).not.toContain(
-      'Restricted fixture instructions',
+      'Restricted fixture notes',
     );
     expect(JSON.stringify(response)).not.toContain('recipe_snapshot');
     const saved = await savedOrder(order.order_id);
@@ -808,7 +808,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     });
     expect(saved.kitchen_tickets_order?.ticket_number).toMatch(/^T-\d{3,}$/);
     expect(saved.order_items_order[0].recipe_snapshot).toMatchObject({
-      instructions: 'Restricted fixture instructions',
+      formulation_notes: 'Restricted fixture notes',
     });
     expect(
       saved.order_items_order[0].order_item_modifiers_order_item[0],
@@ -971,7 +971,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
         existing_order: success,
       });
       expect(JSON.stringify(conflict)).not.toMatch(
-        /create_request_hash|recipe_snapshot|Restricted fixture instructions/,
+        /create_request_hash|recipe_snapshot|Restricted fixture notes/,
       );
       expect(
         await prisma.order.count({

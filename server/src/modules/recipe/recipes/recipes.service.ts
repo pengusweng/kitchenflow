@@ -23,7 +23,6 @@ export class RecipesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly recipesRepository: RecipesRepository,
-    // private readonly access: RecipeAccessService,
     private readonly brandsRepository: BrandsRepository,
     private readonly usersRepository: UsersRepository,
   ) {}
@@ -55,12 +54,7 @@ export class RecipesService {
       `Listing recipes: user=${callerId}, page=${page}, limit=${limit}, status=${status}, brand=${brand_id ?? 'any'}, search=${search ? 'yes' : 'no'}, sort=${sortBy ? `${sortBy} ${sortOrder ?? 'asc'}` : 'default'}`,
     );
 
-    const user = await this.usersRepository.findOne(callerId, true, tx);
-    assertExists(user, 'User', callerId);
-
-    const hasConfidentialAccess =
-      user.role === UserRole.RECIPE_MANAGER ||
-      user.role === UserRole.SUPERADMIN;
+    const hasConfidentialAccess = await this.hasConfidentialAccess(callerId);
 
     const skip = (page - 1) * limit;
     assertValidPagination(skip, this.logger);
