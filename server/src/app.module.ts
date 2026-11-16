@@ -20,6 +20,7 @@ import { MenuChannelsModule } from './modules/menu/menu-channels/menu-channels.m
 import { ModifiersModule } from './modules/menu/modifiers/modifiers.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { RecipesModule } from './modules/recipe/recipes/recipes.module';
+import { UnitsModule } from './modules/units/units.module';
 import { MenuItemModifiersModule } from './modules/menu/menu-item-modifiers/menu-item-modifiers.module';
 import { MenuCatalogModule } from './modules/menu/menu-catalog/menu-catalog.module';
 import { KitchenTicketModule } from './modules/kitchen/kitchen-ticket/kitchen-ticket.module';
@@ -51,6 +52,7 @@ import { KitchenFulfillmentModule } from './modules/kitchen/kitchen-fulfillment/
     ModifiersModule,
     AssetsModule,
     RecipesModule,
+    UnitsModule,
     MenuItemModifiersModule,
     MenuCatalogModule,
     KitchenTicketModule,
