@@ -17,6 +17,22 @@ export class RecipeIngredientsRepository {
     });
   }
 
+  async createMany(
+    recipeId: string,
+    ingredients: CreateRecipeIngredientDTO[],
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    return tx.recipeIngredient.createManyAndReturn({
+      data: ingredients.map((ingredient) => ({
+        recipe_id: recipeId,
+        ingredient_name: ingredient.ingredient_name,
+        quantity: ingredient.quantity,
+        unit_code: ingredient.unit_code,
+        note: ingredient.note,
+      })),
+    });
+  }
+
   async findOne(
     recipeIngredientId: string,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
