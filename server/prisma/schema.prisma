@@ -367,6 +367,7 @@ model Recipe {
   order_items_applied_recipe OrderItem[] @relation("OrderItemAppliedRecipe")
   ingredients                RecipeIngredient[]  @relation("RecipeIngredientRecipe")
   steps                      RecipeStep[] @relation("RecipeStepRecipe")
+  histories                  RecipeHistory[] @relation("RecipeHistoryRecipe")
   @@index([brand_id, is_active])
   
   @@map("recipes")
@@ -400,6 +401,22 @@ model RecipeStep {
 
   @@unique([recipe_id, step_no])
   @@map("recipe_steps")
+}
+
+/// Immutable snapshot of a recipe version with its ingredients and steps. Contains restricted formulation notes and instructions.
+model RecipeHistory {
+  recipe_history_id    String   @id @default(uuid()) @db.Uuid
+  recipe_id            String   @db.Uuid
+  version              Int
+  recipe_snapshot      Json     @db.JsonB
+  ingredients_snapshot Json     @db.JsonB
+  steps_snapshot       Json     @db.JsonB
+  created_at           DateTime @default(now()) @db.Timestamp(6)
+
+  recipe Recipe @relation("RecipeHistoryRecipe", fields: [recipe_id], references: [recipe_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([recipe_id, version])
+  @@map("recipe_histories")
 }
 
 model Unit {
