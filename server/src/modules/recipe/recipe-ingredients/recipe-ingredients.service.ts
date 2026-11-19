@@ -15,7 +15,7 @@ export class RecipeIngredientsService {
   ) {}
 
   async create(dto: CreateRecipeIngredientDTO, tx?: Prisma.TransactionClient) {
-    this.logger.log(`Creating recipe ingredient for ${dto.recipe_id}`);
+    this.logger.debug(`Creating recipe ingredient for ${dto.recipe_id}`);
 
     await this.assertActiveRecipe(dto.recipe_id, tx);
 
@@ -32,7 +32,7 @@ export class RecipeIngredientsService {
   }
 
   async findMany(recipeId: string, tx?: Prisma.TransactionClient) {
-    this.logger.log(`Finding recipe ingredients for recipeId ${recipeId}`);
+    this.logger.debug(`Finding recipe ingredients for recipeId ${recipeId}`);
 
     await this.assertActiveRecipe(recipeId, tx);
 

@@ -795,9 +795,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     expect(confirmed.status).toBe(200);
     const response = await json(confirmed);
     expect(response.order_code).toBe(before.order_code);
-    expect(JSON.stringify(response)).not.toContain(
-      'Restricted fixture notes',
-    );
+    expect(JSON.stringify(response)).not.toContain('Restricted fixture notes');
     expect(JSON.stringify(response)).not.toContain('recipe_snapshot');
     const saved = await savedOrder(order.order_id);
     expect(saved.status).toBe('CONFIRMED');

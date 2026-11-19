@@ -10,10 +10,7 @@ import { UsersModule } from '../../users/users.module';
 @Module({
   imports: [PrismaModule, ConfigModule, BrandsModule, UsersModule],
   controllers: [RecipesController],
-  providers: [
-    RecipesService,
-    RecipesRepository,
-  ],
+  providers: [RecipesService, RecipesRepository],
   exports: [RecipesRepository],
 })
 export class RecipesModule {}
