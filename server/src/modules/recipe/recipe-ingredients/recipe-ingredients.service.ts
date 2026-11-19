@@ -17,14 +17,7 @@ export class RecipeIngredientsService {
   async create(dto: CreateRecipeIngredientDTO, tx?: Prisma.TransactionClient) {
     this.logger.log(`Creating recipe ingredient for ${dto.recipe_id}`);
 
-    const recipe = await this.recipesRepository.findOne(
-      dto.recipe_id,
-      true,
-      false, // false ko nalang tong recipe formulation
-      tx,
-    );
-
-    assertExists(recipe, 'Recipe', dto.recipe_id, this.logger);
+    await this.assertActiveRecipe(dto.recipe_id, tx);
 
     const recipeIngredient = await this.recipeIngredientsRepository.create(
       dto,
@@ -32,7 +25,7 @@ export class RecipeIngredientsService {
     );
 
     this.logger.log(
-      `Created recipe ingredient ${recipeIngredient.ingredient_name} for recipe ${recipe.recipe_id}`,
+      `Created recipe ingredient ${recipeIngredient.ingredient_name} for recipe ${dto.recipe_id}`,
     );
 
     return recipeIngredient;
@@ -41,14 +34,7 @@ export class RecipeIngredientsService {
   async findMany(recipeId: string, tx?: Prisma.TransactionClient) {
     this.logger.log(`Finding recipe ingredients for recipeId ${recipeId}`);
 
-    const recipe = await this.recipesRepository.findOne(
-      recipeId,
-      true,
-      false, // false ko nalang tong recipe formulation
-      tx,
-    );
-
-    assertExists(recipe, 'Recipe', recipeId, this.logger);
+    await this.assertActiveRecipe(recipeId, tx);
 
     const recipeIngredients = await this.recipeIngredientsRepository.findMany(
       recipeId,
