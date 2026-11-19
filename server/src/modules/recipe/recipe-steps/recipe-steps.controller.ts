@@ -19,14 +19,7 @@ import {
 @Controller('recipe-steps')
 @RecipeStepsDocs()
 @UseGuards(Authenticated, RolesGuard)
-@Roles(
-  UserRole.SUPERADMIN,
-  UserRole.RECIPE_MANAGER,
-  UserRole.SUPERVISOR,
-  UserRole.KITCHEN_HEAD,
-  UserRole.INVENTORY_STAFF,
-  UserRole.KITCHEN_STAFF,
-)
+@Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
 export class RecipeStepsController {
   constructor(private readonly recipeStepsService: RecipeStepsService) {}
 

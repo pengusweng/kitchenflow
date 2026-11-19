@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { assertExists } from '../../../shared/assertions/assert-exists';
 import { RecipesRepository } from '../recipes/recipes.repository';
 import { CreateRecipeIngredientDTO } from './dto/create-recipe-ingredient.dto';
 import { UpdateRecipeIngredientDTO } from './dto/update-recipe-ingredient.dto';
 import { RecipeIngredientsRepository } from './recipe-ingredients.repository';
+import { UnitsRepository } from '../../units/units.repository';
 
 @Injectable()
 export class RecipeIngredientsService {
@@ -12,23 +13,95 @@ export class RecipeIngredientsService {
   constructor(
     private readonly recipeIngredientsRepository: RecipeIngredientsRepository,
     private readonly recipesRepository: RecipesRepository,
+    private readonly unitsRepository: UnitsRepository,
   ) {}
 
-  async create(dto: CreateRecipeIngredientDTO, tx?: Prisma.TransactionClient) {
-    this.logger.debug(`Creating recipe ingredient for ${dto.recipe_id}`);
+  async create(
+    recipeId: string,
+    dto: CreateRecipeIngredientDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
+    this.logger.debug(`Creating recipe ingredient for ${recipeId}`);
 
-    await this.assertActiveRecipe(dto.recipe_id, tx);
+    await this.assertActiveRecipe(recipeId, tx);
+    await this.assertExistingUnit(dto.unit_code, tx);
 
     const recipeIngredient = await this.recipeIngredientsRepository.create(
+      recipeId,
       dto,
       tx,
     );
 
     this.logger.log(
-      `Created recipe ingredient ${recipeIngredient.ingredient_name} for recipe ${dto.recipe_id}`,
+      `Created recipe ingredient ${recipeIngredient.ingredient_name} for recipe ${recipeId}`,
     );
 
     return recipeIngredient;
+  }
+
+  async createMany(
+    recipeId: string,
+    ingredients: CreateRecipeIngredientDTO[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    this.logger.debug(
+      `Creating ${ingredients.length} ingredients for recipe ${recipeId}`,
+    );
+
+    this.assertNoDuplicateNames(ingredients);
+    await this.assertExistingUnits(ingredients, tx);
+    await this.assertActiveRecipe(recipeId, tx);
+
+    const recipeIngredients = await this.recipeIngredientsRepository.createMany(
+      recipeId,
+      ingredients,
+      tx,
+    );
+
+    this.logger.log(
+      `Created ${recipeIngredients.length} ingredients for recipe ${recipeId}`,
+    );
+
+    return recipeIngredients;
+  }
+
+  private assertNoDuplicateNames(ingredients: CreateRecipeIngredientDTO[]) {
+    const names = ingredients.map((i) =>
+      i.ingredient_name.trim().toLowerCase(),
+    );
+
+    const ingredientNameSet = new Set(names);
+
+    if (ingredientNameSet.size !== ingredients.length) {
+      this.logger.warn(`Duplicate ingredient name found.`);
+
+      throw new BadRequestException({
+        code: 'DUPLICATE_INGREDIENT_NAME',
+        message: 'Ingredient must be unique',
+      });
+    }
+  }
+
+  private async assertExistingUnits(
+    ingredients: CreateRecipeIngredientDTO[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    for (const ingredient of ingredients) {
+      await this.assertExistingUnit(ingredient.unit_code, tx);
+    }
+  }
+
+  private async assertExistingUnit(
+    unitCode: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const unit = await this.unitsRepository.findOne(unitCode, tx);
+    if (!unit) {
+      throw new BadRequestException({
+        code: 'NON_EXISTING_UNIT',
+        message: `Enter an existing unit code`,
+      });
+    }
   }
 
   async findMany(recipeId: string, tx?: Prisma.TransactionClient) {

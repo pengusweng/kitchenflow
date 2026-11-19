@@ -5,19 +5,11 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsUUID,
   Max,
   MaxLength,
 } from 'class-validator';
 
 export class CreateRecipeIngredientDTO {
-  @IsUUID('all', { message: 'Recipe ID must be a valid UUID.' })
-  @ApiProperty({
-    format: 'uuid',
-    description: 'Recipe the ingredient belongs to.',
-  })
-  recipe_id!: string;
-
   @IsString({ message: 'Ingredient name must be a string.' })
   @IsNotEmpty({ message: 'Ingredient name is required and cannot be empty.' })
   @MaxLength(255, {

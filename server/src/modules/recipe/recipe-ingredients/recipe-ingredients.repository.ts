@@ -9,11 +9,12 @@ export class RecipeIngredientsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(
+    recipeId: string,
     dto: CreateRecipeIngredientDTO,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
     return tx.recipeIngredient.create({
-      data: dto,
+      data: { ...dto, recipe_id: recipeId },
     });
   }
 
