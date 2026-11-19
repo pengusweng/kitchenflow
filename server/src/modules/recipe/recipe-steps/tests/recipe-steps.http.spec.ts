@@ -29,8 +29,9 @@ describe('Recipe steps HTTP endpoints', () => {
     findMany: jest.fn(),
     findOne: jest.fn(),
   };
-  const readRoles = Object.values(UserRole).filter(
-    (role) => role !== UserRole.CASHIER_STAFF,
+  const readRoles: UserRole[] = [UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER];
+  const deniedRoles = Object.values(UserRole).filter(
+    (role) => !readRoles.includes(role),
   );
 
   const send = (path: string, method = 'GET') =>
@@ -66,7 +67,7 @@ describe('Recipe steps HTTP endpoints', () => {
   });
 
   beforeEach(() => {
-    currentRole = UserRole.KITCHEN_STAFF;
+    currentRole = UserRole.RECIPE_MANAGER;
     service.findMany.mockReset().mockResolvedValue([step]);
     service.findOne.mockReset().mockResolvedValue(step);
   });
@@ -103,14 +104,17 @@ describe('Recipe steps HTTP endpoints', () => {
     expect((await send(`/${stepId}`)).status).toBe(404);
   });
 
-  it('IT-RCPS-005: Given a cashier, When recipe steps are read, Then deny both read endpoints without calling the service', async () => {
-    currentRole = UserRole.CASHIER_STAFF;
+  it.each(deniedRoles)(
+    'IT-RCPS-005: Given the %s role, When recipe steps are read, Then deny both read endpoints without calling the service',
+    async (role) => {
+      currentRole = role;
 
-    expect((await send(`/recipe/${recipeId}`)).status).toBe(403);
-    expect((await send(`/${stepId}`)).status).toBe(403);
-    expect(service.findMany).not.toHaveBeenCalled();
-    expect(service.findOne).not.toHaveBeenCalled();
-  });
+      expect((await send(`/recipe/${recipeId}`)).status).toBe(403);
+      expect((await send(`/${stepId}`)).status).toBe(403);
+      expect(service.findMany).not.toHaveBeenCalled();
+      expect(service.findOne).not.toHaveBeenCalled();
+    },
+  );
 
   it.each(readRoles)(
     'IT-RCPS-006: Given the %s role, When recipe steps are read, Then allow both read endpoints',

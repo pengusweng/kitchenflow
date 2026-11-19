@@ -26,14 +26,14 @@ Feature: Recipe step HTTP contracts
     Then return 404
 
   @IT-RCPS-005
-  Scenario: Denies cashiers
-    Given a cashier
+  Scenario: Denies roles other than recipe managers and superadmins
+    Given a role other than recipe manager or superadmin
     When recipe steps are read
     Then deny both read endpoints without calling the service
 
   @IT-RCPS-006
-  Scenario: Allows every non-cashier role
-    Given a non-cashier role
+  Scenario: Allows recipe managers and superadmins
+    Given a recipe manager or superadmin
     When recipe steps are read
     Then allow both read endpoints
 

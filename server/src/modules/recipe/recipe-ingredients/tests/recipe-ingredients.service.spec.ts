@@ -1,5 +1,6 @@
 import { Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { UnitsRepository } from '../../../units/units.repository';
 import { RecipesRepository } from '../../recipes/recipes.repository';
 import { RecipeIngredientsRepository } from '../recipe-ingredients.repository';
 import { RecipeIngredientsService } from '../recipe-ingredients.service';
@@ -17,7 +18,6 @@ describe('RecipeIngredientsService', () => {
     note: null,
   };
   const dto = {
-    recipe_id: recipeId,
     ingredient_name: 'Kimchi',
     quantity: 150,
     unit_code: 'g',
@@ -25,10 +25,11 @@ describe('RecipeIngredientsService', () => {
   let ingredients: jest.Mocked<
     Pick<
       RecipeIngredientsRepository,
-      'create' | 'findOne' | 'findMany' | 'update' | 'delete'
+      'create' | 'createMany' | 'findOne' | 'findMany' | 'update' | 'delete'
     >
   >;
   let recipes: jest.Mocked<Pick<RecipesRepository, 'findOne'>>;
+  let units: jest.Mocked<Pick<UnitsRepository, 'findOne'>>;
   let service: RecipeIngredientsService;
 
   beforeEach(() => {
@@ -37,6 +38,7 @@ describe('RecipeIngredientsService', () => {
     jest.spyOn(Logger.prototype, 'debug').mockImplementation();
     ingredients = {
       create: jest.fn().mockResolvedValue(ingredient),
+      createMany: jest.fn().mockResolvedValue([ingredient]),
       findOne: jest.fn().mockResolvedValue(ingredient),
       findMany: jest.fn().mockResolvedValue([ingredient]),
       update: jest
@@ -45,28 +47,33 @@ describe('RecipeIngredientsService', () => {
       delete: jest.fn().mockResolvedValue(ingredient),
     };
     recipes = { findOne: jest.fn().mockResolvedValue(recipe) };
+    units = {
+      findOne: jest.fn().mockResolvedValue({ code: 'g', name: 'Gram' }),
+    };
     service = new RecipeIngredientsService(
       ingredients as unknown as RecipeIngredientsRepository,
       recipes as unknown as RecipesRepository,
+      units as unknown as UnitsRepository,
     );
   });
   afterEach(() => jest.restoreAllMocks());
 
   it('UT-RCPI-001: Given an active recipe, When an ingredient is created, Then check the recipe and persist the ingredient', async () => {
-    await expect(service.create(dto)).resolves.toEqual(ingredient);
+    await expect(service.create(recipeId, dto)).resolves.toEqual(ingredient);
     expect(recipes.findOne).toHaveBeenCalledWith(
       recipeId,
       true,
       false,
       undefined,
     );
-    expect(ingredients.create).toHaveBeenCalledWith(dto, undefined);
+    expect(units.findOne).toHaveBeenCalledWith('g', undefined);
+    expect(ingredients.create).toHaveBeenCalledWith(recipeId, dto, undefined);
   });
 
   it('UT-RCPI-002: Given a missing or inactive recipe, When an ingredient is created, Then throw RECIPE_NOT_FOUND without writing', async () => {
     recipes.findOne.mockResolvedValue(null);
 
-    await expect(service.create(dto)).rejects.toMatchObject({
+    await expect(service.create(recipeId, dto)).rejects.toMatchObject({
       response: { code: 'RECIPE_NOT_FOUND' },
     });
     expect(ingredients.create).not.toHaveBeenCalled();
@@ -168,7 +175,8 @@ describe('RecipeIngredientsService', () => {
   it('UT-RCPI-013: Given a transaction client, When every method runs, Then pass it to every repository call', async () => {
     const tx = {} as Prisma.TransactionClient;
 
-    await service.create(dto, tx);
+    await service.create(recipeId, dto, tx);
+    await service.createMany(recipeId, [dto], tx);
     await service.findMany(recipeId, tx);
     await service.findOne(ingredientId, tx);
     await service.update(ingredientId, { note: null }, tx);
@@ -176,13 +184,82 @@ describe('RecipeIngredientsService', () => {
 
     const calls = [
       ...recipes.findOne.mock.calls,
+      ...units.findOne.mock.calls,
       ...ingredients.create.mock.calls,
+      ...ingredients.createMany.mock.calls,
       ...ingredients.findMany.mock.calls,
       ...ingredients.findOne.mock.calls,
       ...ingredients.update.mock.calls,
       ...ingredients.delete.mock.calls,
     ];
-    expect(calls).toHaveLength(11);
+    expect(calls).toHaveLength(15);
     for (const call of calls) expect(call.at(-1)).toBe(tx);
+  });
+
+  it('UT-RCPI-014: Given an unknown unit code, When an ingredient is created, Then throw NON_EXISTING_UNIT without writing', async () => {
+    units.findOne.mockResolvedValue(null);
+
+    await expect(service.create(recipeId, dto)).rejects.toMatchObject({
+      response: { code: 'NON_EXISTING_UNIT' },
+    });
+    expect(ingredients.create).not.toHaveBeenCalled();
+  });
+
+  it('UT-RCPI-015: Given an active recipe and valid ingredients, When they are created in a batch, Then check every unit and persist them together', async () => {
+    const rice = { ...dto, ingredient_name: 'Rice', unit_code: 'kg' };
+
+    await expect(service.createMany(recipeId, [dto, rice])).resolves.toEqual([
+      ingredient,
+    ]);
+    expect(units.findOne).toHaveBeenNthCalledWith(1, 'g', undefined);
+    expect(units.findOne).toHaveBeenNthCalledWith(2, 'kg', undefined);
+    expect(recipes.findOne).toHaveBeenCalledWith(
+      recipeId,
+      true,
+      false,
+      undefined,
+    );
+    expect(ingredients.createMany).toHaveBeenCalledWith(
+      recipeId,
+      [dto, rice],
+      undefined,
+    );
+  });
+
+  it('UT-RCPI-016: Given ingredient names that differ only by case or spacing, When they are created in a batch, Then throw DUPLICATE_INGREDIENT_NAME before any query', async () => {
+    await expect(
+      service.createMany(recipeId, [
+        dto,
+        { ...dto, ingredient_name: ' kimchi ' },
+      ]),
+    ).rejects.toMatchObject({
+      response: { code: 'DUPLICATE_INGREDIENT_NAME' },
+    });
+    expect(units.findOne).not.toHaveBeenCalled();
+    expect(recipes.findOne).not.toHaveBeenCalled();
+    expect(ingredients.createMany).not.toHaveBeenCalled();
+  });
+
+  it('UT-RCPI-017: Given a batch with an unknown unit code, When it is created, Then throw NON_EXISTING_UNIT without writing any ingredient', async () => {
+    units.findOne
+      .mockResolvedValueOnce({ code: 'g', name: 'Gram' } as never)
+      .mockResolvedValueOnce(null);
+
+    await expect(
+      service.createMany(recipeId, [
+        dto,
+        { ...dto, ingredient_name: 'Rice', unit_code: 'xx' },
+      ]),
+    ).rejects.toMatchObject({ response: { code: 'NON_EXISTING_UNIT' } });
+    expect(ingredients.createMany).not.toHaveBeenCalled();
+  });
+
+  it('UT-RCPI-018: Given a missing or inactive recipe, When ingredients are created in a batch, Then throw RECIPE_NOT_FOUND without writing', async () => {
+    recipes.findOne.mockResolvedValue(null);
+
+    await expect(service.createMany(recipeId, [dto])).rejects.toMatchObject({
+      response: { code: 'RECIPE_NOT_FOUND' },
+    });
+    expect(ingredients.createMany).not.toHaveBeenCalled();
   });
 });

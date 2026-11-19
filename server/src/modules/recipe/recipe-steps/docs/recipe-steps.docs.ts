@@ -24,7 +24,8 @@ export function RecipeStepsDocs() {
     ApiResponse({ status: 401, description: 'Missing or expired session.' }),
     ApiResponse({
       status: 403,
-      description: 'Cashier staff cannot read recipe steps.',
+      description:
+        'Only recipe managers and superadmins can read recipe steps.',
     }),
   );
 }
@@ -32,7 +33,7 @@ export function RecipeStepsDocs() {
 export function FindManyRecipeStepsDocs() {
   return applyDecorators(
     ApiOperation({
-      summary: "List a recipe's steps (all roles except cashier staff).",
+      summary: "List a recipe's steps (recipe managers and superadmins).",
       description:
         'Returns every step of an active recipe, sorted by step_no. Not paginated.',
     }),
@@ -60,7 +61,7 @@ export function FindManyRecipeStepsDocs() {
 export function FindOneRecipeStepDocs() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Get a recipe step (all roles except cashier staff).',
+      summary: 'Get a recipe step (recipe managers and superadmins).',
     }),
     ApiParam({
       name: 'id',

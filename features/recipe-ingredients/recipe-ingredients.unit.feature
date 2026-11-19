@@ -78,3 +78,33 @@ Feature: Recipe ingredient administration
     Given a transaction client
     When every method runs
     Then pass it to every repository call
+
+  @UT-RCPI-014
+  Scenario: Rejects creating an ingredient with an unknown unit
+    Given an unknown unit code
+    When an ingredient is created
+    Then throw NON_EXISTING_UNIT without writing
+
+  @UT-RCPI-015
+  Scenario: Creates a batch of ingredients on an active recipe
+    Given an active recipe and valid ingredients
+    When they are created in a batch
+    Then check every unit and persist them together
+
+  @UT-RCPI-016
+  Scenario: Rejects duplicate ingredient names in a batch
+    Given ingredient names that differ only by case or spacing
+    When they are created in a batch
+    Then throw DUPLICATE_INGREDIENT_NAME before any query
+
+  @UT-RCPI-017
+  Scenario: Rejects a batch with an unknown unit
+    Given a batch with an unknown unit code
+    When it is created
+    Then throw NON_EXISTING_UNIT without writing any ingredient
+
+  @UT-RCPI-018
+  Scenario: Rejects a batch on a missing or inactive recipe
+    Given a missing or inactive recipe
+    When ingredients are created in a batch
+    Then throw RECIPE_NOT_FOUND without writing
