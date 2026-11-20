@@ -64,6 +64,7 @@ export class RecipeAuthoringService {
 
   async update(recipeId: string, dto: UpdateFullRecipeDTO) {
     this.logger.debug(`Editing recipe ${recipeId}`);
+    this.assertHasChanges(dto);
 
     const { ingredients = {}, steps = {}, ...recipeDto } = dto;
     const result = await this.prisma.$transaction(async (tx) => {
@@ -223,6 +224,28 @@ export class RecipeAuthoringService {
     }
 
     return this.recipeStepsRepository.findMany(recipeId, tx);
+  }
+
+  // An empty edit would still bump the version and add a history row.
+  private assertHasChanges(dto: UpdateFullRecipeDTO) {
+    const { ingredients, steps, ...recipeFields } = dto;
+    const hasRecipeChange = Object.values(recipeFields).some(
+      (value) => value !== undefined,
+    );
+    const hasMutation = [ingredients, steps].some(
+      (mutations) =>
+        mutations !== undefined &&
+        [mutations.create, mutations.update, mutations.delete].some(
+          (list) => (list?.length ?? 0) > 0,
+        ),
+    );
+    if (!hasRecipeChange && !hasMutation) {
+      this.logger.warn('Recipe update had no changes.');
+      throw new BadRequestException({
+        code: 'NO_RECIPE_CHANGES',
+        message: 'Send at least one change to the recipe',
+      });
+    }
   }
 
   private assertDistinctTargets(ids: string[], code: string) {

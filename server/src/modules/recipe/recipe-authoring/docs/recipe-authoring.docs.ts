@@ -31,6 +31,10 @@ export function CreateFullRecipeDocs() {
       description: 'Recipe created with its ingredients and steps.',
     }),
     ApiResponse({ status: 404, description: 'Brand not found or inactive.' }),
+    ApiResponse({
+      status: 409,
+      description: 'Recipe code is already taken (DUPLICATE_RESOURCE).',
+    }),
   );
 }
 
@@ -50,6 +54,15 @@ export function UpdateFullRecipeDocs() {
       status: 404,
       description:
         'Recipe not found or inactive, or an ingredient or step ID does not belong to it.',
+    }),
+    ApiResponse({
+      status: 400,
+      description:
+        'Invalid request, no changes sent (NO_RECIPE_CHANGES), or the edit would leave no ingredients or steps, duplicate ingredient names or step numbers, or an unknown unit.',
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Recipe code is already taken (DUPLICATE_RESOURCE).',
     }),
   );
 }
