@@ -30,7 +30,7 @@ export class RecipesService {
     );
     assertExists(brand, 'Brand', dto.brand_id);
 
-    const recipe = await this.recipesRepository.create(dto);
+    const recipe = await this.recipesRepository.create(dto, tx);
     this.logger.log(`Created recipe ${recipe.code}`);
 
     return recipe;
