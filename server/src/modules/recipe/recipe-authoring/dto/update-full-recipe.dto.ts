@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsOptional, IsUUID, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsObject,
+  IsOptional,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
 import { CreateRecipeIngredientDTO } from '../../recipe-ingredients/dto/create-recipe-ingredient.dto';
 import { UpdateRecipeIngredientDTO } from '../../recipe-ingredients/dto/update-recipe-ingredient.dto';
 import { CreateRecipeStepDTO } from '../../recipe-steps/dto/create-recipe-step.dto';
@@ -86,6 +92,10 @@ export class RecipeStepMutationsDTO {
 // Recipe deletion is not part of this payload; deactivation has its own route.
 export class UpdateFullRecipeDTO extends UpdateRecipeDTO {
   @IsOptional()
+  @IsObject({
+    message:
+      'Ingredients must be an object of create, update and delete lists.',
+  })
   @ValidateNested()
   @Type(() => RecipeIngredientMutationsDTO)
   @ApiPropertyOptional({
@@ -96,6 +106,9 @@ export class UpdateFullRecipeDTO extends UpdateRecipeDTO {
   ingredients?: RecipeIngredientMutationsDTO;
 
   @IsOptional()
+  @IsObject({
+    message: 'Steps must be an object of create, update and delete lists.',
+  })
   @ValidateNested()
   @Type(() => RecipeStepMutationsDTO)
   @ApiPropertyOptional({
