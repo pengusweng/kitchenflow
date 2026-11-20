@@ -3,6 +3,7 @@ import { PrismaService } from '../../shared/prisma/prisma.service';
 import { CreateBrandDTO } from './dto/create-brand.dto';
 import { Prisma } from '@prisma/client';
 import { UpdateBrandDTO } from './dto/update-brand.dto';
+import type { BrandStatusFilter } from './dto/find-brands.dto';
 
 @Injectable()
 export class BrandsRepository {
@@ -50,11 +51,14 @@ export class BrandsRepository {
   async findAllBrands(
     skip: number,
     take: number,
-    activeOnly = true,
+    { status, search }: { status: BrandStatusFilter; search?: string },
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
+    // Everything except status, which the per-status counts below vary.
+    const matchesSearch = this.searchWhere(search);
     const where: Prisma.BrandWhereInput = {
-      is_active: activeOnly ? true : undefined,
+      ...matchesSearch,
+      is_active: status === 'all' ? undefined : status === 'active',
     };
 
     const brandsQuery = tx.brand.findMany({
@@ -63,16 +67,38 @@ export class BrandsRepository {
       take,
       orderBy: [{ created_at: 'desc' }, { brand_id: 'asc' }],
     });
-    const totalQuery = tx.brand.count({ where });
+    // Per-status counts honour the search but not the status filter, so a
+    // client can label every status tab from a single response.
+    const activeQuery = tx.brand.count({
+      where: { ...matchesSearch, is_active: true },
+    });
+    const inactiveQuery = tx.brand.count({
+      where: { ...matchesSearch, is_active: false },
+    });
 
-    const [brands, total] =
+    const [brands, active, inactive] =
       '$transaction' in tx
-        ? await tx.$transaction([brandsQuery, totalQuery], {
+        ? await tx.$transaction([brandsQuery, activeQuery, inactiveQuery], {
             isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
           })
-        : await Promise.all([brandsQuery, totalQuery]);
+        : await Promise.all([brandsQuery, activeQuery, inactiveQuery]);
 
-    return { brands, total };
+    return { brands, counts: { all: active + inactive, active, inactive } };
+  }
+
+  // Every whitespace-separated term must match the name or code, so
+  // "king kafe" finds "King Kungs Kafe".
+  private searchWhere(search?: string): Prisma.BrandWhereInput {
+    const terms = search?.split(/\s+/).filter(Boolean) ?? [];
+    if (terms.length === 0) return {};
+
+    return {
+      AND: terms.map((term) => ({
+        OR: (['name', 'code'] as const).map((field) => ({
+          [field]: { contains: term, mode: 'insensitive' },
+        })),
+      })),
+    };
   }
 
   async updateBrand(

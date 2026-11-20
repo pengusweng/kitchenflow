@@ -7,6 +7,7 @@ import {
 } from '../../../shared/testing/audit.testing';
 import { AssetsService } from '../../assets/assets.service';
 import { AuthService } from '../../auth/auth.service';
+import { PinService } from '../../pin/pin.service';
 import { BrandsController } from '../brands.controller';
 import { BrandsService } from '../brands.service';
 
@@ -32,6 +33,7 @@ describe('Brands audit logging', () => {
     update: jest.fn(),
     delete: jest.fn(),
   };
+  const pins = { verifyPin: jest.fn() };
   const auth = {
     validateSession: jest.fn(() =>
       Promise.resolve({
@@ -48,6 +50,7 @@ describe('Brands audit logging', () => {
       providers: [
         { provide: BrandsService, useValue: brands },
         { provide: AssetsService, useValue: { upload: jest.fn() } },
+        { provide: PinService, useValue: pins },
         { provide: AuthService, useValue: auth },
         ...auditPipelineProviders(audit),
       ],
@@ -71,15 +74,24 @@ describe('Brands audit logging', () => {
   beforeEach(() => {
     role = UserRole.SUPERADMIN;
     audit.create.mockClear().mockResolvedValue({});
-    for (const mock of Object.values(brands)) mock.mockReset();
+    for (const mock of [...Object.values(brands), pins.verifyPin]) {
+      mock.mockReset();
+    }
+    pins.verifyPin.mockResolvedValue({ status: 'valid' });
   });
 
-  function call(method: string, path = '', body?: unknown) {
+  function call(
+    method: string,
+    path = '',
+    body?: unknown,
+    pin: string | null = '1234',
+  ) {
     return fetch(`${url}${path}`, {
       method,
       headers: {
         Authorization: 'Bearer token',
         'Content-Type': 'application/json',
+        ...(pin ? { 'X-Action-Pin': pin } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -156,4 +168,36 @@ describe('Brands audit logging', () => {
       }),
     ]);
   });
+
+  it.each([
+    ['POST', '', { name: 'Gamcheon', code: 'GC2' }, 'BRAND_CREATED', null],
+    ['PATCH', `/${brandId}`, { name: 'Renamed' }, 'BRAND_UPDATED', brandId],
+    ['DELETE', `/${brandId}`, undefined, 'BRAND_DEACTIVATED', brandId],
+  ] as const)(
+    'IT-BRND-035: Given a superadmin without a valid PIN, When %s changes a brand, Then return 403, skip the service and audit the denial',
+    async (method, path, body, action, entityId) => {
+      const missing = await call(method, path, body, null);
+      pins.verifyPin.mockResolvedValue({ status: 'invalid' });
+      const wrong = await call(method, path, body, '9999');
+
+      expect([missing.status, wrong.status]).toEqual([403, 403]);
+      expect(pins.verifyPin).toHaveBeenCalledTimes(1);
+      for (const mock of Object.values(brands))
+        expect(mock).not.toHaveBeenCalled();
+      expect(audit.rows()).toEqual([
+        expect.objectContaining({
+          action,
+          entity_id: entityId,
+          outcome: 'DENIED',
+          reason: 'INVALID_PIN',
+        }),
+        expect.objectContaining({
+          action,
+          entity_id: entityId,
+          outcome: 'DENIED',
+          reason: 'INVALID_PIN',
+        }),
+      ]);
+    },
+  );
 });

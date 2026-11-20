@@ -20,6 +20,7 @@ import { FindBrandsDTO } from './dto/find-brands.dto';
 import { UpdateBrandDTO } from './dto/update-brand.dto';
 import { Authenticated, type AuthenticatedRequest } from '../auth/auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
+import { PinGuard } from '../pin/pin.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import {
   Audit,
@@ -57,7 +58,7 @@ export class BrandsController {
     entity: 'brands',
     id: fromResult('brand_id'),
   })
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, PinGuard)
   @Roles(UserRole.SUPERADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
@@ -101,7 +102,7 @@ export class BrandsController {
     entity: 'brands',
     id: fromParam('brandId'),
   })
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, PinGuard)
   @Roles(UserRole.SUPERADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
@@ -133,7 +134,7 @@ export class BrandsController {
     entity: 'brands',
     id: fromParam('brandId'),
   })
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, PinGuard)
   @Roles(UserRole.SUPERADMIN)
   @DeleteBrandDocs()
   async delete(@Param('brandId', ParseUUIDPipe) brandId: string) {

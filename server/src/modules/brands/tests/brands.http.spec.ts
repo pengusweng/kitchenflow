@@ -10,6 +10,7 @@ import { BrandsModule } from '../brands.module';
 import { BrandsService } from '../brands.service';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { Authenticated } from '../../auth/auth.guard';
+import { PinGuard } from '../../pin/pin.guard';
 import sharp from 'sharp';
 import { MAX_ASSET_BYTES } from '../../assets/assets.service';
 import { StorageService } from '../../../shared/storage/storage.service';
@@ -68,6 +69,9 @@ describe('Brands HTTP endpoints', () => {
           return true;
         },
       })
+      // PIN verification itself is covered in brands-audit.http.spec.ts.
+      .overrideGuard(PinGuard)
+      .useValue({ canActivate: () => true })
       .compile();
     app = module.createNestApplication();
     app.useLogger(false);
@@ -239,6 +243,27 @@ describe('Brands HTTP endpoints', () => {
     ],
   ] as const)(
     'IT-BRND-011: Given pagination query %s, When brands are listed, Then forward the global pagination filters',
+    async (query, expected) => {
+      currentRole = UserRole.SUPERADMIN;
+      expect((await fetch(url + query)).status).toBe(200);
+      expect(service.findAll).toHaveBeenCalledWith(expected);
+    },
+  );
+
+  it.each([
+    [
+      '?status=inactive&search=%20king%20',
+      {
+        page: 1,
+        limit: 10,
+        activeOnly: true,
+        status: 'inactive',
+        search: 'king',
+      },
+    ],
+    ['?search=%20%20', { page: 1, limit: 10, activeOnly: true }],
+  ] as const)(
+    'IT-BRND-034: Given list query %s, When brands are listed, Then forward the trimmed search and status filters',
     async (query, expected) => {
       currentRole = UserRole.SUPERADMIN;
       expect((await fetch(url + query)).status).toBe(200);
@@ -442,7 +467,14 @@ describe('Brands HTTP endpoints', () => {
     },
   );
 
-  it.each(['?page=0', '?limit=0', '?limit=101', '?activeOnly=invalid'])(
+  it.each([
+    '?page=0',
+    '?limit=0',
+    '?limit=101',
+    '?activeOnly=invalid',
+    '?status=archived',
+    `?search=${'k'.repeat(101)}`,
+  ])(
     'IT-BRND-025: Given invalid list query %s, When brands are listed, Then return 400 before querying',
     async (query) => {
       currentRole = UserRole.SUPERADMIN;

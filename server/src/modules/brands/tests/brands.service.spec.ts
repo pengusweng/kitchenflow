@@ -38,9 +38,10 @@ describe('BrandsService', () => {
         ReturnType<BrandsRepository['createBrand']>,
         Parameters<BrandsRepository['createBrand']>
       >((dto) => Promise.resolve({ ...brand, ...dto })),
-      findAllBrands: jest
-        .fn()
-        .mockResolvedValue({ brands: [brand], total: 21 }),
+      findAllBrands: jest.fn().mockResolvedValue({
+        brands: [brand],
+        counts: { all: 21, active: 21, inactive: 0 },
+      }),
       findOneBrand: jest.fn().mockResolvedValue(brand),
       updateBrand: jest.fn((_id, dto) => Promise.resolve({ ...brand, ...dto })),
       deleteBrand: jest.fn().mockResolvedValue({ ...brand, is_active: false }),
@@ -103,28 +104,67 @@ describe('BrandsService', () => {
       expect(tx.user.updateMany).not.toHaveBeenCalled();
     });
 
-    it.each([true, false])(
-      'UT-BRND-020: Given activeOnly=%s, When brands are listed, Then rows and counts use the same global filter',
-      async (activeOnly) => {
+    it.each([
+      ['active', true],
+      ['inactive', false],
+      ['all', undefined],
+    ] as const)(
+      'UT-BRND-020: Given status=%s, When brands are listed, Then filter the rows by status and count every status',
+      async (status, isActive) => {
         tx.brand.findMany.mockResolvedValue([brand]);
-        tx.brand.count.mockResolvedValue(1);
+        tx.brand.count.mockResolvedValueOnce(3).mockResolvedValueOnce(2);
         await expect(
           repository.findAllBrands(
             0,
             10,
-            activeOnly,
+            { status },
             tx as unknown as PrismaService,
           ),
-        ).resolves.toEqual({ brands: [brand], total: 1 });
-        const where = {
-          is_active: activeOnly ? true : undefined,
-        };
+        ).resolves.toEqual({
+          brands: [brand],
+          counts: { all: 5, active: 3, inactive: 2 },
+        });
         expect(tx.brand.findMany).toHaveBeenCalledWith(
-          expect.objectContaining({ where }),
+          expect.objectContaining({ where: { is_active: isActive } }),
         );
-        expect(tx.brand.count).toHaveBeenCalledWith({ where });
+        expect(tx.brand.count).toHaveBeenNthCalledWith(1, {
+          where: { is_active: true },
+        });
+        expect(tx.brand.count).toHaveBeenNthCalledWith(2, {
+          where: { is_active: false },
+        });
       },
     );
+
+    it('UT-BRND-034: Given a multi-term search, When brands are listed, Then every term must match the name or code in the rows and the counts', async () => {
+      tx.brand.findMany.mockResolvedValue([brand]);
+      tx.brand.count.mockResolvedValue(1);
+      await repository.findAllBrands(
+        0,
+        10,
+        { status: 'active', search: 'king  KK' },
+        tx as unknown as PrismaService,
+      );
+      const matchesSearch = {
+        AND: ['king', 'KK'].map((term) => ({
+          OR: [
+            { name: { contains: term, mode: 'insensitive' } },
+            { code: { contains: term, mode: 'insensitive' } },
+          ],
+        })),
+      };
+      expect(tx.brand.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { ...matchesSearch, is_active: true },
+        }),
+      );
+      expect(tx.brand.count).toHaveBeenNthCalledWith(1, {
+        where: { ...matchesSearch, is_active: true },
+      });
+      expect(tx.brand.count).toHaveBeenNthCalledWith(2, {
+        where: { ...matchesSearch, is_active: false },
+      });
+    });
 
     it('UT-BRND-021: Given active employees, When a brand is deactivated, Then leave employees active', async () => {
       tx.brand.update.mockResolvedValue({ ...brand, is_active: false });
@@ -335,12 +375,13 @@ describe('BrandsService', () => {
     });
 
     it('UT-BRND-029: Given no matching brands, When brands are listed, Then return zero total pages', async () => {
-      brands.findAllBrands.mockResolvedValue({ brands: [], total: 0 });
+      const counts = { all: 0, active: 0, inactive: 0 };
+      brands.findAllBrands.mockResolvedValue({ brands: [], counts });
       await expect(
         service.findAll({ page: 1, limit: 10, activeOnly: true }),
       ).resolves.toEqual({
         data: [],
-        meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
+        meta: { page: 1, limit: 10, total: 0, totalPages: 0, counts },
       });
     });
 
@@ -355,10 +396,40 @@ describe('BrandsService', () => {
           }),
         ).resolves.toEqual({
           data: [brand],
-          meta: { page: 2, limit: 10, total: 21, totalPages: 3 },
+          meta: {
+            page: 2,
+            limit: 10,
+            total: 21,
+            totalPages: 3,
+            counts: { all: 21, active: 21, inactive: 0 },
+          },
         });
-        expect(brands.findAllBrands).toHaveBeenCalledWith(10, 10, activeOnly);
+        expect(brands.findAllBrands).toHaveBeenCalledWith(10, 10, {
+          status: activeOnly ? 'active' : 'all',
+          search: undefined,
+        });
       },
     );
+
+    it('UT-BRND-035: Given a status and search, When brands are listed, Then status overrides activeOnly and total follows that status count', async () => {
+      const counts = { all: 7, active: 4, inactive: 3 };
+      brands.findAllBrands.mockResolvedValue({ brands: [brand], counts });
+      await expect(
+        service.findAll({
+          page: 1,
+          limit: 2,
+          activeOnly: true,
+          status: 'inactive',
+          search: 'king',
+        }),
+      ).resolves.toEqual({
+        data: [brand],
+        meta: { page: 1, limit: 2, total: 3, totalPages: 2, counts },
+      });
+      expect(brands.findAllBrands).toHaveBeenCalledWith(0, 2, {
+        status: 'inactive',
+        search: 'king',
+      });
+    });
   });
 });

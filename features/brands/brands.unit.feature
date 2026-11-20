@@ -14,10 +14,10 @@ Feature: Global brand administration without employee assignments
     Then propagate the error without changing employees
 
   @UT-BRND-020
-  Scenario: Lists all brands with matching totals and activeOnly=the requested value
-    Given activeOnly=the requested value
+  Scenario: Filters rows by status=the requested value and counts every status
+    Given status=the requested value
     When brands are listed
-    Then rows and counts use the same global filter
+    Then filter the rows by status and count every status
 
   @UT-BRND-021
   Scenario: Deactivates only the brand, leaving users active
@@ -113,10 +113,22 @@ Feature: Global brand administration without employee assignments
   Scenario: Returns zero pages for an empty listing
     Given no matching brands
     When brands are listed
-    Then return zero total pages
+    Then return zero total pages and zero status counts
 
   @UT-BRND-030
-  Scenario: Returns pagination metadata and forwards activeOnly=the requested value
+  Scenario: Returns pagination metadata and maps activeOnly=the requested value to a status
     Given activeOnly=the requested value and page 2
     When brands are listed
-    Then return matching pagination metadata
+    Then return matching pagination metadata and status counts
+
+  @UT-BRND-034
+  Scenario: Matches every search term against the brand name or code
+    Given a multi-term search
+    When brands are listed
+    Then every term must match the name or code in the rows and the counts
+
+  @UT-BRND-035
+  Scenario: Lets status override activeOnly and totals that status
+    Given a status and search
+    When brands are listed
+    Then status overrides activeOnly and total follows that status count
