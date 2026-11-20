@@ -1,8 +1,10 @@
 import {
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Query,
   Req,
   UseGuards,
@@ -16,6 +18,7 @@ import { FindRecipesDTO } from './dto/find-recipes.dto';
 import { RecipesService } from './recipes.service';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { Roles } from '../../../shared/decorators/roles.decorator';
+import { Audit, fromParam } from '../../../shared/audit/audit.decorator';
 import {
   FindManyRecipesDocs,
   FindOneRecipeDocs,
@@ -52,5 +55,33 @@ export class RecipesController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.recipesService.findOne(request.session.user.user_id, id);
+  }
+
+  @Delete(':id')
+  @Audit({
+    action: 'RECIPE_DEACTIVATED',
+    snapshot: 'update',
+    entity: 'recipes',
+    id: fromParam('id'),
+  })
+  deactivate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.recipesService.deactivate(id);
+  }
+
+  @Patch(':id')
+  @Audit({
+    action: 'RECIPE_REACTIVATED',
+    snapshot: 'update',
+    entity: 'recipes',
+    id: fromParam('id'),
+  })
+  reactivate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.recipesService.reactivate(id);
   }
 }

@@ -14,7 +14,8 @@ type SnapshotModel =
   | 'modifier'
   | 'menuItemModifier'
   | 'kitchenTicket'
-  | 'kitchenTicketQcAttempt';
+  | 'kitchenTicketQcAttempt'
+  | 'recipe';
 
 export interface SnapshotConfig {
   /** Prisma client delegate, e.g. `menuItem`. */
@@ -94,6 +95,12 @@ export const SNAPSHOT_CONFIGS: Readonly<Record<string, SnapshotConfig>> = {
     model: 'kitchenTicketQcAttempt',
     key: 'qc_attempt_id',
     fields: ['attempt_number', 'status', 'checker_id'],
+  },
+  // formulation_notes is confidential and never snapshotted.
+  recipes: {
+    model: 'recipe',
+    key: 'recipe_id',
+    fields: ['code', 'name', 'version', 'is_active'],
   },
 };
 
