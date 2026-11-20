@@ -65,6 +65,7 @@ export class RecipeIngredientsRepository {
         quantity: dto.quantity,
         unit_code: dto.unit_code,
         note: dto.note,
+        modified_at: new Date(),
       },
     });
   }

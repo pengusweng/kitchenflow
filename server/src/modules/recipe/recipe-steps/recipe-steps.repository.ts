@@ -65,6 +65,7 @@ export class RecipeStepsRepository {
       data: {
         step_no: dto.step_no,
         instruction: dto.instruction,
+        modified_at: new Date(),
       },
     });
   }

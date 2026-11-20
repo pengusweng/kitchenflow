@@ -14,6 +14,7 @@ const recipeIngredientExample = {
   quantity: '150',
   unit_code: 'g',
   note: 'Chopped',
+  modified_at: '2026-11-20T08:00:00.000Z',
 };
 
 export function RecipeIngredientsDocs() {
