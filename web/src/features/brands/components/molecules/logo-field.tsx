@@ -4,11 +4,14 @@ import { useRef, useState, type DragEvent } from "react";
 import { ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "cn";
-import { formatBytes, LOGO_ACCEPT, type SelectedLogo } from "../../utils/logo";
+import { formatBytes, LOGO_ACCEPT } from "../../utils/logo";
+
+/** What the zone shows: a newly picked file (with its size) or the saved logo. */
+export type LogoPreview = { url: string; name: string; size?: number };
 
 type LogoFieldProps = {
   id: string;
-  logo: SelectedLogo | null;
+  preview: LogoPreview | null;
   onSelect: (file: File) => void;
   onRemove: () => void;
   invalid?: boolean;
@@ -18,7 +21,7 @@ const ACTION = "h-10 cursor-pointer px-4 font-semibold";
 
 // Drop zone and file picker in one. The round preview matches how the logo
 // sits in the brand details, so what you pick is what everyone will see.
-export default function LogoField({ id, logo, onSelect, onRemove, invalid = false }: LogoFieldProps) {
+export default function LogoField({ id, preview, onSelect, onRemove, invalid = false }: LogoFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -48,7 +51,7 @@ export default function LogoField({ id, logo, onSelect, onRemove, invalid = fals
           ? "border-primary bg-primary/6"
           : invalid
             ? "border-destructive"
-            : logo
+            : preview
               ? "border-solid border-input"
               : "border-input",
       )}
@@ -71,25 +74,27 @@ export default function LogoField({ id, logo, onSelect, onRemove, invalid = fals
       <div
         className={cn(
           "grid size-16 shrink-0 place-items-center overflow-hidden rounded-full transition-colors duration-150",
-          logo ? "border border-hairline bg-card" : "bg-muted text-ink-muted",
-          dragging && !logo && "bg-primary/12 text-primary-ink",
+          preview ? "border border-hairline bg-card" : "bg-muted text-ink-muted",
+          dragging && !preview && "bg-primary/12 text-primary-ink",
         )}
       >
-        {logo ? (
-          // A local object URL for the picked file; next/image can't optimise it.
+        {preview ? (
+          // A local object URL or a signed storage URL; next/image adds nothing for either.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo.previewUrl} alt="Logo preview" className="size-full object-cover" />
+          <img src={preview.url} alt="Logo preview" className="size-full object-cover" />
         ) : (
           <ImagePlus aria-hidden="true" className="size-6" strokeWidth={1.75} />
         )}
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-        {logo ? (
+        {preview ? (
           <>
             <p className="min-w-0 text-sm leading-5">
-              <span className="block truncate font-semibold text-ink">{logo.file.name}</span>
-              <span className="text-ink-muted tabular-nums">{formatBytes(logo.file.size)}</span>
+              <span className="block truncate font-semibold text-ink">{preview.name}</span>
+              {preview.size !== undefined ? (
+                <span className="text-ink-muted tabular-nums">{formatBytes(preview.size)}</span>
+              ) : null}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="lg" className={ACTION} onClick={pick}>
