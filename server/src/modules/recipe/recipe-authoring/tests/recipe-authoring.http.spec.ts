@@ -5,8 +5,10 @@ import {
   NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
+import { PrismaExceptionFilter } from '../../../../shared/filters/prisma-exception.filter';
 import { Authenticated } from '../../../auth/auth.guard';
 import { RecipeAuthoringController } from '../recipe-authoring.controller';
 import { RecipeAuthoringService } from '../recipe-authoring.service';
@@ -56,7 +58,25 @@ describe('Recipe authoring HTTP endpoints', () => {
       },
     ],
   };
-  const service = { create: jest.fn() };
+  const service = { create: jest.fn(), update: jest.fn() };
+  const ingredientId = '00000000-0000-4000-8000-000000000020';
+  const stepId = '00000000-0000-4000-8000-000000000030';
+  const updateBody = {
+    name: 'Kimchi Rice',
+    ingredients: {
+      create: [{ ingredient_name: 'Egg', quantity: 1, unit_code: 'pc' }],
+      update: [{ recipe_ingredient_id: ingredientId, quantity: 200 }],
+      delete: [],
+    },
+    steps: {
+      update: [{ recipe_step_id: stepId, instruction: 'Heat the pan.' }],
+      delete: [stepId],
+    },
+  };
+  const duplicateCode = new Prisma.PrismaClientKnownRequestError(
+    'Unique constraint failed on code',
+    { code: 'P2002', clientVersion: '7.8.0' },
+  );
   const writeRoles: UserRole[] = [UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER];
   const deniedRoles = Object.values(UserRole).filter(
     (role) => !writeRoles.includes(role),
@@ -68,11 +88,20 @@ describe('Recipe authoring HTTP endpoints', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+  const patch = (id: string, payload: unknown) =>
+    fetch(`${url}/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [RecipeAuthoringController],
-      providers: [{ provide: RecipeAuthoringService, useValue: service }],
+      providers: [
+        { provide: RecipeAuthoringService, useValue: service },
+        { provide: APP_FILTER, useClass: PrismaExceptionFilter },
+      ],
     })
       .overrideGuard(Authenticated)
       .useValue({
@@ -101,6 +130,7 @@ describe('Recipe authoring HTTP endpoints', () => {
   beforeEach(() => {
     currentRole = UserRole.RECIPE_MANAGER;
     service.create.mockReset().mockResolvedValue(created);
+    service.update.mockReset().mockResolvedValue(created);
   });
   afterAll(async () => app?.close());
 
@@ -187,6 +217,94 @@ describe('Recipe authoring HTTP endpoints', () => {
       currentRole = role;
 
       expect((await post(body)).status).toBe(201);
+    },
+  );
+
+  it('IT-RCPA-008: Given a duplicate recipe code, When a recipe is posted, Then return 409 DUPLICATE_RESOURCE', async () => {
+    service.create.mockRejectedValue(duplicateCode);
+
+    const response = await post(body);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: 'DUPLICATE_RESOURCE' });
+  });
+
+  it('IT-RCPA-009: Given recipe fields and ingredient and step mutations, When the recipe is patched, Then return 200 and pass them to the service', async () => {
+    const response = await patch(recipeId, updateBody);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(created);
+    expect(service.update).toHaveBeenCalledWith(recipeId, updateBody);
+  });
+
+  it('IT-RCPA-010: Given a non-UUID recipe ID, When the recipe is patched, Then return 400 without calling the service', async () => {
+    expect((await patch('not-a-uuid', { name: 'x' })).status).toBe(400);
+    expect(service.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'a non-UUID ingredient to delete',
+      { ingredients: { delete: ['not-a-uuid'] } },
+    ],
+    [
+      'an ingredient update without its ID',
+      { ingredients: { update: [{ quantity: 1 }] } },
+    ],
+    [
+      'an ingredient update with zero quantity',
+      {
+        ingredients: {
+          update: [{ recipe_ingredient_id: ingredientId, quantity: 0 }],
+        },
+      },
+    ],
+    [
+      'a new step numbered 0',
+      { steps: { create: [{ step_no: 0, instruction: 'x' }] } },
+    ],
+    [
+      'a step update with an empty instruction',
+      { steps: { update: [{ recipe_step_id: stepId, instruction: '' }] } },
+    ],
+    ['an unknown mutation key', { steps: { replace: [] } }],
+    ['ingredients sent as a plain array', { ingredients: [] }],
+    ['an empty recipe name', { name: '' }],
+  ])(
+    'IT-RCPA-011: Given %s, When the recipe is patched, Then return 400 without calling the service',
+    async (_label, payload) => {
+      expect((await patch(recipeId, payload)).status).toBe(400);
+      expect(service.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it('IT-RCPA-012: Given the service rejects the edit, When the recipe is patched, Then return its 404, 400 or 409 status', async () => {
+    service.update.mockRejectedValueOnce(new NotFoundException());
+    expect((await patch(recipeId, { name: 'x' })).status).toBe(404);
+
+    service.update.mockRejectedValueOnce(new BadRequestException());
+    expect((await patch(recipeId, { name: 'x' })).status).toBe(400);
+
+    service.update.mockRejectedValueOnce(duplicateCode);
+    expect((await patch(recipeId, { code: 'TAKEN' })).status).toBe(409);
+  });
+
+  it.each(deniedRoles)(
+    'IT-RCPA-013: Given the %s role, When a recipe is patched, Then return 403 without calling the service',
+    async (role) => {
+      currentRole = role;
+
+      expect((await patch(recipeId, { name: 'x' })).status).toBe(403);
+      expect(service.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(writeRoles)(
+    'IT-RCPA-014: Given the %s role, When a recipe is patched, Then return 200',
+    async (role) => {
+      currentRole = role;
+
+      expect((await patch(recipeId, { name: 'x' })).status).toBe(200);
     },
   );
 });
