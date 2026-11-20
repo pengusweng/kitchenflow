@@ -108,7 +108,7 @@ async function main() {
           brand_id: brand.brand_id,
           code: `pos-${suffix}`,
           name: 'POS test recipe',
-          instructions: 'Integration test fixture',
+          formulation_notes: 'Integration test fixture',
         },
       });
       const items: { menu_item_id: string }[] = [];

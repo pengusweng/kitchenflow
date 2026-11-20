@@ -92,19 +92,55 @@ Feature: Additional recipes integration coverage
     Then the response remains a sanitized RECIPE_ACCESS_DENIED
 
   # Jest: server/src/modules/recipe/recipes/tests/recipes.http.spec.ts
-  # Context: Confidential recipes HTTP authorization
+  # Context: Recipe status changes
   @IT-RCP-010
-  Scenario: Requires authentication
+  Scenario: Deactivates a recipe
     Test Case ID: IT-RCP-010
-    Given no authenticated session
-    When a recipe is requested
-    Then the response is 401
+    Given a recipe manager
+    When a recipe is deleted
+    Then deactivate it and return 200
 
   # Jest: server/src/modules/recipe/recipes/tests/recipes.http.spec.ts
-  # Context: Confidential recipes HTTP authorization
+  # Context: Recipe status changes
   @IT-RCP-011
-  Scenario: Checks service callers as well as HTTP callers
+  Scenario: Reactivates a recipe
     Test Case ID: IT-RCP-011
-    Given an unapproved user calls the recipe service directly
-    When read and update methods are invoked without HTTP guards
-    Then the service independently denies both operations
+    Given a recipe manager
+    When a recipe is reactivated
+    Then reactivate it and return 200
+
+  # Jest: server/src/modules/recipe/recipes/tests/recipes.http.spec.ts
+  # Context: Recipe status changes
+  @IT-RCP-012
+  Scenario: Rejects malformed IDs on status changes
+    Test Case ID: IT-RCP-012
+    Given a malformed recipe id
+    When its status is changed
+    Then reject both routes before the service
+
+  # Jest: server/src/modules/recipe/recipes/tests/recipes.http.spec.ts
+  # Context: Recipe status changes
+  @IT-RCP-013
+  Scenario: Reports unknown recipes on status changes
+    Test Case ID: IT-RCP-013
+    Given an unknown recipe
+    When its status is changed
+    Then return 404 from both routes
+
+  # Jest: server/src/modules/recipe/recipes/tests/recipes.http.spec.ts
+  # Context: Recipe status changes
+  @IT-RCP-014
+  Scenario: Denies status changes to other roles
+    Test Case ID: IT-RCP-014
+    Given a role other than recipe manager or superadmin
+    When a recipe status is changed
+    Then deny both routes without calling the service
+
+  # Jest: server/src/modules/recipe/recipes/tests/recipes.http.spec.ts
+  # Context: Recipe status changes
+  @IT-RCP-015
+  Scenario: Allows recipe managers and superadmins to change status
+    Test Case ID: IT-RCP-015
+    Given a recipe manager or superadmin
+    When a recipe status is changed
+    Then allow both routes

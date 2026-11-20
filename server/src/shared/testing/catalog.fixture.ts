@@ -65,7 +65,7 @@ export async function createCatalogFixture(prisma: PrismaService) {
       brand_id: brand.brand_id,
       code: `recipe-${suffix}`,
       name: 'Test assembly',
-      instructions: 'Restricted fixture instructions',
+      formulation_notes: 'Restricted fixture notes',
     },
   });
   const item = await prisma.menuItem.create({

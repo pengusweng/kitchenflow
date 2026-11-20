@@ -3,7 +3,12 @@ import { join } from 'node:path';
 import { config } from 'dotenv';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { OrderChannel, Prisma, PrismaClient } from '@prisma/client';
+import {
+  OrderChannel,
+  Prisma,
+  PrismaClient,
+  UnitDimension,
+} from '@prisma/client';
 import { getDatabaseUrl } from '../src/database/database.config';
 import { seedUsers } from './seed-test';
 
@@ -15,14 +20,29 @@ interface SeedBrand {
   logo_url: string | null;
 }
 
+interface SeedUnit {
+  code: string;
+  name: string;
+  dimension: UnitDimension;
+  to_base: number;
+}
+
+interface SeedRecipeIngredient {
+  ingredient_name: string;
+  quantity: number;
+  unit: string;
+  note?: string;
+}
+
 interface SeedRecipe {
   code: string;
   brand_code: string;
   name: string;
   version: number;
-  serving_description: string | null;
-  instructions: string | null;
+  formulation_notes: string | null;
   is_active: boolean;
+  ingredients: SeedRecipeIngredient[];
+  steps: string[];
 }
 
 interface SeedMenuItem {
@@ -64,6 +84,7 @@ function loadSeedData() {
   );
   const data = JSON.parse(raw) as {
     brands: SeedBrand[];
+    units: SeedUnit[];
     recipes: SeedRecipe[];
     menu_items: SeedMenuItem[];
     modifiers: SeedModifier[];
@@ -87,7 +108,7 @@ function loadSeedData() {
 }
 
 export async function seedDatabase(prisma: Prisma.TransactionClient) {
-  const { brands, recipes, menu_items, modifiers, menu_item_modifiers } =
+  const { brands, units, recipes, menu_items, modifiers, menu_item_modifiers } =
     loadSeedData();
 
   const brandIds = new Map<string, string>();
@@ -108,7 +129,20 @@ export async function seedDatabase(prisma: Prisma.TransactionClient) {
   console.log(`Seeded brands: ${brands.map((b) => b.code).join(', ')}`);
   await seedUsers(prisma);
 
+  const unitCodes = new Set<string>();
+  for (const unit of units) {
+    await prisma.unit.upsert({
+      where: { code: unit.code },
+      update: {},
+      create: unit,
+    });
+    unitCodes.add(unit.code);
+  }
+  console.log(`Seeded ${units.length} units.`);
+
   const recipeIds = new Map<string, { recipe_id: string; brand_id: string }>();
+  let ingredientCount = 0;
+  let stepCount = 0;
   for (const recipe of recipes) {
     const brand_id = brandIds.get(recipe.brand_code);
     if (!brand_id) {
@@ -119,18 +153,52 @@ export async function seedDatabase(prisma: Prisma.TransactionClient) {
       brand_id,
       version: recipe.version,
       name: recipe.name,
-      serving_description: recipe.serving_description,
-      instructions: recipe.instructions,
+      formulation_notes: recipe.formulation_notes,
     };
     const saved = await prisma.recipe.upsert({
-      where: { code_version: { code: recipe.code, version: recipe.version } },
+      where: { code: recipe.code },
       update: {},
       create: { ...data, is_active: recipe.is_active },
     });
     recipeIds.set(recipe.code, saved);
+
+    // Ingredients and steps are edited as a set, so only seed them when the
+    // recipe has none; per-row restores would undo deliberate edits.
+    const { recipe_id } = saved;
+    if ((await prisma.recipeIngredient.count({ where: { recipe_id } })) === 0) {
+      for (const ingredient of recipe.ingredients) {
+        if (!unitCodes.has(ingredient.unit)) {
+          throw new Error(
+            `Unknown unit in recipe ${recipe.code}: ${ingredient.unit}`,
+          );
+        }
+      }
+      await prisma.recipeIngredient.createMany({
+        data: recipe.ingredients.map((ingredient) => ({
+          recipe_id,
+          ingredient_name: ingredient.ingredient_name,
+          quantity: ingredient.quantity,
+          unit_code: ingredient.unit,
+          note: ingredient.note ?? null,
+        })),
+      });
+      ingredientCount += recipe.ingredients.length;
+    }
+    if ((await prisma.recipeStep.count({ where: { recipe_id } })) === 0) {
+      await prisma.recipeStep.createMany({
+        data: recipe.steps.map((instruction, index) => ({
+          recipe_id,
+          step_no: index + 1,
+          instruction,
+        })),
+      });
+      stepCount += recipe.steps.length;
+    }
   }
 
-  console.log(`Seeded ${recipes.length} recipes.`);
+  console.log(
+    `Seeded ${recipes.length} recipes (${ingredientCount} new ingredients, ${stepCount} new steps).`,
+  );
 
   const menuItemIds = new Map<string, string>();
   for (const item of menu_items) {

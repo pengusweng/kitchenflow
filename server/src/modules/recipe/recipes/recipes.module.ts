@@ -4,20 +4,13 @@ import { PrismaModule } from '../../../shared/prisma/prisma.module';
 import { RecipesController } from './recipes.controller';
 import { RecipesRepository } from './recipes.repository';
 import { RecipesService } from './recipes.service';
-import { RecipeAccessService } from './recipe-access.service';
-import { RecipeAccessGuard } from './recipe-access.guard';
-import { RecipeGrantsService } from './recipe-grants.service';
+import { BrandsModule } from '../../brands/brands.module';
+import { UsersModule } from '../../users/users.module';
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, BrandsModule, UsersModule],
   controllers: [RecipesController],
-  providers: [
-    RecipesService,
-    RecipesRepository,
-    RecipeAccessService,
-    RecipeAccessGuard,
-    RecipeGrantsService,
-  ],
-  exports: [RecipesRepository],
+  providers: [RecipesService, RecipesRepository],
+  exports: [RecipesService, RecipesRepository],
 })
 export class RecipesModule {}
