@@ -11,6 +11,7 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { UpdateBrandDTO } from '../dto/update-brand.dto';
+import { PinRequiredDocs } from '../../pin/docs/pin.docs';
 
 const brandExample = {
   brand_id: '00000000-0000-4000-8000-000000000001',
@@ -41,10 +42,11 @@ export function BrandsDocs() {
 export function CreateBrandDocs() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Create a brand (superadmin).',
+      summary: 'Create a brand (superadmin, PIN required).',
       description:
-        'Provide a name, a unique code of one to four characters, and an optional logo_url. The server does not generate the code. Brand creation does not assign users; owner_id is not accepted.',
+        'Provide a name, a unique code of one to four characters, and an optional logo_url. The server does not generate the code. Brand creation does not assign users; owner_id is not accepted. The caller’s X-Action-Pin is verified before any upload is stored.',
     }),
+    PinRequiredDocs(),
     ApiResponse({
       status: 201,
       description:
@@ -63,12 +65,12 @@ export function FindAllBrandsDocs() {
     ApiOperation({
       summary: 'List all brands (authenticated).',
       description:
-        'Returns all brands. Supports page, limit, and activeOnly. activeOnly defaults to true; false includes both active and inactive brands.',
+        'Returns brands newest first. Supports page, limit, activeOnly, status, and search. activeOnly defaults to true; false includes both active and inactive brands. status (all, active, inactive) takes precedence over activeOnly when supplied. search is a case-insensitive partial match on name and code; every space-separated term must match one of them.',
     }),
     ApiResponse({
       status: 200,
       description:
-        'Paginated brands in data, with page, limit, total, and totalPages in meta. Uploaded logo keys are resolved to display URLs; null logos remain null.',
+        'Paginated brands in data, with page, limit, total, totalPages, and counts in meta. counts holds the all, active, and inactive totals for the current search regardless of the status filter. Uploaded logo keys are resolved to display URLs; null logos remain null.',
       content: {
         'application/json': {
           examples: {
@@ -76,14 +78,26 @@ export function FindAllBrandsDocs() {
               summary: 'One matching brand',
               value: {
                 data: [brandReadExample],
-                meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+                meta: {
+                  page: 1,
+                  limit: 10,
+                  total: 1,
+                  totalPages: 1,
+                  counts: { all: 1, active: 1, inactive: 0 },
+                },
               },
             },
             empty: {
               summary: 'No matching brands',
               value: {
                 data: [],
-                meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
+                meta: {
+                  page: 1,
+                  limit: 10,
+                  total: 0,
+                  totalPages: 0,
+                  counts: { all: 0, active: 0, inactive: 0 },
+                },
               },
             },
           },
@@ -118,10 +132,11 @@ export function FindOneBrandDocs() {
 export function UpdateBrandDocs() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Update an active brand (superadmin).',
+      summary: 'Update an active brand (superadmin, PIN required).',
       description:
-        'Superadmins can update any active brand using JSON or multipart/form-data. Update the name, manually supplied code, or logo_url. An optional multipart file field replaces the logo with a validated JPG/PNG image (maximum 5 MiB and 20 megapixels); the uploaded image takes precedence over logo_url. File-only updates are supported. Without a file, omitted fields are unchanged; JSON null clears logo_url. Renaming does not generate a code. The response contains the stored image key; fetch the brand to obtain its display URL.',
+        'Superadmins can update any active brand using JSON or multipart/form-data. Update the name, manually supplied code, or logo_url. An optional multipart file field replaces the logo with a validated JPG/PNG image (maximum 5 MiB and 20 megapixels); the uploaded image takes precedence over logo_url. File-only updates are supported. Without a file, omitted fields are unchanged; JSON null clears logo_url. Renaming does not generate a code. The response contains the stored image key; fetch the brand to obtain its display URL. The caller’s X-Action-Pin is verified before any upload is stored.',
     }),
+    PinRequiredDocs(),
     ApiConsumes('application/json', 'multipart/form-data'),
     ApiExtraModels(UpdateBrandDTO),
     ApiBody({
@@ -196,10 +211,11 @@ export function UpdateBrandDocs() {
 export function DeleteBrandDocs() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Deactivate a brand (superadmin).',
+      summary: 'Deactivate a brand (superadmin, PIN required).',
       description:
-        'Superadmins can deactivate any active brand. The brand is deactivated without changing employee accounts. Records are preserved.',
+        'Superadmins can deactivate any active brand after confirming their X-Action-Pin. The brand is deactivated without changing employee accounts. Records are preserved.',
     }),
+    PinRequiredDocs(),
     ApiParam({
       name: 'brandId',
       schema: { type: 'string', format: 'uuid' },

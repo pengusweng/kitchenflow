@@ -5,10 +5,11 @@ import {
   ShieldCheck,
   ShoppingBag,
   Soup,
+  Store,
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { STAFF_ACCOUNT_ROLES } from "@/src/features/auth/utils/webRoles";
+import { BRAND_ROLES, STAFF_ACCOUNT_ROLES } from "@/src/features/auth/utils/webRoles";
 
 export type NavItem = {
   label: string;
@@ -39,6 +40,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Recipes", href: "/dashboard/recipes", icon: BookOpen },
       { label: "Audit History", href: "/dashboard/audit-history", icon: ShieldCheck },
+      { label: "Brands", href: "/dashboard/brands", icon: Store, roles: BRAND_ROLES },
       { label: "Staff Accounts", href: "/dashboard/staff", icon: Users, roles: STAFF_ACCOUNT_ROLES },
     ],
   },

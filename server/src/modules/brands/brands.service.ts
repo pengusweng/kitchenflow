@@ -42,20 +42,23 @@ export class BrandsService {
     };
   }
 
-  async findAll({ page, limit, activeOnly }: FindBrandsDTO) {
+  async findAll({ page, limit, activeOnly, status, search }: FindBrandsDTO) {
+    // status wins when given; otherwise activeOnly keeps its original meaning.
+    const effectiveStatus = status ?? (activeOnly ? 'active' : 'all');
     this.logger.log(
-      `Listing brands: page=${page}, limit=${limit}, activeOnly=${activeOnly}`,
+      `Listing brands: page=${page}, limit=${limit}, status=${effectiveStatus}, search=${search ? 'yes' : 'no'}`,
     );
 
     const skip = (page - 1) * limit;
 
     assertValidPagination(skip, this.logger);
 
-    const { brands, total } = await this.brandsRepository.findAllBrands(
+    const { brands, counts } = await this.brandsRepository.findAllBrands(
       skip,
       limit,
-      activeOnly,
+      { status: effectiveStatus, search },
     );
+    const total = counts[effectiveStatus];
 
     this.logger.log(
       `Listed brands: page=${page}, returned=${brands.length}, total=${total}`,
@@ -75,6 +78,7 @@ export class BrandsService {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+        counts,
       },
     };
   }

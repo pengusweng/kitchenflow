@@ -146,7 +146,7 @@ Feature: Global brand HTTP contracts and logo uploads
     Then return 400 without calling the service
 
   @IT-BRND-025
-  Scenario: Rejects invalid list filters: the supplied value
+  Scenario: Rejects invalid list filters, statuses and over-long searches: the supplied value
     Given invalid list query the supplied value
     When brands are listed
     Then return 400 before querying
@@ -162,3 +162,9 @@ Feature: Global brand HTTP contracts and logo uploads
     Given active employees with real database sessions
     When a superadmin deactivates a fixture brand
     Then employees remain active and their sessions remain valid
+
+  @IT-BRND-034
+  Scenario: Forwards trimmed search and status list filters: the supplied value
+    Given list query the supplied value
+    When brands are listed
+    Then forward the trimmed search and status filters

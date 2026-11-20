@@ -33,3 +33,12 @@ Feature: Brands audit logging
     Given a supervisor
     When brands are listed, a brand is viewed and a brand is created
     Then only the creation produces a BRAND_CREATED DENIED row with ACCESS_DENIED
+
+  # Jest: server/src/modules/brands/tests/brands-audit.http.spec.ts
+  # Context: Brands audit logging
+  @IT-BRND-035
+  Scenario: Require a valid PIN to create, update or deactivate a brand
+    Test Case ID: IT-BRND-035
+    Given a superadmin without a valid PIN
+    When the brand is created, updated or deactivated
+    Then return 403, skip the service and audit a DENIED row with INVALID_PIN
