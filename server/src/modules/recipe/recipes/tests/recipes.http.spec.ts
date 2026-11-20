@@ -17,10 +17,26 @@ describe('Recipes HTTP endpoints', () => {
   const recipeId = '00000000-0000-4000-8000-000000000001';
   const callerId = '00000000-0000-4000-8000-000000000002';
   const brandId = '00000000-0000-4000-8000-000000000003';
-  const service = { findMany: jest.fn(), findOne: jest.fn() };
+  const service = {
+    findMany: jest.fn(),
+    findOne: jest.fn(),
+    deactivate: jest.fn(),
+    reactivate: jest.fn(),
+  };
   const allowedRoles = Object.values(UserRole).filter(
     (role) => role !== UserRole.CASHIER_STAFF,
   );
+  const statusRoles: UserRole[] = [
+    UserRole.SUPERADMIN,
+    UserRole.RECIPE_MANAGER,
+  ];
+  const statusDeniedRoles = Object.values(UserRole).filter(
+    (role) => !statusRoles.includes(role),
+  );
+  const deactivate = (id: string) =>
+    fetch(`${url}/${id}`, { method: 'DELETE' });
+  const reactivate = (id: string) =>
+    fetch(`${url}/${id}/reactivate`, { method: 'PATCH' });
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -55,6 +71,12 @@ describe('Recipes HTTP endpoints', () => {
     currentRole = UserRole.RECIPE_MANAGER;
     service.findMany.mockReset().mockResolvedValue({ data: [], meta: {} });
     service.findOne.mockReset().mockResolvedValue({ recipe_id: recipeId });
+    service.deactivate
+      .mockReset()
+      .mockResolvedValue({ recipe_id: recipeId, is_active: false });
+    service.reactivate
+      .mockReset()
+      .mockResolvedValue({ recipe_id: recipeId, is_active: true });
   });
   afterAll(async () => app?.close());
 
@@ -152,4 +174,63 @@ describe('Recipes HTTP endpoints', () => {
 
     expect(response.status).toBe(404);
   });
+
+  it('IT-RCP-010: Given a recipe manager, When a recipe is deleted, Then deactivate it and return 200', async () => {
+    const response = await deactivate(recipeId);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      recipe_id: recipeId,
+      is_active: false,
+    });
+    expect(service.deactivate).toHaveBeenCalledWith(recipeId);
+  });
+
+  it('IT-RCP-011: Given a recipe manager, When a recipe is reactivated, Then reactivate it and return 200', async () => {
+    const response = await reactivate(recipeId);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      recipe_id: recipeId,
+      is_active: true,
+    });
+    expect(service.reactivate).toHaveBeenCalledWith(recipeId);
+  });
+
+  it('IT-RCP-012: Given a malformed recipe id, When its status is changed, Then reject both routes before the service', async () => {
+    expect((await deactivate('not-a-uuid')).status).toBe(400);
+    expect((await reactivate('not-a-uuid')).status).toBe(400);
+    expect(service.deactivate).not.toHaveBeenCalled();
+    expect(service.reactivate).not.toHaveBeenCalled();
+  });
+
+  it('IT-RCP-013: Given an unknown recipe, When its status is changed, Then return 404 from both routes', async () => {
+    service.deactivate.mockRejectedValue(new NotFoundException());
+    service.reactivate.mockRejectedValue(new NotFoundException());
+
+    expect((await deactivate(recipeId)).status).toBe(404);
+    expect((await reactivate(recipeId)).status).toBe(404);
+  });
+
+  it.each(statusDeniedRoles)(
+    'IT-RCP-014: Given the %s role, When a recipe status is changed, Then deny both routes without calling the service',
+    async (role) => {
+      currentRole = role;
+
+      expect((await deactivate(recipeId)).status).toBe(403);
+      expect((await reactivate(recipeId)).status).toBe(403);
+      expect(service.deactivate).not.toHaveBeenCalled();
+      expect(service.reactivate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(statusRoles)(
+    'IT-RCP-015: Given the %s role, When a recipe status is changed, Then allow both routes',
+    async (role) => {
+      currentRole = role;
+
+      expect((await deactivate(recipeId)).status).toBe(200);
+      expect((await reactivate(recipeId)).status).toBe(200);
+    },
+  );
 });
