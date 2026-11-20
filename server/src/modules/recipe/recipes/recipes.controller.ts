@@ -58,30 +58,26 @@ export class RecipesController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
   @Audit({
     action: 'RECIPE_DEACTIVATED',
     snapshot: 'update',
     entity: 'recipes',
     id: fromParam('id'),
   })
-  deactivate(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
+  deactivate(@Param('id', ParseUUIDPipe) id: string) {
     return this.recipesService.deactivate(id);
   }
 
-  @Patch(':id')
+  @Patch(':id/reactivate')
+  @Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
   @Audit({
     action: 'RECIPE_REACTIVATED',
     snapshot: 'update',
     entity: 'recipes',
     id: fromParam('id'),
   })
-  reactivate(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
+  reactivate(@Param('id', ParseUUIDPipe) id: string) {
     return this.recipesService.reactivate(id);
   }
 }
