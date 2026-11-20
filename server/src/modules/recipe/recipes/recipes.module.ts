@@ -11,6 +11,6 @@ import { UsersModule } from '../../users/users.module';
   imports: [PrismaModule, ConfigModule, BrandsModule, UsersModule],
   controllers: [RecipesController],
   providers: [RecipesService, RecipesRepository],
-  exports: [RecipesRepository],
+  exports: [RecipesService, RecipesRepository],
 })
 export class RecipesModule {}

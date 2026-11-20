@@ -10,6 +10,6 @@ import { RecipeStepsService } from './recipe-steps.service';
   imports: [PrismaModule, ConfigModule, RecipesModule],
   controllers: [RecipeStepsController],
   providers: [RecipeStepsService, RecipeStepsRepository],
-  exports: [RecipeStepsRepository],
+  exports: [RecipeStepsService, RecipeStepsRepository],
 })
 export class RecipeStepsModule {}

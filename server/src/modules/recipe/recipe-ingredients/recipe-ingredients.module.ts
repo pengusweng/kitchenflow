@@ -11,6 +11,6 @@ import { RecipeIngredientsService } from './recipe-ingredients.service';
   imports: [PrismaModule, ConfigModule, RecipesModule, UnitsModule],
   controllers: [RecipeIngredientsController],
   providers: [RecipeIngredientsService, RecipeIngredientsRepository],
-  exports: [RecipeIngredientsRepository],
+  exports: [RecipeIngredientsService, RecipeIngredientsRepository],
 })
 export class RecipeIngredientsModule {}

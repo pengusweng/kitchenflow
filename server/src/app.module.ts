@@ -23,6 +23,7 @@ import { RecipesModule } from './modules/recipe/recipes/recipes.module';
 import { RecipeIngredientsModule } from './modules/recipe/recipe-ingredients/recipe-ingredients.module';
 import { RecipeStepsModule } from './modules/recipe/recipe-steps/recipe-steps.module';
 import { RecipeHistoriesModule } from './modules/recipe/recipe-histories/recipe-histories.module';
+import { RecipeAuthoringModule } from './modules/recipe/recipe-authoring/recipe-authoring.module';
 import { UnitsModule } from './modules/units/units.module';
 import { MenuItemModifiersModule } from './modules/menu/menu-item-modifiers/menu-item-modifiers.module';
 import { MenuCatalogModule } from './modules/menu/menu-catalog/menu-catalog.module';
@@ -58,6 +59,7 @@ import { KitchenFulfillmentModule } from './modules/kitchen/kitchen-fulfillment/
     RecipeIngredientsModule,
     RecipeStepsModule,
     RecipeHistoriesModule,
+    RecipeAuthoringModule,
     UnitsModule,
     MenuItemModifiersModule,
     MenuCatalogModule,
