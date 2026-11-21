@@ -101,6 +101,77 @@ void main() {
   );
 
   test(
+    'includes X-Action-Pin header when pin is provided during login',
+    () async {
+      final store = _FakeTokenStore();
+      final adapter = _FakeAdapter(
+        (_) async => _json({
+          'token': 'super-tok-123',
+          'expires_at': '2026-10-21T12:00:00.000Z',
+          'user': {'user_id': 'u_admin', 'username': 'admin', 'role': 'SUPERADMIN'},
+        }),
+      );
+      final repo = _repo(adapter, store);
+
+      final token = await repo.login(
+        username: 'admin',
+        password: 'Password123!',
+        pin: '1234',
+      );
+
+      expect(token, 'super-tok-123');
+      final request = adapter.lastRequest!;
+      expect(request.headers['X-Action-Pin'], '1234');
+    },
+  );
+
+  test(
+    'a 401 with PIN_REQUIRED becomes pinRequired failure',
+    () async {
+      final store = _FakeTokenStore();
+      final adapter = _FakeAdapter(
+        (_) async => _json({
+          'code': 'PIN_REQUIRED',
+          'message': 'Enter your PIN to sign in.',
+        }, status: 401),
+      );
+      final repo = _repo(adapter, store);
+
+      try {
+        await repo.login(username: 'admin', password: 'Password123!');
+        fail('Expected an AuthException.');
+      } on AuthException catch (e) {
+        expect(e.kind, AuthFailure.pinRequired);
+        expect(e.message, 'Enter your PIN to sign in.');
+      }
+      expect(store.written, isNull);
+    },
+  );
+
+  test(
+    'a 401 with INVALID_PIN becomes invalidPin failure',
+    () async {
+      final store = _FakeTokenStore();
+      final adapter = _FakeAdapter(
+        (_) async => _json({
+          'code': 'INVALID_PIN',
+          'message': 'Incorrect PIN.',
+        }, status: 401),
+      );
+      final repo = _repo(adapter, store);
+
+      try {
+        await repo.login(username: 'admin', password: 'Password123!', pin: '0000');
+        fail('Expected an AuthException.');
+      } on AuthException catch (e) {
+        expect(e.kind, AuthFailure.invalidPin);
+        expect(e.message, 'Incorrect PIN.');
+      }
+      expect(store.written, isNull);
+    },
+  );
+
+  test(
     'a 401 becomes an invalidCredentials failure with the server message',
     () async {
       final store = _FakeTokenStore();

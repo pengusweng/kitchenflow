@@ -7,7 +7,13 @@ import 'package:mobile/core/models/user_role.dart';
 
 /// Why a sign-in attempt failed, normalized from transport/HTTP errors so
 /// the UI never has to inspect [DioException] itself.
-enum AuthFailure { invalidCredentials, network, unexpected }
+enum AuthFailure {
+  invalidCredentials,
+  network,
+  unexpected,
+  pinRequired,
+  invalidPin,
+}
 
 class AuthException implements Exception {
   const AuthException(this.message, {this.kind = AuthFailure.unexpected});
@@ -30,17 +36,24 @@ class AuthRepository {
   ///
   /// Contract: POST /auth/login `{username, password}` ->
   /// 200 `{token, expires_at, user}` |
-  /// 401 `{code: 'INVALID_CREDENTIALS', message}`.
+  /// 401 `{code: 'INVALID_CREDENTIALS', message}` |
+  /// 401 `{code: 'PIN_REQUIRED'}` |
+  /// 401 `{code: 'INVALID_PIN'}`.
   ///
-  /// Returns the session token on success. Throws [AuthException] with the matching [AuthFailure] kind otherwise.
+  /// Superadmins must provide their four-digit [pin] (sent via `X-Action-Pin`).
+  /// Returns the session token on success. Throws [AuthException] otherwise.
   Future<String> login({
     required String username,
     required String password,
+    String? pin,
   }) async {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         '/auth/login',
         data: {'username': username, 'password': password},
+        options: pin != null && pin.isNotEmpty
+            ? Options(headers: {'X-Action-Pin': pin})
+            : null,
       );
 
       final token = res.data?['token'];
@@ -161,9 +174,25 @@ class AuthRepository {
 
   AuthException _mapDioException(DioException e) {
     if (e.response?.statusCode == 401) {
-      final message = e.response?.data is Map
-          ? (e.response!.data['message'] as String?)?.trim()
+      final data = e.response?.data;
+      final code = data is Map ? data['code'] as String? : null;
+      final message = data is Map
+          ? (data['message'] as String?)?.trim()
           : null;
+
+      if (code == 'PIN_REQUIRED') {
+        return AuthException(
+          message ?? 'Enter your PIN to sign in.',
+          kind: AuthFailure.pinRequired,
+        );
+      }
+      if (code == 'INVALID_PIN') {
+        return AuthException(
+          message ?? 'Incorrect PIN.',
+          kind: AuthFailure.invalidPin,
+        );
+      }
+
       return AuthException(
         (message == null || message.isEmpty)
             ? 'Invalid username or password.'
