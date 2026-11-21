@@ -13,12 +13,14 @@ class KkfcLoadingButton extends StatelessWidget {
     required this.loadingLabel,
     required this.isLoading,
     required this.onPressed,
+    this.customBackground,
   });
 
   final String label;
   final String loadingLabel;
   final bool isLoading;
   final VoidCallback? onPressed;
+  final Color? customBackground;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +31,7 @@ class KkfcLoadingButton extends StatelessWidget {
       onPressed: onPressed,
       fullWidth: true,
       size: KkfcButtonSize.primary,
+      customBackground: customBackground,
     );
   }
 }

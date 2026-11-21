@@ -158,13 +158,17 @@ class _CartPanelState extends ConsumerState<CartPanel>
                                 ),
                               ),
                               const SizedBox(width: KkfcSpace.space2),
-                              const Text(
-                                'Current order',
-                                style: TextStyle(
-                                  fontFamily: KkfcFonts.ibmPlexSans,
-                                  fontSize: 18.0,
-                                  fontWeight: FontWeight.w700,
-                                  color: KkfcColors.ink,
+                              const Flexible(
+                                child: Text(
+                                  'Current order',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: KkfcFonts.ibmPlexSans,
+                                    fontSize: 18.0,
+                                    fontWeight: FontWeight.w700,
+                                    color: KkfcColors.ink,
+                                  ),
                                 ),
                               ),
                             ],
