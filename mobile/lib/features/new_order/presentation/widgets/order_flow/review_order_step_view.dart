@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/app/routes.dart';
+import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
 import 'package:mobile/features/new_order/data/models/order_draft_models.dart';
@@ -20,18 +21,45 @@ class ReviewOrderStepView extends ConsumerStatefulWidget {
     super.key,
     required this.onConfirm,
     this.onCancelOrder,
+    this.cooldownDuration = const Duration(seconds: 3),
   });
 
   final VoidCallback onConfirm;
   final VoidCallback? onCancelOrder;
+  final Duration cooldownDuration;
 
   @override
   ConsumerState<ReviewOrderStepView> createState() =>
       _ReviewOrderStepViewState();
 }
 
-class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView> {
+class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
+    with SingleTickerProviderStateMixin {
   bool _isSubmitting = false;
+  late final AnimationController _cooldownController;
+
+  @override
+  void initState() {
+    super.initState();
+    _cooldownController = AnimationController(
+      vsync: this,
+      duration: widget.cooldownDuration,
+    );
+
+    if (widget.cooldownDuration > Duration.zero) {
+      _cooldownController.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _cooldownController.dispose();
+    super.dispose();
+  }
+
+  bool get _isCooldownActive =>
+      widget.cooldownDuration > Duration.zero &&
+      !_cooldownController.isCompleted;
 
   String _formatModifiers(CartLine line, String brandName) {
     final parts = <String>[];
@@ -552,73 +580,114 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView> {
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
           child: SafeArea(
             top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 52,
-                  width: double.infinity,
-                  child: Material(
-                    color: _isSubmitting
-                        ? const Color(0xFF8B4722)
-                        : const Color(0xFFA8562A),
-                    borderRadius: BorderRadius.circular(10.0),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(10.0),
-                      onTap: _isSubmitting ? null : _onConfirmAndSend,
-                      child: Center(
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
-                              )
-                            : const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.restaurant,
-                                    color: Colors.white,
-                                    size: 18.0,
-                                  ),
-                                  SizedBox(width: 8.0),
-                                  Text(
-                                    'Confirm and send',
-                                    style: TextStyle(
-                                      fontFamily: KkfcFonts.ibmPlexSans,
-                                      fontSize: 16.0,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+            child: AnimatedBuilder(
+              animation: _cooldownController,
+              builder: (context, _) {
+                final isCoolingDown = _isCooldownActive;
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Cooldown progress loading bar
+                    if (isCoolingDown) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(KkfcRadius.sm),
+                        child: SizedBox(
+                          height: 4.0,
+                          width: double.infinity,
+                          child: LinearProgressIndicator(
+                            key: const ValueKey('confirm-cooldown-progress-bar'),
+                            value: _cooldownController.value,
+                            backgroundColor: KkfcColors.border,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              KkfcColors.action,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8.0),
+                    ],
+                    SizedBox(
+                      height: 52,
+                      width: double.infinity,
+                      child: Material(
+                        color: _isSubmitting
+                            ? const Color(0xFF8B4722)
+                            : (isCoolingDown
+                                ? const Color(0xFFC5A28D)
+                                : const Color(0xFFA8562A)),
+                        borderRadius: BorderRadius.circular(10.0),
+                        child: InkWell(
+                          key: const ValueKey('confirm-and-send-button'),
+                          borderRadius: BorderRadius.circular(10.0),
+                          onTap: (_isSubmitting || isCoolingDown)
+                              ? null
+                              : _onConfirmAndSend,
+                          child: Center(
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
                                     ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.restaurant,
+                                        color: isCoolingDown
+                                            ? Colors.white.withValues(
+                                                alpha: 0.75,
+                                              )
+                                            : Colors.white,
+                                        size: 18.0,
+                                      ),
+                                      const SizedBox(width: 8.0),
+                                      Text(
+                                        'Confirm and send',
+                                        style: TextStyle(
+                                          fontFamily: KkfcFonts.ibmPlexSans,
+                                          fontSize: 16.0,
+                                          fontWeight: FontWeight.w700,
+                                          color: isCoolingDown
+                                              ? Colors.white.withValues(
+                                                  alpha: 0.75,
+                                                )
+                                              : Colors.white,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 8.0),
-                TextButton(
-                  key: const ValueKey('cancel-order-button'),
-                  onPressed: _isSubmitting
-                      ? null
-                      : () => _navigateToCancelOrder(context),
-                  child: const Text(
-                    'Cancel order',
-                    style: TextStyle(
-                      fontFamily: KkfcFonts.ibmPlexSans,
-                      fontSize: 15.0,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFB42318),
+                    const SizedBox(height: 8.0),
+                    TextButton(
+                      key: const ValueKey('cancel-order-button'),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => _navigateToCancelOrder(context),
+                      child: const Text(
+                        'Cancel order',
+                        style: TextStyle(
+                          fontFamily: KkfcFonts.ibmPlexSans,
+                          fontSize: 15.0,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFB42318),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ),
