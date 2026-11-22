@@ -99,3 +99,39 @@ Feature: Additional menu items unit coverage
     Given an active menu item and a requested boolean availability
     When the repository changes availability
     Then only availability and modification time are updated while other fields are preserved
+
+  # Jest: server/src/modules/menu/menu-items/tests/menu-items.service.spec.ts
+  # Context: MenuItemsService mutations
+  @UT-MI-011
+  Scenario: Return uploaded image keys as download URLs
+    Test Case ID: UT-MI-011
+    Given a saved menu item whose image is an uploaded storage key
+    When the item is updated
+    Then the response returns the image as a download URL
+
+  # Jest: server/src/modules/menu/menu-items/tests/menu-items.service.spec.ts
+  # Context: MenuItemsService mutations / listing
+  @UT-MI-012
+  Scenario: List menu items by status and page by that status's count
+    Test Case ID: UT-MI-012
+    Given status counts for the search and an activeOnly or status filter
+    When menu items are listed across brands or for one brand
+    Then the repository receives the resolved status and search, and the total and page count follow that status's count
+
+  # Jest: server/src/modules/menu/menu-items/tests/menu-items.repository.spec.ts
+  # Context: MenuItemsRepository listing
+  @UT-MI-013
+  Scenario: Match every search term on name or code and count each status
+    Test Case ID: UT-MI-013
+    Given a multi-word search and the inactive status for one brand
+    When the repository lists menu items
+    Then every term must match the name or code, and the active and inactive counts use the same search
+
+  # Jest: server/src/modules/menu/menu-items/tests/menu-items.repository.spec.ts
+  # Context: MenuItemsRepository listing
+  @UT-MI-014
+  Scenario: Omit the activation filter for status all
+    Test Case ID: UT-MI-014
+    Given the all status
+    When the repository lists menu items across brands
+    Then the query does not filter on is_active
