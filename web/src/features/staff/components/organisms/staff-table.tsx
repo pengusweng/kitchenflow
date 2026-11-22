@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
+import SortableHead from "@/src/components/ui/molecules/sortable-head";
 import { DataTable, DataTableHead } from "@/src/components/ui/organisms/data-table";
 import type { StaffMember, StaffSort, StaffSortField } from "../../utils/staff";
 import { CLUSTER, COL, COLUMN_COUNT } from "../../utils/table-columns";
-import SortableHead from "../molecules/sortable-head";
 import StaffRow from "../molecules/staff-row";
 import StaffSkeletonRow from "../molecules/staff-skeleton-row";
 

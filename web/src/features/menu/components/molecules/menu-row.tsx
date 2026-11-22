@@ -1,6 +1,7 @@
 import { Ban } from "lucide-react";
 import { cn } from "cn";
 import { TableCell, TableRow } from "@/components/ui/table";
+import BrandLabel from "@/src/components/ui/atoms/brand-label";
 import ViewButton from "@/src/components/ui/atoms/view-button";
 import { formatPeso, type MenuItem } from "../../utils/menu";
 import AvailabilitySwitch from "../atoms/availability-switch";
@@ -14,15 +15,6 @@ type MenuRowProps = {
   onAvailabilityChange: (item: MenuItem, available: boolean) => void;
   onView?: (item: MenuItem) => void;
 };
-
-function BrandName({ item }: { item: MenuItem }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.brand.accent }} />
-      {item.brand.name}
-    </span>
-  );
-}
 
 export default function MenuRow({ item, showBrand, onAvailabilityChange, onView }: MenuRowProps) {
   const off = !item.available;
@@ -60,7 +52,7 @@ export default function MenuRow({ item, showBrand, onAvailabilityChange, onView 
       </TableCell>
       {showBrand ? (
         <TableCell className="hidden px-4 py-2.5 text-ink md:table-cell xl:whitespace-normal">
-          <BrandName item={item} />
+          <BrandLabel brand={item.brand} />
         </TableCell>
       ) : null}
       <TableCell
