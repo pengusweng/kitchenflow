@@ -1,6 +1,7 @@
 import type { MenuBrand } from "@/src/features/menu/utils/menu";
 import { suggestCode } from "@/src/features/menu/utils/menu-form";
 import type { RecipeDetail } from "./recipes";
+import { parseDecimal } from "./units";
 
 // The same limits the API enforces (CreateFullRecipeDTO and its nested DTOs).
 export const RECIPE_LIMITS = {
@@ -12,28 +13,6 @@ export const RECIPE_LIMITS = {
   maxQuantity: 999_999_999.999,
 };
 
-/** The seeded units, grouped as the picker shows them. Comes from GET /units once the API is wired. */
-export const UNIT_GROUPS: { label: string; units: { code: string; name: string }[] }[] = [
-  {
-    label: "Weight",
-    units: [
-      { code: "g", name: "Gram" },
-      { code: "kg", name: "Kilogram" },
-    ],
-  },
-  {
-    label: "Volume",
-    units: [
-      { code: "ml", name: "Milliliter" },
-      { code: "l", name: "Liter" },
-      { code: "tsp", name: "Teaspoon" },
-      { code: "tbsp", name: "Tablespoon" },
-    ],
-  },
-  { label: "Count", units: [{ code: "pc", name: "Piece" }] },
-];
-
-const UNIT_CODES = new Set(UNIT_GROUPS.flatMap((group) => group.units.map((unit) => unit.code)));
 const DEFAULT_UNIT = "g";
 
 /** One ingredient row as typed. `key` only identifies the row on screen. */
@@ -113,21 +92,17 @@ export function moveItem<T>(list: T[], index: number, delta: number): T[] {
 const isBlankIngredient = (i: IngredientDraft) => !i.name.trim() && !i.quantity.trim() && !i.note.trim();
 const isBlankStep = (s: StepDraft) => !s.instruction.trim();
 
-const NUMBER = /^(\d+(\.\d*)?|\.\d+)$/;
-
 /** The quantity as a number, or the problem with it. */
-export function parseQuantity(text: string): { value: number } | { error: string } {
-  const trimmed = text.trim();
-  if (!trimmed) return { error: "Enter an amount." };
-  if (!NUMBER.test(trimmed)) return { error: "Use a number, like 250 or 0.5." };
-  if ((trimmed.split(".")[1] ?? "").length > 3) return { error: "Use at most 3 decimal places." };
-  const value = Number(trimmed);
-  if (value <= 0) return { error: "Must be more than 0." };
-  if (value > RECIPE_LIMITS.maxQuantity) return { error: "That amount is too large." };
-  return { value };
+export function parseQuantity(text: string) {
+  return parseDecimal(text, { places: 3, max: RECIPE_LIMITS.maxQuantity, what: "an amount" });
 }
 
-export function validateRecipeForm(values: RecipeFormValues, takenCodes: Set<string>): RecipeFormErrors {
+/** `unitCodes` are the units the API knows, from GET /units. */
+export function validateRecipeForm(
+  values: RecipeFormValues,
+  takenCodes: Set<string>,
+  unitCodes: Set<string>,
+): RecipeFormErrors {
   const errors: RecipeFormErrors = {};
   const name = values.name.trim();
   const code = values.code.trim();
@@ -148,7 +123,7 @@ export function validateRecipeForm(values: RecipeFormValues, takenCodes: Set<str
     const rowName = row.name.trim();
     const quantity = parseQuantity(row.quantity);
     if ("error" in quantity) problems.quantity = quantity.error;
-    if (!UNIT_CODES.has(row.unit)) problems.unit = "Choose a unit.";
+    if (!unitCodes.has(row.unit)) problems.unit = "Choose a unit.";
     if (!rowName) problems.name = "Name the ingredient.";
     else if (rowName.length > RECIPE_LIMITS.ingredientName)
       problems.name = `Keep it to ${RECIPE_LIMITS.ingredientName} characters.`;

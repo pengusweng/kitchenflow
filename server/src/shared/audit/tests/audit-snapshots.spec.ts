@@ -153,6 +153,33 @@ describe('Audit snapshots', () => {
     expect(JSON.stringify(errorLog.mock.calls)).not.toContain('10.0.0.5');
   });
 
+  it('UT-AUDIT-024: Given a text-keyed entity, When a snapshot is loaded, Then look it up by its code and skip keys that cannot be codes', async () => {
+    const { recorder, findUnique } = setup();
+    findUnique.mockResolvedValueOnce({
+      code: 'cup',
+      name: 'Cup',
+      dimension: 'VOLUME',
+      to_base: new Prisma.Decimal('240'),
+    });
+
+    await expect(recorder.loadSnapshot('units', 'cup')).resolves.toEqual({
+      code: 'cup',
+      name: 'Cup',
+      dimension: 'VOLUME',
+      to_base: '240',
+    });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { code: 'cup' },
+      select: { code: true, name: true, dimension: true, to_base: true },
+    });
+
+    findUnique.mockClear();
+    for (const key of ['', 'x'.repeat(65), 42, undefined]) {
+      await expect(recorder.loadSnapshot('units', key)).resolves.toBeNull();
+    }
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
   it('UT-AUDIT-021: Given snapshots, When success and failure rows are written, Then only the success row stores them', async () => {
     const { recorder, create } = setup();
     const req = request(updateItem, { id: itemId });

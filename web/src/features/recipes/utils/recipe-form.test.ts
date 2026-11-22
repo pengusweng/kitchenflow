@@ -14,6 +14,9 @@ import {
   validateRecipeForm,
   type RecipeFormValues,
 } from "./recipe-form";
+import { SEEDED_UNITS } from "./units";
+
+const UNITS = new Set(SEEDED_UNITS.map((unit) => unit.code));
 
 function ingredient(name: string, quantity: string, unit = "g", note = "") {
   return { ...newIngredientDraft(unit), name, quantity, note };
@@ -67,13 +70,14 @@ describe("parseQuantity", () => {
 
 describe("validateRecipeForm", () => {
   it("passes a complete recipe", () => {
-    expect(validateRecipeForm(validForm(), new Set())).toEqual({});
+    expect(validateRecipeForm(validForm(), new Set(), UNITS)).toEqual({});
   });
 
   it("requires brand, name and a code nobody else uses", () => {
     const errors = validateRecipeForm(
       validForm({ brand: "", name: " ", code: "rcp-gc-bibimbap" }),
       new Set(["RCP-GC-BIBIMBAP"]),
+      UNITS,
     );
     expect(errors.brand).toBe("Choose a brand.");
     expect(errors.name).toBe("Enter a recipe name.");
@@ -82,7 +86,7 @@ describe("validateRecipeForm", () => {
 
   it("skips untouched rows but needs at least one ingredient and one step", () => {
     const blank = validForm({ ingredients: [ingredient("", "")], steps: [step("  ")] });
-    const errors = validateRecipeForm(blank, new Set());
+    const errors = validateRecipeForm(blank, new Set(), UNITS);
     expect(errors.ingredients).toBe("Add at least one ingredient.");
     expect(errors.steps).toBe("Add at least one step.");
     expect(errors.ingredient).toBeUndefined();
@@ -90,14 +94,14 @@ describe("validateRecipeForm", () => {
     const spare = validForm();
     spare.ingredients.push(ingredient("", ""));
     spare.steps.push(step(""));
-    expect(validateRecipeForm(spare, new Set())).toEqual({});
+    expect(validateRecipeForm(spare, new Set(), UNITS)).toEqual({});
   });
 
   it("flags half-filled rows and repeated names, ignoring case and spacing", () => {
     const form = validForm({
       ingredients: [ingredient("Kimchi", "80"), ingredient(" kimchi ", "10"), ingredient("", "5"), ingredient("Salt", "")],
     });
-    const errors = validateRecipeForm(form, new Set());
+    const errors = validateRecipeForm(form, new Set(), UNITS);
     const [, repeat, nameless, amountless] = form.ingredients;
     expect(errors.ingredient?.[repeat.key]).toEqual({ name: "Already listed above." });
     expect(errors.ingredient?.[nameless.key]).toEqual({ name: "Name the ingredient." });
@@ -107,18 +111,18 @@ describe("validateRecipeForm", () => {
 
   it("rejects units the API doesn't know", () => {
     const form = validForm({ ingredients: [ingredient("Rice", "1", "cup")] });
-    expect(validateRecipeForm(form, new Set()).ingredient?.[form.ingredients[0].key]).toEqual({ unit: "Choose a unit." });
+    expect(validateRecipeForm(form, new Set(), UNITS).ingredient?.[form.ingredients[0].key]).toEqual({ unit: "Choose a unit." });
   });
 });
 
 describe("firstProblemId", () => {
   it("points at the first problem in reading order", () => {
     const form = validForm({ ingredients: [ingredient("Rice", "0")], steps: [step("")] });
-    const errors = validateRecipeForm(form, new Set());
+    const errors = validateRecipeForm(form, new Set(), UNITS);
     expect(firstProblemId(form, errors)).toBe(`${form.ingredients[0].key}-quantity`);
 
     const noName = validForm({ name: "" });
-    expect(firstProblemId(noName, validateRecipeForm(noName, new Set()))).toBe("recipe-name");
+    expect(firstProblemId(noName, validateRecipeForm(noName, new Set(), UNITS))).toBe("recipe-name");
   });
 });
 

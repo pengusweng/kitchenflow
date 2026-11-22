@@ -90,3 +90,21 @@ Feature: Measurement unit HTTP contracts
     Given any other role
     When units are changed
     Then deny create, update, and delete without calling the service
+
+  @IT-UNIT-016
+  Scenario: Audits a created unit with its values
+    Given a recipe manager
+    When a unit is created
+    Then audit UNIT_CREATED with the new unit's code, name, dimension and conversion as after data
+
+  @IT-UNIT-017
+  Scenario: Audits only the changed fields of an updated unit
+    Given a renamed unit
+    When it is updated
+    Then audit UNIT_UPDATED with only the changed fields before and after
+
+  @IT-UNIT-018
+  Scenario: Audits rejected unit creations without snapshots
+    Given a duplicate code and a supervisor
+    When units are created
+    Then audit the conflict and the denial without storing any unit values

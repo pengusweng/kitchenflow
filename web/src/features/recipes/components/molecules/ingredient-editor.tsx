@@ -6,13 +6,8 @@ import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/src/components/ui/atoms/input";
 import SelectField from "@/src/components/ui/atoms/select-field";
-import {
-  RECIPE_LIMITS,
-  recipeFieldId,
-  UNIT_GROUPS,
-  type IngredientDraft,
-  type RecipeFormErrors,
-} from "../../utils/recipe-form";
+import { RECIPE_LIMITS, recipeFieldId, type IngredientDraft, type RecipeFormErrors } from "../../utils/recipe-form";
+import type { UnitGroup } from "../../utils/units";
 
 type IngredientEditorProps = {
   ingredients: IngredientDraft[];
@@ -22,7 +17,14 @@ type IngredientEditorProps = {
   /** Moves focus to an element by id once it has rendered. */
   onFocusRequest: (id: string) => void;
   errors: RecipeFormErrors;
+  /** The picker's units, grouped by what they measure. */
+  unitGroups: UnitGroup[];
+  /** Opens the add-unit dialog for this row; the row switches to the new unit once it's added. */
+  onAddUnit: (key: string) => void;
 };
+
+/** The picker's last option, which opens the add-unit dialog instead of picking a unit. */
+const ADD_UNIT = "__add-unit__";
 
 const FIELD = "h-10 md:text-sm";
 const LIST_MESSAGE_ID = "recipe-ingredients-message";
@@ -36,6 +38,8 @@ export default function IngredientEditor({
   onRemove,
   onFocusRequest,
   errors,
+  unitGroups,
+  onAddUnit,
 }: IngredientEditorProps) {
   // Enter moves down the list instead of submitting the form; on the last row it starts a new one.
   const nextRowOnEnter = (index: number) => (e: KeyboardEvent<HTMLInputElement>) => {
@@ -89,14 +93,16 @@ export default function IngredientEditor({
                 id={recipeFieldId.ingredient(row.key, "unit")}
                 aria-label={`Ingredient ${n} unit`}
                 value={row.unit}
-                onChange={(e) => onChange(row.key, { unit: e.target.value })}
+                onChange={(e) =>
+                  e.target.value === ADD_UNIT ? onAddUnit(row.key) : onChange(row.key, { unit: e.target.value })
+                }
                 aria-invalid={Boolean(problems.unit)}
                 aria-describedby={messageId}
                 wrapperClassName="[grid-area:unit]"
                 className={FIELD}
               >
-                {UNIT_GROUPS.map((group) => (
-                  <optgroup key={group.label} label={group.label}>
+                {unitGroups.map((group) => (
+                  <optgroup key={group.dimension} label={group.label}>
                     {group.units.map((unit) => (
                       // The code alone, as the recipe page writes amounts ("250 g"); the group says what it measures.
                       <option key={unit.code} value={unit.code} title={unit.name}>
@@ -105,6 +111,7 @@ export default function IngredientEditor({
                     ))}
                   </optgroup>
                 ))}
+                <option value={ADD_UNIT}>Add a unit…</option>
               </SelectField>
               <Input
                 id={recipeFieldId.ingredient(row.key, "name")}

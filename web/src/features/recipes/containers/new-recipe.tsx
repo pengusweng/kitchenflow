@@ -15,7 +15,10 @@ import ConfidentialTag from "../components/atoms/confidential-tag";
 import RecipePanel from "../components/atoms/recipe-panel";
 import IngredientEditor from "../components/molecules/ingredient-editor";
 import StepEditor from "../components/molecules/step-editor";
+import AddUnitModal from "../components/organisms/add-unit-modal";
 import { addMockRecipe, useMockRecipes } from "../hooks/useMockRecipes";
+import { useUnits } from "../hooks/useUnits";
+import { groupUnits, type Unit } from "../utils/units";
 import {
   countProblems,
   emptyRecipeForm,
@@ -66,9 +69,23 @@ export default function NewRecipe() {
     focusAfterRender.current = null;
   });
 
+  // Units come from the API (GET /units); one added here (POST /units) joins the list.
+  const units = useUnits();
+  const unitCodes = new Set(units.units.map((unit) => unit.code));
+  const unitGroups = groupUnits(units.units);
+  // The ingredient row whose unit picker opened the add-unit dialog.
+  const [addingUnitFor, setAddingUnitFor] = useState<string | null>(null);
+  const addingUnitRow = values.ingredients.find((row) => row.key === addingUnitFor);
+
   const takenCodes = new Set(recipes.map((r) => r.code.toUpperCase()));
-  const errors: RecipeFormErrors = submitted ? validateRecipeForm(values, takenCodes) : {};
+  const errors: RecipeFormErrors = submitted ? validateRecipeForm(values, takenCodes, unitCodes) : {};
   const problems = countProblems(errors);
+
+  const unitAdded = (unit: Unit) => {
+    units.add(unit);
+    if (addingUnitFor) changeIngredient(addingUnitFor, { unit: unit.code });
+    setAddingUnitFor(null);
+  };
 
   const setDetail = (key: "brand" | "name" | "code" | "notes", value: string) =>
     setValues((current) => {
@@ -138,7 +155,7 @@ export default function NewRecipe() {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
-    const found = validateRecipeForm(values, takenCodes);
+    const found = validateRecipeForm(values, takenCodes, unitCodes);
     if (countProblems(found) > 0) {
       const id = firstProblemId(values, found);
       if (id) document.getElementById(id)?.focus();
@@ -221,6 +238,8 @@ export default function NewRecipe() {
               onRemove={removeIngredient}
               onFocusRequest={(id) => document.getElementById(id)?.focus()}
               errors={errors}
+              unitGroups={unitGroups}
+              onAddUnit={setAddingUnitFor}
             />
           </RecipePanel>
 
@@ -294,6 +313,16 @@ export default function NewRecipe() {
           </Button>
         </div>
       </div>
+
+      <AddUnitModal
+        open={addingUnitFor !== null}
+        onOpenChange={(open) => {
+          if (!open) setAddingUnitFor(null);
+        }}
+        onCreated={unitAdded}
+        existingCodes={new Set(units.units.map((unit) => unit.code.toLowerCase()))}
+        defaultDimension={units.units.find((unit) => unit.code === addingUnitRow?.unit)?.dimension}
+      />
     </form>
   );
 }
