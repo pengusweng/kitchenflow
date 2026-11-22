@@ -4,6 +4,7 @@ import { BrandsRepository } from '../../../brands/brands.repository';
 import { MenuItemsRepository } from '../menu-items.repository';
 import { MenuItemsService } from '../menu-items.service';
 import { RecipesRepository } from '../../../recipe/recipes/recipes.repository';
+import { StorageService } from '../../../../shared/storage/storage.service';
 
 describe('MenuItemsService mutations', () => {
   const now = new Date('2030-01-01T00:00:00Z');
@@ -45,6 +46,8 @@ describe('MenuItemsService mutations', () => {
       | 'reactivateMenuItem'
       | 'deleteMenuItem'
       | 'updateAvailability'
+      | 'findAll'
+      | 'findAllByBrand'
     >
   >;
   let brands: jest.Mocked<Pick<BrandsRepository, 'findOneBrand'>>;
@@ -61,6 +64,8 @@ describe('MenuItemsService mutations', () => {
           Promise.resolve({ ...item, is_active: activeOnly }),
         ),
       updateAvailability: jest.fn(),
+      findAll: jest.fn(),
+      findAllByBrand: jest.fn(),
       updateMenuItem: jest.fn().mockResolvedValue({ ...item, ...dto }),
       reactivateMenuItem: jest.fn().mockResolvedValue(item),
       deleteMenuItem: jest
@@ -72,6 +77,11 @@ describe('MenuItemsService mutations', () => {
       menu as unknown as MenuItemsRepository,
       brands as unknown as BrandsRepository,
       { findOne: jest.fn() } as unknown as RecipesRepository,
+      {
+        createDownloadUrl: jest.fn((key: string) =>
+          Promise.resolve(`https://files.example.test/${key}`),
+        ),
+      } as unknown as StorageService,
     );
   });
 
@@ -133,6 +143,50 @@ describe('MenuItemsService mutations', () => {
     },
   );
 
+  it('UT-MI-011: returns uploaded image keys as download URLs', async () => {
+    const key = 'uploads/user-id/image.png';
+    menu.updateMenuItem.mockResolvedValue({ ...item, img_url: key });
+    await expect(
+      service.updateMenuItem(item.menu_item_id, dto),
+    ).resolves.toMatchObject({
+      img_url: `https://files.example.test/${key}`,
+    });
+  });
+
+  describe('listing', () => {
+    const counts = { all: 3, active: 2, inactive: 1 };
+
+    it.each([
+      [{ activeOnly: true }, 'active', 2, 1],
+      [{ activeOnly: false }, 'all', 3, 2],
+      [{ activeOnly: true, status: 'inactive' as const }, 'inactive', 1, 1],
+    ])(
+      'UT-MI-012: lists with %j as status %s and pages by that count',
+      async (filters, status, total, totalPages) => {
+        menu.findAll.mockResolvedValue({ menuItems: [item], counts });
+        menu.findAllByBrand.mockResolvedValue({ menuItems: [item], counts });
+        const query = { page: 1, limit: 2, search: 'rice', ...filters };
+        const expected = {
+          data: [item],
+          meta: { page: 1, limit: 2, total, totalPages, counts },
+        };
+
+        await expect(service.findAll(query)).resolves.toEqual(expected);
+        expect(menu.findAll).toHaveBeenCalledWith(0, 2, {
+          status,
+          search: 'rice',
+        });
+        await expect(
+          service.findAllByBrand(query, brand.brand_id),
+        ).resolves.toEqual(expected);
+        expect(menu.findAllByBrand).toHaveBeenCalledWith(brand.brand_id, 0, 2, {
+          status,
+          search: 'rice',
+        });
+      },
+    );
+  });
+
   it('UT-MI-004: rejects reactivating an already-active item without writing', async () => {
     menu.findOneMenuItemByUID.mockResolvedValue(item);
     await expect(
@@ -162,7 +216,7 @@ describe('MenuItemsService mutations', () => {
         menu.updateAvailability.mockResolvedValue(updated);
         await expect(
           service.updateAvailability(id, availability),
-        ).resolves.toBe(updated);
+        ).resolves.toEqual(updated);
         expect(menu.findOneMenuItemByUID).toHaveBeenCalledWith(id, true);
         expect(brands.findOneBrand).toHaveBeenCalledWith(item.brand_id);
         expect(menu.updateAvailability).toHaveBeenCalledWith(id, availability);

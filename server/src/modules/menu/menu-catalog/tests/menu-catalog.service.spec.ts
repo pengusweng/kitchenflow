@@ -31,6 +31,7 @@ describe('MenuCatalogService operations', () => {
   const menuItem = {
     menu_item_id: 'menu-id',
     name: 'Rice',
+    img_url: 'https://example.com/rice.jpg',
     menuChannels: [],
     menuItemModifiers: [
       { modifier_id: 'modifier-id', modifier: { name: 'Extra cheese' } },
@@ -76,6 +77,11 @@ describe('MenuCatalogService operations', () => {
       repository as unknown as MenuCatalogRepository,
       brands as unknown as BrandsRepository,
       modifiers as unknown as ModifiersRepository,
+      {
+        createDownloadUrl: jest.fn((key: string) =>
+          Promise.resolve(`https://files.example.test/${key}`),
+        ),
+      } as unknown as StorageService,
     );
   });
 
@@ -139,7 +145,12 @@ describe('MenuCatalogService operations', () => {
       meta: { page: 2, limit: 10, total: 21, totalPages: 3 },
     });
     expect(brands.findOneBrand).toHaveBeenCalledWith('brand-id');
-    expect(repository.findMany).toHaveBeenCalledWith('brand-id', 10, 10);
+    expect(repository.findMany).toHaveBeenCalledWith(
+      'brand-id',
+      10,
+      10,
+      undefined,
+    );
   });
 
   it('UT-MCAT-008: rejects listing for a missing or inactive brand before querying the catalog', async () => {
@@ -161,7 +172,12 @@ describe('MenuCatalogService operations', () => {
       data: [],
       meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
     });
-    expect(repository.findMany).toHaveBeenCalledWith('brand-id', 0, 10);
+    expect(repository.findMany).toHaveBeenCalledWith(
+      'brand-id',
+      0,
+      10,
+      undefined,
+    );
   });
 
   it('UT-MCAT-010: rejects pagination overflow before querying the catalog', async () => {
@@ -172,6 +188,24 @@ describe('MenuCatalogService operations', () => {
       response: { code: 'PAGINATION_UNSUPPORTED_RANGE' },
     });
     expect(repository.findMany).not.toHaveBeenCalled();
+  });
+
+  it('UT-MCAT-014: returns uploaded image keys as download URLs', async () => {
+    const key = 'uploads/user-id/image.png';
+    const uploaded = { ...menuItem, img_url: key };
+    repository.create.mockResolvedValue(uploaded);
+    repository.findMany.mockResolvedValue({ menuItems: [uploaded], total: 1 });
+    const expected = { img_url: `https://files.example.test/${key}` };
+
+    await expect(service.create(dto)).resolves.toMatchObject(expected);
+    await expect(
+      service.findAll('brand-id', new PaginationDTO()),
+    ).resolves.toMatchObject({ data: [expected] });
+  });
+
+  it('UT-MCAT-015: forwards the search to the catalog query', async () => {
+    await service.findAll('brand-id', { page: 1, limit: 10, search: 'rice' });
+    expect(repository.findMany).toHaveBeenCalledWith('brand-id', 0, 10, 'rice');
   });
 
   it('UT-MCAT-011: preserves catalog lookup errors', async () => {
@@ -303,6 +337,7 @@ describe('MenuCatalogService transactional creation', () => {
         repository,
         {} as BrandsRepository,
         modifiers,
+        {} as StorageService,
       );
 
       await expect(service.create(input)).resolves.toEqual({

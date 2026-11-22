@@ -54,14 +54,14 @@ export class MenuCatalogRepository {
     });
   }
 
-  async findMany(brandId: string, skip: number, take: number) {
+  async findMany(brandId: string, skip: number, take: number, search?: string) {
     return this.prisma.$transaction(async (tx) => {
-      const { menuItems, total } =
+      const { menuItems, counts } =
         await this.menuItemsRepository.findAllByBrand(
           brandId,
           skip,
           take,
-          true,
+          { status: 'active', search },
           tx,
         );
 
@@ -85,7 +85,7 @@ export class MenuCatalogRepository {
         }),
       );
 
-      return { menuItems: items, total };
+      return { menuItems: items, total: counts.active };
     });
   }
 }

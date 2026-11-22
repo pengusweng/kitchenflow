@@ -225,10 +225,10 @@ describe('Menu audit logging', () => {
     ]);
   });
 
-  it('IT-MENU-003: Given kitchen staff, When they list all menu items, mark an item unavailable and try to create one, Then audit the toggle and the denied create but not the denied read', async () => {
+  it('IT-MENU-003: Given kitchen staff, When they list all menu items, mark an item unavailable and try to create one, Then audit the toggle and the denied create but not the read', async () => {
     role = UserRole.KITCHEN_STAFF;
 
-    // Superadmin-only list: denied, but reads are unaudited even when denied.
+    // Any signed-in role can list menu items; reads are never audited.
     const read = await call('GET', '/menu-items');
     // Kitchen staff may mark items sold out; the row records who did it.
     const toggle = await call('PATCH', `/menu-items/availability/${routeId}`, {
@@ -237,7 +237,7 @@ describe('Menu audit logging', () => {
     const create = await call('POST', '/menu-items');
 
     expect([read.status, toggle.status, create.status]).toEqual([
-      403, 200, 403,
+      200, 200, 403,
     ]);
     expect(services.items.createMenuItem).not.toHaveBeenCalled();
     expect(audit.rows()).toEqual([

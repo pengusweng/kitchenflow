@@ -104,6 +104,10 @@ describe('Menu catalog HTTP endpoints', () => {
   it.each([
     { query: '', pagination: { page: 1, limit: 10 } },
     { query: '?page=2&limit=5', pagination: { page: 2, limit: 5 } },
+    {
+      query: '?search=%20rice%20',
+      pagination: { page: 1, limit: 10, search: 'rice' },
+    },
   ])(
     'IT-MCAT-002: lists a brand catalog with query "$query"',
     async ({ query, pagination }) => {
@@ -194,8 +198,8 @@ describe('Menu catalog HTTP endpoints', () => {
     expect(service.create).not.toHaveBeenCalled();
   });
 
-  it.each(['?page=0', '?limit=101'])(
-    'IT-MCAT-010: rejects invalid pagination %s',
+  it.each(['?page=0', '?limit=101', `?search=${'r'.repeat(101)}`])(
+    'IT-MCAT-010: rejects invalid listing filters %s',
     async (query) => {
       const response = await fetch(`${url}/brand/${brandId}${query}`, {
         headers,

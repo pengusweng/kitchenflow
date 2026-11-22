@@ -166,11 +166,11 @@ Feature: Additional menu items integration coverage
   # Jest: server/src/modules/menu/menu-items/tests/menu-items.http.spec.ts
   # Context: Menu items HTTP endpoints
   @IT-MI-018
-  Scenario: Reserves the all-brands listing for superadmins
+  Scenario: Opens the all-brands listing to any signed-in role
     Test Case ID: IT-MI-018
     Given a supervisor or an unauthenticated client
     When the all-brand menu listing is requested
-    Then the supervisor receives 403 and the unauthenticated client receives 401
+    Then the supervisor receives 200 and the unauthenticated client receives 401
 
   # Jest: server/src/modules/menu/menu-items/tests/menu-items.http.spec.ts
   # Context: Menu items HTTP endpoints

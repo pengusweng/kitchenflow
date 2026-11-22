@@ -10,6 +10,8 @@ type FilterChipProps = {
   onClick: () => void;
   /** Shared by the chips of one group, so the selected pill slides between them. */
   pillId: string;
+  /** A short warning after the count, e.g. "2 off". */
+  flag?: string;
 };
 
 // The selected chip's ink pill is one shared layout element: picking another
@@ -17,7 +19,7 @@ type FilterChipProps = {
 // The chip group must be `isolate` so the pill's negative z-index stays inside it.
 const SLIDE = { type: "spring", duration: 0.32, bounce: 0.12 } as const;
 
-export default function FilterChip({ label, count, selected, onClick, pillId }: FilterChipProps) {
+export default function FilterChip({ label, count, selected, onClick, pillId, flag }: FilterChipProps) {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -50,6 +52,16 @@ export default function FilterChip({ label, count, selected, onClick, pillId }: 
       >
         {count}
       </span>
+      {flag ? (
+        <span
+          className={cn(
+            "relative -ml-0.5 text-xs font-semibold tabular-nums transition-colors duration-200",
+            selected ? "text-card/80" : "text-danger-ink",
+          )}
+        >
+          {flag}
+        </span>
+      ) : null}
     </button>
   );
 }

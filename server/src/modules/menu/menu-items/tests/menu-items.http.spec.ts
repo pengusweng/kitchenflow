@@ -229,11 +229,26 @@ describe('Menu items HTTP endpoints', () => {
       );
       expect(operation?.responses['200']).toHaveProperty(
         'content.application/json.examples.populated.value.meta',
-        { page: 1, limit: 10, total: 1, totalPages: 1 },
+        {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+          counts: { all: 1, active: 1, inactive: 0 },
+        },
       );
       expect(operation?.responses['200']).toHaveProperty(
         'content.application/json.examples.empty.value',
-        { data: [], meta: { page: 1, limit: 10, total: 0, totalPages: 0 } },
+        {
+          data: [],
+          meta: {
+            page: 1,
+            limit: 10,
+            total: 0,
+            totalPages: 0,
+            counts: { all: 0, active: 0, inactive: 0 },
+          },
+        },
       );
     }
     expect(operations[3]?.responses['200']).toHaveProperty(
@@ -588,8 +603,19 @@ describe('Menu items HTTP endpoints', () => {
       '?page=2&limit=5&activeOnly=false',
       { page: 2, limit: 5, activeOnly: false },
     ],
+    [
+      '?status=inactive&search=%20cheese%20rice%20',
+      {
+        page: 1,
+        limit: 10,
+        activeOnly: true,
+        status: 'inactive',
+        search: 'cheese rice',
+      },
+    ],
+    ['?search=%20%20', { page: 1, limit: 10, activeOnly: true }],
   ] as const)(
-    'IT-MI-017: forwards validated pagination to both listing endpoints: %s',
+    'IT-MI-017: forwards validated pagination, status and trimmed search to both listing endpoints: %s',
     async (query, expected) => {
       expect(
         (await fetch(`${url}/brand/${brandId}${query}`, { headers })).status,
@@ -602,23 +628,27 @@ describe('Menu items HTTP endpoints', () => {
     },
   );
 
-  it('IT-MI-018: reserves the all-brands listing for superadmins', async () => {
+  it('IT-MI-018: opens the all-brands listing to any signed-in role', async () => {
     role = UserRole.SUPERVISOR;
-    expect((await fetch(url, { headers })).status).toBe(403);
-    expect(service.findAll).not.toHaveBeenCalled();
+    expect((await fetch(url, { headers })).status).toBe(200);
+    expect(service.findAll).toHaveBeenCalledTimes(1);
     expect((await fetch(url)).status).toBe(401);
   });
 
-  it.each(['?page=0', '?limit=101', '?activeOnly=invalid'])(
-    'IT-MI-019: rejects invalid listing filters: %s',
-    async (query) => {
-      role = UserRole.SUPERADMIN;
-      for (const path of ['', `/brand/${brandId}`])
-        expect((await fetch(url + path + query, { headers })).status).toBe(400);
-      expect(service.findAll).not.toHaveBeenCalled();
-      expect(service.findAllByBrand).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    '?page=0',
+    '?limit=101',
+    '?activeOnly=invalid',
+    '?status=deleted',
+    `?search=${'r'.repeat(101)}`,
+    '?search=a&search=b',
+  ])('IT-MI-019: rejects invalid listing filters: %s', async (query) => {
+    role = UserRole.SUPERADMIN;
+    for (const path of ['', `/brand/${brandId}`])
+      expect((await fetch(url + path + query, { headers })).status).toBe(400);
+    expect(service.findAll).not.toHaveBeenCalled();
+    expect(service.findAllByBrand).not.toHaveBeenCalled();
+  });
   describe('availability toggle', () => {
     const path = `/availability/${menuId}`;
     const body = { availability: false };

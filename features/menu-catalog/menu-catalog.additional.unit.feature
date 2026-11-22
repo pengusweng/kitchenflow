@@ -126,3 +126,21 @@ Feature: Additional menu catalog unit coverage
     Given an active item with an inactive recipe and a disabled sales channel
     When its brand catalog is loaded
     Then the recipe availability and disabled channel are included
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.service.spec.ts
+  # Context: MenuCatalogService operations
+  @UT-MCAT-014
+  Scenario: Return uploaded image keys as download URLs
+    Test Case ID: UT-MCAT-014
+    Given a catalog item whose image is an uploaded storage key
+    When the item is created or the brand's catalog is listed
+    Then the response returns the image as a download URL
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.service.spec.ts
+  # Context: MenuCatalogService operations
+  @UT-MCAT-015
+  Scenario: Forward the search to the catalog query
+    Test Case ID: UT-MCAT-015
+    Given a catalog search for one brand
+    When the catalog is listed
+    Then the repository receives the search with the page offset and limit

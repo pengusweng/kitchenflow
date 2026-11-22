@@ -7,6 +7,7 @@ import { PrismaModule } from '../../../shared/prisma/prisma.module';
 import { UsersModule } from '../../users/users.module';
 import { AssetsModule } from '../../assets/assets.module';
 import { RecipesModule } from '../../recipe/recipes/recipes.module';
+import { StorageModule } from '../../../shared/storage/storage.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { RecipesModule } from '../../recipe/recipes/recipes.module';
     PrismaModule,
     AssetsModule,
     RecipesModule,
+    StorageModule,
   ],
   controllers: [MenuItemsController],
   providers: [MenuItemsService, MenuItemsRepository],

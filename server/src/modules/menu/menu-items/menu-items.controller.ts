@@ -105,7 +105,6 @@ export class MenuItemsController {
 
   @Get()
   @FindAllMenuItemsDocs()
-  @Roles(UserRole.SUPERADMIN)
   async findAll(@Query() query: FindAllMenuItemsDTO) {
     return this.menuItemsService.findAll(query);
   }

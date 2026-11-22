@@ -33,7 +33,7 @@ Feature: Menu audit logging
     Test Case ID: IT-MENU-003
     Given kitchen staff
     When they list all menu items, mark an item unavailable and try to create a menu item
-    Then the availability change is a SUCCESS row naming them, the create is DENIED with ACCESS_DENIED and the denied list read writes no row
+    Then the availability change is a SUCCESS row naming them, the create is DENIED with ACCESS_DENIED and the list read writes no row
 
   # Jest: server/src/modules/menu/tests/menu-audit.http.spec.ts
   # Context: Menu audit logging
