@@ -1,7 +1,10 @@
 "use client";
 
+import { Plus } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { buttonVariants } from "@/components/ui/button";
 import Pagination from "@/src/components/ui/molecules/pagination";
 import PageTitle from "@/src/features/dashboard/components/atoms/page-title";
 import { MOCK_BRANDS } from "@/src/features/menu/utils/mock-menu";
@@ -9,16 +12,16 @@ import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
 import { nextSort } from "@/src/lib/table-sort";
 import RecipesFilterBar from "../components/organisms/recipes-filter-bar";
 import RecipesTable from "../components/organisms/recipes-table";
-import { MOCK_RECIPES, toRecipe } from "../utils/mock-recipes";
+import { useMockRecipes } from "../hooks/useMockRecipes";
 import { filterRecipes, RECIPES_PAGE_SIZE, type RecipeSort, type RecipeStatusFilter } from "../utils/recipes";
 
 const BRAND_CODES = MOCK_BRANDS.map((brand) => brand.code);
-// Placeholder data until the recipes API is wired up.
-const RECIPES = MOCK_RECIPES.map((record) => toRecipe(record, MOCK_BRANDS));
 
 // Every brand by default, most recently updated first. Picking a brand narrows
 // the table and the URL keeps it (?brand=GC), as on the menu page.
-export default function RecipesPage() {
+export default function RecipesPage({ canCreate }: { canCreate: boolean }) {
+  // Placeholder data until the recipes API is wired up.
+  const recipes = useMockRecipes();
   const searchParams = useSearchParams();
   const brandParam = searchParams.get("brand")?.toUpperCase();
   const brand = brandParam && BRAND_CODES.includes(brandParam) ? brandParam : undefined;
@@ -42,7 +45,7 @@ export default function RecipesPage() {
     window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
   }
 
-  const rows = filterRecipes(RECIPES, { search, brand, status }, sort);
+  const rows = filterRecipes(recipes, { search, brand, status }, sort);
   const total = rows.length;
   const totalPages = Math.max(1, Math.ceil(total / RECIPES_PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -53,7 +56,19 @@ export default function RecipesPage() {
 
   return (
     <section className="motion-safe:animate-page-in">
-      <PageTitle>Recipes</PageTitle>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageTitle>Recipes</PageTitle>
+        {canCreate ? (
+          // Starts the new recipe on the brand the table is narrowed to.
+          <Link
+            href={brand ? `/dashboard/recipes/new?brand=${brand}` : "/dashboard/recipes/new"}
+            className={buttonVariants({ size: "lg", className: "h-10 px-4 font-semibold" })}
+          >
+            <Plus aria-hidden="true" />
+            Add recipe
+          </Link>
+        ) : null}
+      </div>
 
       <RecipesFilterBar
         query={query}

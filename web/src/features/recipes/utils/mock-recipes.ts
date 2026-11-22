@@ -235,3 +235,10 @@ export function findMockRecipe(id: string): RecipeDetail | null {
     ).map((item) => ({ id: item.menu_item_id, name: item.name, code: item.code, active: item.is_active })),
   });
 }
+
+/** Every mock recipe with its content, as the recipe store starts out. */
+export const MOCK_RECIPE_DETAILS: RecipeDetail[] = MOCK_RECIPES.map((record) => {
+  const detail = findMockRecipe(record.recipe_id);
+  if (!detail) throw new Error(`Mock recipe ${record.recipe_id} has no detail.`);
+  return detail;
+});
