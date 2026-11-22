@@ -1,7 +1,7 @@
 // Placeholder data until the page is wired to the menu items API. Records use
 // the API's snake_case shape so wiring it up only swaps the data source; the
 // page itself only ever sees `toMenuItem` output.
-import type { Channel, MenuBrand, MenuItem } from "./menu";
+import type { Channel, MenuBrand, MenuItem, MenuModifierOption } from "./menu";
 
 type MenuItemChannelRecord = { order_channel: Channel; price: string; is_available: boolean };
 
@@ -72,6 +72,18 @@ const MODIFIERS: Record<string, ModifierSeed> = {
   "CARAMEL": { code: "CARAMEL", name: "Caramel drizzle", price: 25, active: false },
   "WARM-UP": { code: "WARM-UP", name: "Warm it up", price: 0 },
 };
+
+/** The modifiers an item can be given, as the edit form's picker lists them. Retired ones are left out. */
+export const MOCK_MODIFIER_CATALOG: MenuModifierOption[] = Object.values(MODIFIERS)
+  .filter((mod) => mod.active ?? true)
+  .map((mod) => ({
+    id: `mod-${mod.code.toLowerCase()}`,
+    code: mod.code,
+    name: mod.name,
+    description: mod.description ?? null,
+    price: mod.price,
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 const RICE_MEAL = ["EXTRA-RICE", "FRIED-EGG", "EXTRA-SPICY"];
 const INASAL = ["GARLIC-RICE", "EXTRA-OIL", "ATCHARA", "SPICY-VINEGAR"];

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Pagination from "@/src/components/ui/molecules/pagination";
 import PageTitle from "@/src/features/dashboard/components/atoms/page-title";
 import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
+import EditMenuItemModal from "../components/organisms/edit-menu-item-modal";
 import MenuFilterBar from "../components/organisms/menu-filter-bar";
 import MenuItemDetailModal from "../components/organisms/menu-item-detail-modal";
 import MenuTable from "../components/organisms/menu-table";
@@ -17,9 +18,14 @@ import {
   type AvailabilityFilter,
   type MenuItem,
 } from "../utils/menu";
-import { MOCK_BRANDS, MOCK_MENU_ITEMS, toMenuItem } from "../utils/mock-menu";
+import { MOCK_BRANDS, MOCK_MENU_ITEMS, MOCK_MODIFIER_CATALOG, toMenuItem } from "../utils/mock-menu";
 
 const BRAND_ORDER = MOCK_BRANDS.map((brand) => brand.code);
+
+// Placeholder for the brand's recipe list: the recipes its items already use.
+function brandRecipes(items: MenuItem[], brandCode: string) {
+  return [...new Set(items.filter((item) => item.brand.code === brandCode).map((item) => item.recipe))].sort();
+}
 
 // Every brand by default: in a shared kitchen one shortage takes items off
 // several menus at once, and this is where staff look for what's off. Picking
@@ -40,7 +46,11 @@ export default function MenuPage() {
 
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const viewing = items.find((item) => item.id === viewingId) ?? null;
+
+  const updateItem = (id: string, patch: Partial<MenuItem>) =>
+    setItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
 
   // Any filter change returns to page 1 and forgets which rows were just toggled.
   const filterKey = `${brand ?? ""}|${availability}|${active ?? ""}|${search}`;
@@ -134,6 +144,30 @@ export default function MenuPage() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onAvailabilityChange={setItemAvailability}
+        onEdit={() => {
+          setModalOpen(false);
+          setEditOpen(true);
+        }}
+        // The modal stays open and now reads "Inactive", with Reactivate in place of Edit.
+        onDeactivate={(target) => updateItem(target.id, { active: false })}
+        onReactivate={(target) => updateItem(target.id, { active: true })}
+      />
+
+      <EditMenuItemModal
+        item={viewing}
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) setModalOpen(true); // cancel goes back to the item's details
+        }}
+        onSaved={(saved) => {
+          setItems((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+          setEditOpen(false);
+          setModalOpen(true); // the details show what was saved
+        }}
+        recipes={viewing ? brandRecipes(items, viewing.brand.code) : []}
+        modifierCatalog={MOCK_MODIFIER_CATALOG}
+        takenCodes={new Set(items.filter((item) => item.id !== viewingId).map((item) => item.code))}
       />
     </section>
   );

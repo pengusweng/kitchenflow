@@ -49,4 +49,6 @@ export class MenuCatalogController {
   ) {
     return this.menuCatalogService.findAll(brandId, query);
   }
+
+  // TODO: Create update endpoint with mutation similar to recipe
 }

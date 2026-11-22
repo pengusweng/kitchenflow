@@ -13,15 +13,27 @@ type LogoFieldProps = {
   id: string;
   preview: LogoPreview | null;
   onSelect: (file: File) => void;
-  onRemove: () => void;
+  /** Leave out when the image can only be replaced, never cleared. */
+  onRemove?: () => void;
   invalid?: boolean;
+  /** Circle for brand logos; square for photos that sit in square tiles, like menu items. */
+  shape?: "circle" | "square";
+  previewAlt?: string;
 };
 
 const ACTION = "h-10 cursor-pointer px-4 font-semibold";
 
 // Drop zone and file picker in one. The round preview matches how the logo
 // sits in the brand details, so what you pick is what everyone will see.
-export default function LogoField({ id, preview, onSelect, onRemove, invalid = false }: LogoFieldProps) {
+export default function LogoField({
+  id,
+  preview,
+  onSelect,
+  onRemove,
+  invalid = false,
+  shape = "circle",
+  previewAlt = "Logo preview",
+}: LogoFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -73,7 +85,8 @@ export default function LogoField({ id, preview, onSelect, onRemove, invalid = f
 
       <div
         className={cn(
-          "grid size-16 shrink-0 place-items-center overflow-hidden rounded-full transition-colors duration-150",
+          "grid size-16 shrink-0 place-items-center overflow-hidden transition-colors duration-150",
+          shape === "circle" ? "rounded-full" : "rounded-md",
           preview ? "border border-hairline bg-card" : "bg-muted text-ink-muted",
           dragging && !preview && "bg-primary/12 text-primary-ink",
         )}
@@ -81,7 +94,7 @@ export default function LogoField({ id, preview, onSelect, onRemove, invalid = f
         {preview ? (
           // A local object URL or a signed storage URL; next/image adds nothing for either.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview.url} alt="Logo preview" className="size-full object-cover" />
+          <img src={preview.url} alt={previewAlt} className="size-full object-cover" />
         ) : (
           <ImagePlus aria-hidden="true" className="size-6" strokeWidth={1.75} />
         )}
@@ -100,15 +113,17 @@ export default function LogoField({ id, preview, onSelect, onRemove, invalid = f
               <Button type="button" variant="outline" size="lg" className={ACTION} onClick={pick}>
                 Replace
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                className={`${ACTION} text-ink-muted hover:text-ink`}
-                onClick={onRemove}
-              >
-                Remove
-              </Button>
+              {onRemove ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="lg"
+                  className={`${ACTION} text-ink-muted hover:text-ink`}
+                  onClick={onRemove}
+                >
+                  Remove
+                </Button>
+              ) : null}
             </div>
           </>
         ) : (

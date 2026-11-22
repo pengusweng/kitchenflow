@@ -44,6 +44,16 @@ export type MenuItemModifier = {
   available: boolean;
 };
 
+/** A modifier from the shared catalog, before it's attached to an item. */
+export type MenuModifierOption = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  /** The usual add-on price, used as the starting price when attaching it. */
+  price: number;
+};
+
 /** A row of the menu table. */
 export type MenuItem = {
   id: string;

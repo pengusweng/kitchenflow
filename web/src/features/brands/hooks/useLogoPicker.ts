@@ -3,7 +3,8 @@ import { logoProblem, type SelectedLogo } from "../utils/logo";
 
 // A newly picked logo file with its local preview. Every preview URL is
 // released as soon as it is replaced, cleared, or the form goes away.
-export function useLogoPicker() {
+// `noun` names the image in size errors, e.g. "Photos" for menu items.
+export function useLogoPicker(noun?: string) {
   const [logo, setLogo] = useState<SelectedLogo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const current = useRef<SelectedLogo | null>(null);
@@ -22,7 +23,7 @@ export function useLogoPicker() {
     logo,
     error,
     select(file: File) {
-      const problem = logoProblem(file);
+      const problem = logoProblem(file, noun);
       setError(problem);
       if (!problem) replace({ file, previewUrl: URL.createObjectURL(file) });
     },
