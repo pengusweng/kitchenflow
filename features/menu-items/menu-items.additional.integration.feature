@@ -182,6 +182,24 @@ Feature: Additional menu items integration coverage
     Then the response is 400 before querying
 
   # Jest: server/src/modules/menu/menu-items/tests/menu-items.http.spec.ts
+  # Context: Menu items HTTP endpoints
+  @IT-MI-031
+  Scenario: Forward a recipe filter to both listing endpoints
+    Test Case ID: IT-MI-031
+    Given a valid recipe ID in the listing query
+    When brand or all-brand menu listings are requested
+    Then the service receives the recipe ID with the other filters
+
+  # Jest: server/src/modules/menu/menu-items/tests/menu-items.http.spec.ts
+  # Context: Menu items HTTP endpoints
+  @IT-MI-032
+  Scenario: Reject a recipe filter that is not one UUID
+    Test Case ID: IT-MI-032
+    Given a recipe filter that is not a UUID or is repeated
+    When brand or all-brand menu listings are requested
+    Then the response is 400 before querying
+
+  # Jest: server/src/modules/menu/menu-items/tests/menu-items.http.spec.ts
   # Context: Menu items HTTP endpoints / availability toggle
   @IT-MI-020
   Scenario: Documents a required boolean body and the success/error responses

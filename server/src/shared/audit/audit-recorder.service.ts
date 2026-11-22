@@ -6,6 +6,7 @@ import type { AuditableRequest } from './audit.decorator';
 import {
   type AuditSnapshot,
   SNAPSHOT_CONFIGS,
+  snapshotKey,
   toSnapshotJson,
 } from './audit-snapshots';
 import { logAudit } from './log-audit';
@@ -78,21 +79,22 @@ export class AuditRecorder {
 
   /**
    * Reads the allowlisted columns of one record. Returns null when the entity
-   * has no allowlist, the ID is not a UUID, the row is missing or the read
-   * fails; it never throws.
+   * has no allowlist, the ID is not a valid key for it (a UUID, or a short code
+   * for text-keyed entities), the row is missing or the read fails; it never
+   * throws.
    */
   async loadSnapshot(
     entity: string,
     id: unknown,
   ): Promise<AuditSnapshot | null> {
     const config = SNAPSHOT_CONFIGS[entity];
-    const uuid = uuidOrNull(id);
-    if (!config || !uuid) return null;
+    const key = config ? snapshotKey(config, id) : null;
+    if (!config || !key) return null;
 
     try {
       const delegate = this.prisma[config.model] as unknown as SnapshotDelegate;
       const row = await delegate.findUnique({
-        where: { [config.key]: uuid },
+        where: { [config.key]: key },
         select: Object.fromEntries(
           config.fields.map((field) => [field, true as const]),
         ),

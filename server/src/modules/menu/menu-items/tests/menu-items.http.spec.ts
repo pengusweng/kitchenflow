@@ -649,6 +649,37 @@ describe('Menu items HTTP endpoints', () => {
     expect(service.findAll).not.toHaveBeenCalled();
     expect(service.findAllByBrand).not.toHaveBeenCalled();
   });
+
+  it('IT-MI-031: forwards a recipe filter to both listing endpoints', async () => {
+    const recipeId = '00000000-0000-4000-8000-000000000010';
+    const query = `?status=all&recipe_id=${recipeId}`;
+    const expected = {
+      page: 1,
+      limit: 10,
+      activeOnly: true,
+      status: 'all',
+      recipe_id: recipeId,
+    };
+    expect(
+      (await fetch(`${url}/brand/${brandId}${query}`, { headers })).status,
+    ).toBe(200);
+    expect(service.findAllByBrand).toHaveBeenCalledWith(expected, brandId);
+    role = UserRole.SUPERVISOR;
+    callerBrand = null;
+    expect((await fetch(url + query, { headers })).status).toBe(200);
+    expect(service.findAll).toHaveBeenCalledWith(expected);
+  });
+
+  it.each(['?recipe_id=not-a-uuid', '?recipe_id=a&recipe_id=b'])(
+    'IT-MI-032: rejects a recipe filter that is not one UUID: %s',
+    async (query) => {
+      role = UserRole.SUPERADMIN;
+      for (const path of ['', `/brand/${brandId}`])
+        expect((await fetch(url + path + query, { headers })).status).toBe(400);
+      expect(service.findAll).not.toHaveBeenCalled();
+      expect(service.findAllByBrand).not.toHaveBeenCalled();
+    },
+  );
   describe('availability toggle', () => {
     const path = `/availability/${menuId}`;
     const body = { availability: false };

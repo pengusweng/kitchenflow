@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsIn,
   IsString,
+  IsUUID,
   MaxLength,
   ValidateIf,
 } from 'class-validator';
@@ -52,4 +53,13 @@ export class FindAllMenuItemsDTO extends MenuItemSearchDTO {
       'Which menu items to return: active only, inactive only, or all. Takes precedence over activeOnly; omit it to keep the activeOnly behaviour.',
   })
   status?: MenuItemStatusFilter;
+
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsUUID('all', { message: 'recipe_id must be a valid UUID.' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'Only return menu items made from this recipe, e.g. to show what a recipe change affects. Omit for every recipe.',
+  })
+  recipe_id?: string;
 }

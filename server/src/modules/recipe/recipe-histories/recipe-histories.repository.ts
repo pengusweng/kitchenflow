@@ -13,6 +13,17 @@ export class RecipeHistoriesRepository {
     return tx.recipeHistory.create({ data });
   }
 
+  /** Newest version first. */
+  async findMany(
+    recipeId: string,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    return tx.recipeHistory.findMany({
+      where: { recipe_id: recipeId },
+      orderBy: { version: 'desc' },
+    });
+  }
+
   async findOne(
     recipeHistoryId: string,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,

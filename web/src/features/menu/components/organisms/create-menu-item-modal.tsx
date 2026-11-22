@@ -1,8 +1,7 @@
 "use client";
 
-import { ChevronDown, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,7 +26,8 @@ import {
   type NewMenuItemErrors,
 } from "../../utils/menu-form";
 import { modifierPriceId } from "../molecules/modifier-editor";
-import MenuItemFields, { FIELD_ORDER, SELECT } from "./menu-item-fields";
+import BrandSelect from "@/src/components/ui/molecules/brand-select";
+import MenuItemFields, { FIELD_ORDER } from "./menu-item-fields";
 
 type CreateMenuItemModalProps = {
   open: boolean;
@@ -143,38 +143,14 @@ function CreateMenuItemForm({
         </DialogDescription>
 
         <FormField id={`${ID}-brand`} label="Brand" error={errors.brand}>
-          <div className="relative">
-            {brand ? (
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute top-1/2 left-3 size-2.5 -translate-y-1/2 rounded-full"
-                style={{ backgroundColor: brand.accent }}
-              />
-            ) : null}
-            <select
-              id={`${ID}-brand`}
-              value={brandCode ?? ""}
-              onChange={(e) => changeBrand(e.target.value)}
-              aria-invalid={Boolean(errors.brand)}
-              aria-describedby={errors.brand ? `${ID}-brand-message` : undefined}
-              className={cn(SELECT, brand ? "pl-8" : "text-ink-muted")}
-            >
-              {!brand ? (
-                <option value="" disabled>
-                  Choose a brand
-                </option>
-              ) : null}
-              {brands.map((b) => (
-                <option key={b.code} value={b.code}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-muted"
-            />
-          </div>
+          <BrandSelect
+            id={`${ID}-brand`}
+            brands={brands}
+            value={brandCode}
+            onChange={changeBrand}
+            aria-invalid={Boolean(errors.brand)}
+            aria-describedby={errors.brand ? `${ID}-brand-message` : undefined}
+          />
         </FormField>
 
         <MenuItemFields

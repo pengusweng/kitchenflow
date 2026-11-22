@@ -135,3 +135,21 @@ Feature: Additional menu items unit coverage
     Given the all status
     When the repository lists menu items across brands
     Then the query does not filter on is_active
+
+  # Jest: server/src/modules/menu/menu-items/tests/menu-items.repository.spec.ts
+  # Context: MenuItemsRepository listing
+  @UT-MI-015
+  Scenario: Scope the items and every status count to one recipe
+    Test Case ID: UT-MI-015
+    Given a recipe filter
+    When the repository lists menu items
+    Then the items and the active and inactive counts only include items made from that recipe
+
+  # Jest: server/src/modules/menu/menu-items/tests/menu-items.service.spec.ts
+  # Context: MenuItemsService mutations / listing
+  @UT-MI-016
+  Scenario: Pass a recipe filter through to both listings
+    Test Case ID: UT-MI-016
+    Given a listing query with a recipe ID
+    When menu items are listed across brands or for one brand
+    Then the repository receives the recipe ID with the status and search

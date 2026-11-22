@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { isUUID } from 'class-validator';
 
 /** A JSON-safe snapshot of allowlisted columns. */
 export type AuditSnapshot = Record<string, Prisma.JsonValue>;
@@ -15,13 +16,20 @@ type SnapshotModel =
   | 'menuItemModifier'
   | 'kitchenTicket'
   | 'kitchenTicketQcAttempt'
-  | 'recipe';
+  | 'recipe'
+  | 'unit';
 
 export interface SnapshotConfig {
   /** Prisma client delegate, e.g. `menuItem`. */
   model: SnapshotModel;
   /** Primary-key column the audit row's entity_id refers to. */
   key: string;
+  /**
+   * `text` for tables keyed by a code instead of a UUID (e.g. units). Their
+   * rows still get snapshots, but entity_id stays null since the column is a
+   * UUID, so the snapshot is what identifies the record. Defaults to `uuid`.
+   */
+  keyType?: 'uuid' | 'text';
   /** The only columns ever read into before_data / after_data. */
   fields: readonly string[];
 }
@@ -102,7 +110,31 @@ export const SNAPSHOT_CONFIGS: Readonly<Record<string, SnapshotConfig>> = {
     key: 'recipe_id',
     fields: ['code', 'name', 'version', 'is_active'],
   },
+  units: {
+    model: 'unit',
+    key: 'code',
+    keyType: 'text',
+    fields: ['code', 'name', 'dimension', 'to_base'],
+  },
 };
+
+/** Longest text key a snapshot will look up; unit codes are VARCHAR(16). */
+const MAX_TEXT_KEY_LENGTH = 64;
+
+/**
+ * The value to look a record up by, or null when it can't be one: a UUID for
+ * UUID-keyed entities, a short non-empty string for text-keyed ones.
+ */
+export function snapshotKey(
+  config: SnapshotConfig,
+  id: unknown,
+): string | null {
+  if (typeof id !== 'string') return null;
+  if (config.keyType === 'text') {
+    return id.length > 0 && id.length <= MAX_TEXT_KEY_LENGTH ? id : null;
+  }
+  return isUUID(id) ? id : null;
+}
 
 /**
  * Columns that must never be snapshotted: credentials, request hashes,

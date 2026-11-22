@@ -60,3 +60,12 @@ Feature: Audit snapshot unit coverage
     Given update, create and failing handlers
     When the interceptor runs
     Then updates read before and after the handler, creates read only after, and failures read nothing after
+
+  # Jest: server/src/shared/audit/tests/audit-snapshots.spec.ts
+  # Context: Audit snapshots
+  @UT-AUDIT-024
+  Scenario: Load snapshots for entities keyed by a code
+    Test Case ID: UT-AUDIT-024
+    Given a text-keyed entity such as units
+    When a snapshot is loaded by its code, and by keys that cannot be codes
+    Then the record is read by its code with only allowlisted columns, and empty, overlong or non-string keys skip the query

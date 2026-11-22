@@ -1,18 +1,24 @@
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { DataTableHead } from "@/src/components/ui/organisms/data-table";
-import type { StaffSort, StaffSortField } from "../../utils/staff";
+import type { TableSort } from "@/src/lib/table-sort";
 
-type SortableHeadProps = {
-  field: StaffSortField;
+type SortableHeadProps<F extends string> = {
+  field: F;
   label: string;
-  sort: StaffSort;
-  onSort: (field: StaffSortField) => void;
+  sort: TableSort<F>;
+  onSort: (field: F) => void;
   className?: string;
 };
 
 // A column header that sorts the list. The faint double chevron says "sortable";
 // the active column turns full ink with a solid arrow for its direction.
-export default function SortableHead({ field, label, sort, onSort, className = "" }: SortableHeadProps) {
+export default function SortableHead<F extends string>({
+  field,
+  label,
+  sort,
+  onSort,
+  className = "",
+}: SortableHeadProps<F>) {
   const active = sort?.by === field ? sort.order : null;
   const Icon = active === "asc" ? ArrowUp : active === "desc" ? ArrowDown : ChevronsUpDown;
 

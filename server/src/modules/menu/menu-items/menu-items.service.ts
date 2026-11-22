@@ -72,10 +72,11 @@ export class MenuItemsService {
     activeOnly,
     status,
     search,
+    recipe_id,
   }: FindAllMenuItemsDTO) {
     const effectiveStatus = this.effectiveStatus(status, activeOnly);
     this.logger.debug(
-      `Listing menu items: page=${page}, limit=${limit}, status=${effectiveStatus}, search=${search ? 'yes' : 'no'}`,
+      `Listing menu items: page=${page}, limit=${limit}, status=${effectiveStatus}, search=${search ? 'yes' : 'no'}, recipe=${recipe_id ?? 'any'}`,
     );
 
     const skip = (page - 1) * limit;
@@ -84,19 +85,19 @@ export class MenuItemsService {
     const { menuItems, counts } = await this.menuItemsRepository.findAll(
       skip,
       limit,
-      { status: effectiveStatus, search },
+      { status: effectiveStatus, search, recipe_id },
     );
 
     return this.page(menuItems, counts, effectiveStatus, page, limit);
   }
 
   async findAllByBrand(
-    { page, limit, activeOnly, status, search }: FindAllMenuItemsDTO,
+    { page, limit, activeOnly, status, search, recipe_id }: FindAllMenuItemsDTO,
     brandId: string,
   ) {
     const effectiveStatus = this.effectiveStatus(status, activeOnly);
     this.logger.debug(
-      `Listing menu items: brand=${brandId}, page=${page}, limit=${limit}, status=${effectiveStatus}, search=${search ? 'yes' : 'no'}`,
+      `Listing menu items: brand=${brandId}, page=${page}, limit=${limit}, status=${effectiveStatus}, search=${search ? 'yes' : 'no'}, recipe=${recipe_id ?? 'any'}`,
     );
     const brand = await this.brandsRepository.findOneBrand(brandId);
     assertExists(brand, 'Brand', brandId, this.logger);
@@ -108,7 +109,7 @@ export class MenuItemsService {
       brand.brand_id,
       skip,
       limit,
-      { status: effectiveStatus, search },
+      { status: effectiveStatus, search, recipe_id },
     );
 
     return this.page(menuItems, counts, effectiveStatus, page, limit);

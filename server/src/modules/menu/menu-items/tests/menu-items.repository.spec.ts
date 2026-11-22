@@ -85,4 +85,27 @@ describe('MenuItemsRepository listing', () => {
       expect.objectContaining({ where: { is_active: undefined } }),
     );
   });
+
+  it('UT-MI-015: scopes the items and every status count to one recipe', async () => {
+    const { findMany, count, repository } = setup([1, 1]);
+    const recipeId = '00000000-0000-4000-8000-000000000010';
+
+    await expect(
+      repository.findAll(0, 10, { status: 'all', recipe_id: recipeId }),
+    ).resolves.toEqual({
+      menuItems: [],
+      counts: { all: 2, active: 1, inactive: 1 },
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { recipe_id: recipeId, is_active: undefined },
+      }),
+    );
+    expect(count).toHaveBeenNthCalledWith(1, {
+      where: { recipe_id: recipeId, is_active: true },
+    });
+    expect(count).toHaveBeenNthCalledWith(2, {
+      where: { recipe_id: recipeId, is_active: false },
+    });
+  });
 });

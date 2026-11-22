@@ -1,20 +1,15 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
 import { cn } from "cn";
 import { Input } from "@/src/components/ui/atoms/input";
+import SelectField from "@/src/components/ui/atoms/select-field";
+import Textarea from "@/src/components/ui/atoms/textarea";
 import FormField, { fieldMessageId } from "@/src/features/brands/components/molecules/form-field";
 import LogoField, { type LogoPreview } from "@/src/features/brands/components/molecules/logo-field";
 import type { MenuModifierOption } from "../../utils/menu";
 import { LIMITS, type MenuItemFormErrors, type MenuItemFormValues } from "../../utils/menu-form";
 import ModifierEditor from "../molecules/modifier-editor";
 import PriceInput from "../molecules/price-input";
-
-export const SELECT =
-  "h-12 w-full cursor-pointer appearance-none truncate rounded-lg border border-input bg-field pr-9 pl-3 text-base text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 disabled:cursor-not-allowed disabled:text-ink-muted md:text-sm";
-
-const TEXTAREA =
-  "min-h-24 w-full resize-y rounded-lg border border-input bg-field px-3 py-2.5 text-base leading-6 text-ink caret-primary outline-none transition-colors placeholder:text-ink-muted/80 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 md:text-sm";
 
 /** Field ids in form order, so a failed save can move focus to the first problem. */
 export const FIELD_ORDER = ["name", "code", "basePrice", "servingDescription", "recipe", "description"] as const;
@@ -136,32 +131,26 @@ export default function MenuItemFields({
         hint="What the kitchen follows when this item is ordered."
         error={errors.recipe}
       >
-        <div className="relative">
-          <select
-            id={id("recipe")}
-            value={values.recipe}
-            disabled={recipeDisabled}
-            onChange={(e) => set("recipe", e.target.value)}
-            aria-invalid={Boolean(errors.recipe)}
-            aria-describedby={`${id("recipe")}-message`}
-            className={cn(SELECT, !values.recipe && "text-ink-muted")}
-          >
-            {recipePlaceholder !== undefined && !values.recipe ? (
-              <option value="" disabled>
-                {recipePlaceholder}
-              </option>
-            ) : null}
-            {recipes.map((recipe) => (
-              <option key={recipe} value={recipe}>
-                {recipe}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-muted"
-          />
-        </div>
+        <SelectField
+          id={id("recipe")}
+          value={values.recipe}
+          disabled={recipeDisabled}
+          onChange={(e) => set("recipe", e.target.value)}
+          aria-invalid={Boolean(errors.recipe)}
+          aria-describedby={`${id("recipe")}-message`}
+          className={cn(!values.recipe && "text-ink-muted")}
+        >
+          {recipePlaceholder !== undefined && !values.recipe ? (
+            <option value="" disabled>
+              {recipePlaceholder}
+            </option>
+          ) : null}
+          {recipes.map((recipe) => (
+            <option key={recipe} value={recipe}>
+              {recipe}
+            </option>
+          ))}
+        </SelectField>
       </FormField>
 
       <FormField
@@ -170,7 +159,7 @@ export default function MenuItemFields({
         hint={`Optional. ${values.description.trim().length} of ${LIMITS.description} characters.`}
         error={errors.description}
       >
-        <textarea
+        <Textarea
           id={id("description")}
           rows={3}
           maxLength={LIMITS.description}
@@ -178,7 +167,6 @@ export default function MenuItemFields({
           onChange={(e) => set("description", e.target.value)}
           aria-invalid={Boolean(errors.description)}
           aria-describedby={`${id("description")}-message`}
-          className={TEXTAREA}
         />
       </FormField>
 

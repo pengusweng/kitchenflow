@@ -13,7 +13,11 @@ import { UserRole } from '@prisma/client';
 import { Authenticated } from '../auth/auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
-import { Audit } from '../../shared/audit/audit.decorator';
+import {
+  Audit,
+  fromParam,
+  fromResult,
+} from '../../shared/audit/audit.decorator';
 import { CreateUnitDTO } from './dto/create-unit.dto';
 import { FindUnitsDTO } from './dto/find-units.dto';
 import { UpdateUnitDTO } from './dto/update-unit.dto';
@@ -41,8 +45,15 @@ import {
 export class UnitsController {
   constructor(private readonly unitsService: UnitsService) {}
 
+  // Units are keyed by code, not a UUID, so the audit row's entity_id stays
+  // null; the snapshot (code, name, dimension, to_base) identifies the unit.
   @Post()
-  @Audit({ action: 'UNIT_CREATED', entity: 'units' })
+  @Audit({
+    action: 'UNIT_CREATED',
+    entity: 'units',
+    id: fromResult('code'),
+    snapshot: 'create',
+  })
   @Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
   @CreateUnitDocs()
   create(@Body() dto: CreateUnitDTO) {
@@ -62,7 +73,12 @@ export class UnitsController {
   }
 
   @Patch(':code')
-  @Audit({ action: 'UNIT_UPDATED', entity: 'units' })
+  @Audit({
+    action: 'UNIT_UPDATED',
+    entity: 'units',
+    id: fromParam('code'),
+    snapshot: 'update',
+  })
   @Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
   @UpdateUnitDocs()
   update(@Param('code') code: string, @Body() dto: UpdateUnitDTO) {
