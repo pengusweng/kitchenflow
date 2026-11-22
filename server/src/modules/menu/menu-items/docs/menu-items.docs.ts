@@ -35,12 +35,27 @@ const menuItemsPageExamples = {
     summary: 'One matching menu item',
     value: {
       data: [menuItemExample],
-      meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      meta: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+        counts: { all: 1, active: 1, inactive: 0 },
+      },
     },
   },
   empty: {
     summary: 'No matching menu items',
-    value: { data: [], meta: { page: 1, limit: 10, total: 0, totalPages: 0 } },
+    value: {
+      data: [],
+      meta: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+        counts: { all: 0, active: 0, inactive: 0 },
+      },
+    },
   },
 };
 
@@ -158,7 +173,7 @@ export function FindAllMenuItemsDocs() {
     ApiOperation({
       summary: 'List menu items across brands (superadmin).',
       description:
-        'Supports page, limit, and activeOnly. activeOnly defaults to true and filters item activation; false includes inactive items. Returns data and meta containing page, limit, total, and totalPages.',
+        'Returns menu items newest first. Supports page, limit, activeOnly, status, and search. activeOnly defaults to true; false includes both active and inactive items. status (all, active, inactive) takes precedence over activeOnly when supplied. search is a case-insensitive partial match on name and code; every space-separated term must match one of them. Returns data and meta containing page, limit, total, totalPages, and counts; counts holds the all, active, and inactive totals for the current search regardless of the status filter. Uploaded image keys are resolved to download URLs in img_url.',
     }),
     ApiResponse({
       status: 200,
@@ -174,7 +189,7 @@ export function FindMenuItemsByBrandDocs() {
     ApiOperation({
       summary: 'List menu items in an active brand.',
       description:
-        'Available to any authenticated user across brands. Supports page, limit, and activeOnly. activeOnly defaults to true; false includes inactive items. Returns data and pagination meta.',
+        'Available to any authenticated user across brands. Returns menu items newest first. Supports page, limit, activeOnly, status, and search. activeOnly defaults to true; false includes both active and inactive items. status (all, active, inactive) takes precedence over activeOnly when supplied. search is a case-insensitive partial match on name and code; every space-separated term must match one of them. Returns data and meta containing page, limit, total, totalPages, and counts; counts holds the all, active, and inactive totals for the current search regardless of the status filter. Uploaded image keys are resolved to download URLs in img_url.',
     }),
     ApiParam({
       name: 'brandId',

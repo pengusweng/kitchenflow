@@ -145,7 +145,12 @@ describe('MenuCatalogService operations', () => {
       meta: { page: 2, limit: 10, total: 21, totalPages: 3 },
     });
     expect(brands.findOneBrand).toHaveBeenCalledWith('brand-id');
-    expect(repository.findMany).toHaveBeenCalledWith('brand-id', 10, 10);
+    expect(repository.findMany).toHaveBeenCalledWith(
+      'brand-id',
+      10,
+      10,
+      undefined,
+    );
   });
 
   it('UT-MCAT-008: rejects listing for a missing or inactive brand before querying the catalog', async () => {
@@ -167,7 +172,12 @@ describe('MenuCatalogService operations', () => {
       data: [],
       meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
     });
-    expect(repository.findMany).toHaveBeenCalledWith('brand-id', 0, 10);
+    expect(repository.findMany).toHaveBeenCalledWith(
+      'brand-id',
+      0,
+      10,
+      undefined,
+    );
   });
 
   it('UT-MCAT-010: rejects pagination overflow before querying the catalog', async () => {
@@ -191,6 +201,11 @@ describe('MenuCatalogService operations', () => {
     await expect(
       service.findAll('brand-id', new PaginationDTO()),
     ).resolves.toMatchObject({ data: [expected] });
+  });
+
+  it('UT-MCAT-015: forwards the search to the catalog query', async () => {
+    await service.findAll('brand-id', { page: 1, limit: 10, search: 'rice' });
+    expect(repository.findMany).toHaveBeenCalledWith('brand-id', 0, 10, 'rice');
   });
 
   it('UT-MCAT-011: preserves catalog lookup errors', async () => {

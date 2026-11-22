@@ -114,7 +114,7 @@ export function FindAllMenuCatalogDocs() {
     ApiOperation({
       summary: 'List a brand menu catalog with channels and modifier details.',
       description:
-        'Available to all authenticated users across brands. The brand must be active. Supports page (default 1) and limit (default 10, maximum 100). Returns active menu items, including items that are currently unavailable. Each item includes menuChannels containing available channel overrides and menuItemModifiers containing available assignments. Each assignment includes its modifier record, including modifier.name, alongside assignment fields such as additional_price. Missing channels or assignments are returned as empty arrays. Returns data and meta containing page, limit, total, and totalPages; total counts matching menu items. An empty catalog returns data: [].',
+        'Available to all authenticated users across brands. The brand must be active. Supports page (default 1), limit (default 10, maximum 100), and search. search is a case-insensitive partial match on menu item name and code; every space-separated term must match one of them. Returns active menu items, including items that are currently unavailable. Each item includes menuChannels containing available channel overrides and menuItemModifiers containing available assignments. Each assignment includes its modifier record, including modifier.name, alongside assignment fields such as additional_price. Missing channels or assignments are returned as empty arrays. Returns data and meta containing page, limit, total, and totalPages; total counts matching menu items. Uploaded image keys are resolved to download URLs in img_url. An empty catalog returns data: [].',
     }),
     ApiParam({
       name: 'brandId',

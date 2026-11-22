@@ -5,7 +5,10 @@ import { CreateMenuItemDTO } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDTO } from './dto/update-menu-item.dto';
 import { assertExists } from '../../../shared/assertions/assert-exists';
 import { isUUID } from 'class-validator';
-import { FindAllMenuItemsDTO } from './dto/find-all-menu-items.dto';
+import {
+  FindAllMenuItemsDTO,
+  MenuItemStatusFilter,
+} from './dto/find-all-menu-items.dto';
 import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
 import { RecipesRepository } from '../../recipe/recipes/recipes.repository';
 import { StorageService } from '../../../shared/storage/storage.service';
@@ -63,44 +66,37 @@ export class MenuItemsService {
     return this.withImageUrl(menuItem);
   }
 
-  async findAll({ page, limit, activeOnly }: FindAllMenuItemsDTO) {
+  async findAll({
+    page,
+    limit,
+    activeOnly,
+    status,
+    search,
+  }: FindAllMenuItemsDTO) {
+    const effectiveStatus = this.effectiveStatus(status, activeOnly);
     this.logger.debug(
-      `Listing brands: page=${page}, limit=${limit}, activeOnly=${activeOnly}`,
+      `Listing menu items: page=${page}, limit=${limit}, status=${effectiveStatus}, search=${search ? 'yes' : 'no'}`,
     );
 
     const skip = (page - 1) * limit;
-
     assertValidPagination(skip, this.logger);
 
-    const { menuItems, total } = await this.menuItemsRepository.findAll(
+    const { menuItems, counts } = await this.menuItemsRepository.findAll(
       skip,
       limit,
-      activeOnly,
+      { status: effectiveStatus, search },
     );
 
-    this.logger.log(
-      `Listed menu items: page=${page}, returned=${menuItems.length}, total=${total}`,
-    );
-
-    return {
-      data: await Promise.all(
-        menuItems.map((menuItem) => this.withImageUrl(menuItem)),
-      ),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return this.page(menuItems, counts, effectiveStatus, page, limit);
   }
 
   async findAllByBrand(
-    { page, limit, activeOnly }: FindAllMenuItemsDTO,
+    { page, limit, activeOnly, status, search }: FindAllMenuItemsDTO,
     brandId: string,
   ) {
+    const effectiveStatus = this.effectiveStatus(status, activeOnly);
     this.logger.debug(
-      `Listing brand=${brandId} page=${page}, limit=${limit}, activeOnly=${activeOnly}`,
+      `Listing menu items: brand=${brandId}, page=${page}, limit=${limit}, status=${effectiveStatus}, search=${search ? 'yes' : 'no'}`,
     );
     const brand = await this.brandsRepository.findOneBrand(brandId);
     assertExists(brand, 'Brand', brandId, this.logger);
@@ -108,28 +104,14 @@ export class MenuItemsService {
     const skip = (page - 1) * limit;
     assertValidPagination(skip, this.logger);
 
-    const { menuItems, total } = await this.menuItemsRepository.findAllByBrand(
+    const { menuItems, counts } = await this.menuItemsRepository.findAllByBrand(
       brand.brand_id,
       skip,
       limit,
-      activeOnly,
+      { status: effectiveStatus, search },
     );
 
-    this.logger.log(
-      `Listed menu items: page=${page}, returned=${menuItems.length}, total=${total}`,
-    );
-
-    return {
-      data: await Promise.all(
-        menuItems.map((menuItem) => this.withImageUrl(menuItem)),
-      ),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return this.page(menuItems, counts, effectiveStatus, page, limit);
   }
 
   async updateMenuItem(menuItemId: string, dto: UpdateMenuItemDTO) {
@@ -214,6 +196,40 @@ export class MenuItemsService {
 
     this.logger.log(`Deactivated menu item ${menuItem.menu_item_id}`);
     return this.withImageUrl(deleted);
+  }
+
+  // status wins when given; otherwise activeOnly keeps its original meaning.
+  private effectiveStatus(
+    status: MenuItemStatusFilter | undefined,
+    activeOnly: boolean,
+  ): MenuItemStatusFilter {
+    return status ?? (activeOnly ? 'active' : 'all');
+  }
+
+  private async page<T extends { img_url: string }>(
+    menuItems: T[],
+    counts: Record<MenuItemStatusFilter, number>,
+    status: MenuItemStatusFilter,
+    page: number,
+    limit: number,
+  ) {
+    const total = counts[status];
+    this.logger.log(
+      `Listed menu items: page=${page}, returned=${menuItems.length}, total=${total}`,
+    );
+
+    return {
+      data: await Promise.all(
+        menuItems.map((menuItem) => this.withImageUrl(menuItem)),
+      ),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        counts,
+      },
+    };
   }
 
   /** Swaps a stored upload key for a download URL; external URLs pass through. */

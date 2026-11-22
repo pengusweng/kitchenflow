@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { assertExists } from '../../../shared/assertions/assert-exists';
 import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
-import { PaginationDTO } from '../../../shared/dto/pagination.dto';
 import { StorageService } from '../../../shared/storage/storage.service';
 import { BrandsRepository } from '../../brands/brands.repository';
+import { MenuItemSearchDTO } from '../menu-items/dto/find-all-menu-items.dto';
 import { ModifiersRepository } from '../modifiers/modifiers.repository';
 import { MenuCatalogSetupDTO } from './dto/menu-catalog-setup.dto';
 import { MenuCatalogRepository } from './menu-catalog.repository';
@@ -34,9 +34,9 @@ export class MenuCatalogService {
     return this.withImageUrl(menuItem);
   }
 
-  async findAll(brandId: string, { page, limit }: PaginationDTO) {
+  async findAll(brandId: string, { page, limit, search }: MenuItemSearchDTO) {
     this.logger.debug(
-      `Listing menu catalog: brand=${brandId}, page=${page}, limit=${limit}`,
+      `Listing menu catalog: brand=${brandId}, page=${page}, limit=${limit}, search=${search ? 'yes' : 'no'}`,
     );
 
     const brand = await this.brandsRepository.findOneBrand(brandId);
@@ -49,6 +49,7 @@ export class MenuCatalogService {
       brand.brand_id,
       skip,
       limit,
+      search,
     );
 
     this.logger.log(

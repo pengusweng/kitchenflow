@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../../shared/decorators/roles.decorator';
-import { PaginationDTO } from '../../../shared/dto/pagination.dto';
+import { MenuItemSearchDTO } from '../menu-items/dto/find-all-menu-items.dto';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { Authenticated } from '../../auth/auth.guard';
 import {
@@ -45,7 +45,7 @@ export class MenuCatalogController {
   @FindAllMenuCatalogDocs()
   async findAll(
     @Param('brandId', ParseUUIDPipe) brandId: string,
-    @Query() query: PaginationDTO,
+    @Query() query: MenuItemSearchDTO,
   ) {
     return this.menuCatalogService.findAll(brandId, query);
   }

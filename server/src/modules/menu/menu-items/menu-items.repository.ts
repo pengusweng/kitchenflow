@@ -3,6 +3,12 @@ import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateMenuItemDTO } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDTO } from './dto/update-menu-item.dto';
+import { MenuItemStatusFilter } from './dto/find-all-menu-items.dto';
+
+export type MenuItemListFilters = {
+  status: MenuItemStatusFilter;
+  search?: string;
+};
 
 @Injectable()
 export class MenuItemsRepository {
@@ -46,58 +52,84 @@ export class MenuItemsRepository {
   async findAll(
     skip: number,
     take: number,
-    activeOnly = true,
+    filters: MenuItemListFilters,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
-    const where: Prisma.MenuItemWhereInput = {
-      is_active: activeOnly ? true : undefined,
-    };
-    const itemsQuery = tx.menuItem.findMany({
-      where,
-      skip,
-      take,
-      orderBy: [{ created_at: 'desc' }, { menu_item_id: 'asc' }],
-    });
-    const totalQuery = tx.menuItem.count({ where });
-
-    const [menuItems, total] =
-      '$transaction' in tx
-        ? await tx.$transaction([itemsQuery, totalQuery], {
-            isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-          })
-        : await Promise.all([itemsQuery, totalQuery]);
-
-    return { menuItems, total };
+    return this.list(skip, take, {}, filters, undefined, tx);
   }
 
   async findAllByBrand(
     brandId: string,
     skip: number,
     take: number,
-    activeOnly = true,
+    filters: MenuItemListFilters,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
-    const where: Prisma.MenuItemWhereInput = {
-      brand_id: brandId,
-      is_active: activeOnly ? true : undefined,
+    return this.list(
+      skip,
+      take,
+      { brand_id: brandId },
+      filters,
+      { recipe: { select: { is_active: true } } },
+      tx,
+    );
+  }
+
+  private async list<Include extends Prisma.MenuItemInclude | undefined>(
+    skip: number,
+    take: number,
+    scope: Prisma.MenuItemWhereInput,
+    { status, search }: MenuItemListFilters,
+    include: Include,
+    tx: Prisma.TransactionClient | PrismaService,
+  ) {
+    // Everything except status, which the per-status counts below vary.
+    const matchesFilters: Prisma.MenuItemWhereInput = {
+      ...scope,
+      ...this.searchWhere(search),
     };
     const itemsQuery = tx.menuItem.findMany({
-      where,
-      include: { recipe: { select: { is_active: true } } },
+      where: {
+        ...matchesFilters,
+        is_active: status === 'all' ? undefined : status === 'active',
+      },
+      include,
       skip,
       take,
       orderBy: [{ created_at: 'desc' }, { menu_item_id: 'asc' }],
     });
-    const totalQuery = tx.menuItem.count({ where });
+    // Per-status counts honour the search but not the status filter, so a
+    // client can label every status tab from a single response.
+    const activeQuery = tx.menuItem.count({
+      where: { ...matchesFilters, is_active: true },
+    });
+    const inactiveQuery = tx.menuItem.count({
+      where: { ...matchesFilters, is_active: false },
+    });
 
-    const [menuItems, total] =
+    const [menuItems, active, inactive] =
       '$transaction' in tx
-        ? await tx.$transaction([itemsQuery, totalQuery], {
+        ? await tx.$transaction([itemsQuery, activeQuery, inactiveQuery], {
             isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
           })
-        : await Promise.all([itemsQuery, totalQuery]);
+        : await Promise.all([itemsQuery, activeQuery, inactiveQuery]);
 
-    return { menuItems, total };
+    return { menuItems, counts: { all: active + inactive, active, inactive } };
+  }
+
+  // Every whitespace-separated term must match the name or code, so
+  // "cheese rice" finds "Cheesy Beef Rice".
+  private searchWhere(search?: string): Prisma.MenuItemWhereInput {
+    const terms = search?.split(/\s+/).filter(Boolean) ?? [];
+    if (terms.length === 0) return {};
+
+    return {
+      AND: terms.map((term) => ({
+        OR: (['name', 'code'] as const).map((field) => ({
+          [field]: { contains: term, mode: 'insensitive' },
+        })),
+      })),
+    };
   }
 
   async updateMenuItem(

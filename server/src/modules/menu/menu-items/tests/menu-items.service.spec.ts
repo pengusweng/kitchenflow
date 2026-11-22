@@ -46,6 +46,8 @@ describe('MenuItemsService mutations', () => {
       | 'reactivateMenuItem'
       | 'deleteMenuItem'
       | 'updateAvailability'
+      | 'findAll'
+      | 'findAllByBrand'
     >
   >;
   let brands: jest.Mocked<Pick<BrandsRepository, 'findOneBrand'>>;
@@ -62,6 +64,8 @@ describe('MenuItemsService mutations', () => {
           Promise.resolve({ ...item, is_active: activeOnly }),
         ),
       updateAvailability: jest.fn(),
+      findAll: jest.fn(),
+      findAllByBrand: jest.fn(),
       updateMenuItem: jest.fn().mockResolvedValue({ ...item, ...dto }),
       reactivateMenuItem: jest.fn().mockResolvedValue(item),
       deleteMenuItem: jest
@@ -147,6 +151,40 @@ describe('MenuItemsService mutations', () => {
     ).resolves.toMatchObject({
       img_url: `https://files.example.test/${key}`,
     });
+  });
+
+  describe('listing', () => {
+    const counts = { all: 3, active: 2, inactive: 1 };
+
+    it.each([
+      [{ activeOnly: true }, 'active', 2, 1],
+      [{ activeOnly: false }, 'all', 3, 2],
+      [{ activeOnly: true, status: 'inactive' as const }, 'inactive', 1, 1],
+    ])(
+      'UT-MI-012: lists with %j as status %s and pages by that count',
+      async (filters, status, total, totalPages) => {
+        menu.findAll.mockResolvedValue({ menuItems: [item], counts });
+        menu.findAllByBrand.mockResolvedValue({ menuItems: [item], counts });
+        const query = { page: 1, limit: 2, search: 'rice', ...filters };
+        const expected = {
+          data: [item],
+          meta: { page: 1, limit: 2, total, totalPages, counts },
+        };
+
+        await expect(service.findAll(query)).resolves.toEqual(expected);
+        expect(menu.findAll).toHaveBeenCalledWith(0, 2, {
+          status,
+          search: 'rice',
+        });
+        await expect(
+          service.findAllByBrand(query, brand.brand_id),
+        ).resolves.toEqual(expected);
+        expect(menu.findAllByBrand).toHaveBeenCalledWith(brand.brand_id, 0, 2, {
+          status,
+          search: 'rice',
+        });
+      },
+    );
   });
 
   it('UT-MI-004: rejects reactivating an already-active item without writing', async () => {
