@@ -1,16 +1,24 @@
 import { formatQuantity, type RecipeIngredient } from "../../utils/recipes";
-import RecipePanel, { PanelEmpty } from "../atoms/recipe-panel";
+import RecipePanel, { PanelEmpty, PanelMessage, type PanelNotice } from "../atoms/recipe-panel";
 
 // Amount first, right-aligned on one edge, so a cook scanning down the list
 // reads "250 g, 80 g, 1 tbsp" without hunting for each number.
-export default function IngredientList({ ingredients }: { ingredients: RecipeIngredient[] }) {
+type IngredientListProps = {
+  ingredients: RecipeIngredient[];
+  /** Shown instead of the list while it loads, if it fails, or when this role can't see it. */
+  notice?: PanelNotice;
+};
+
+export default function IngredientList({ ingredients, notice }: IngredientListProps) {
   return (
     <RecipePanel
       id="recipe-ingredients-heading"
       title="Ingredients"
-      aside={ingredients.length > 0 ? `${ingredients.length} ${ingredients.length === 1 ? "item" : "items"}` : null}
+      aside={!notice && ingredients.length > 0 ? `${ingredients.length} ${ingredients.length === 1 ? "item" : "items"}` : null}
     >
-      {ingredients.length === 0 ? (
+      {notice ? (
+        <PanelMessage notice={notice} />
+      ) : ingredients.length === 0 ? (
         <PanelEmpty>No ingredients yet.</PanelEmpty>
       ) : (
         <ul>

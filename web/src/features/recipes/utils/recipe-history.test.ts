@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MOCK_RECIPE_DETAILS, MOCK_RECIPE_HISTORIES } from "./mock-recipes";
-import { describeChanges, snapshotOf, type RecipeVersion } from "./recipe-history";
+import { describeChanges, type RecipeVersion } from "./recipe-history";
 
 const ingredient = (name: string, quantity: string, unit = "g", note: string | null = null) => ({
   id: name,
@@ -58,18 +57,5 @@ describe("describeChanges", () => {
   it("notices a changed ingredient note", () => {
     const changed = next({ ingredients: [ingredient("Rice", "250.000", "g", "Day-old"), ingredient("Kimchi", "80.000")] });
     expect(describeChanges(v1, changed)).toEqual(["Edited 1 ingredient note"]);
-  });
-});
-
-describe("mock history", () => {
-  it("has every version up to the current one, the newest matching the recipe", () => {
-    for (const recipe of MOCK_RECIPE_DETAILS) {
-      const versions = MOCK_RECIPE_HISTORIES[recipe.id];
-      expect(versions.map((v) => v.version)).toEqual(Array.from({ length: recipe.version }, (_, i) => i + 1));
-      expect({ ...versions.at(-1), savedAt: undefined }).toEqual({ ...snapshotOf(recipe), savedAt: undefined });
-      expect(versions[0].savedAt).toBe(recipe.createdAt);
-      // Each saved version differs from the one before, as the API refuses empty edits.
-      versions.slice(1).forEach((v, i) => expect(describeChanges(versions[i], v)).not.toEqual(["No visible changes"]));
-    }
   });
 });

@@ -8,6 +8,8 @@ import { MenuItemStatusFilter } from './dto/find-all-menu-items.dto';
 export type MenuItemListFilters = {
   status: MenuItemStatusFilter;
   search?: string;
+  /** Only items made from this recipe. */
+  recipe_id?: string;
 };
 
 @Injectable()
@@ -79,13 +81,14 @@ export class MenuItemsRepository {
     skip: number,
     take: number,
     scope: Prisma.MenuItemWhereInput,
-    { status, search }: MenuItemListFilters,
+    { status, search, recipe_id }: MenuItemListFilters,
     include: Include,
     tx: Prisma.TransactionClient | PrismaService,
   ) {
     // Everything except status, which the per-status counts below vary.
     const matchesFilters: Prisma.MenuItemWhereInput = {
       ...scope,
+      ...(recipe_id ? { recipe_id } : {}),
       ...this.searchWhere(search),
     };
     const itemsQuery = tx.menuItem.findMany({

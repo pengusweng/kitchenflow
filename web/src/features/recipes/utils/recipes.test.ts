@@ -1,73 +1,21 @@
 import { describe, expect, test } from "vitest";
-import { filterRecipes, formatQuantity, formatRecipeDate, type Recipe } from "./recipes";
-import { findMockRecipe, MOCK_RECIPES, toRecipe } from "./mock-recipes";
-import { MOCK_BRANDS } from "@/src/features/menu/utils/mock-menu";
+import {
+  brandAccent,
+  formatQuantity,
+  formatRecipeDate,
+  toRecipe,
+  toRecipeBrand,
+  toRecipeVersion,
+  toSteps,
+} from "./recipes";
 
-const GC = { id: "b-gc", code: "GC", name: "Gamcheon", accent: "#3D5A80" };
-const AI = { id: "b-ai", code: "AI", name: "Aurelia's Inasal", accent: "#9A4A1F" };
-
-function recipe(name: string, overrides: Partial<Recipe> = {}): Recipe {
-  return {
-    id: name,
-    code: `GC-${name.toUpperCase().replace(/\s+/g, "-")}`,
-    name,
-    brand: GC,
-    version: 1,
-    active: true,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    modifiedAt: "2026-06-01T00:00:00.000Z",
-    ...overrides,
-  };
-}
-
-const RECIPES = [
-  recipe("Kimchi Fried Rice", { modifiedAt: "2026-11-01T00:00:00.000Z" }),
-  recipe("Bibimbap", { modifiedAt: "2026-09-01T00:00:00.000Z" }),
-  recipe("Budae Jjigae", { active: false, modifiedAt: "2026-10-01T00:00:00.000Z" }),
-  recipe("Chicken Inasal Paa", { brand: AI, code: "AI-CHICKEN-INASAL-PAA" }),
-];
-const ALL = { search: "", brand: undefined, status: undefined };
-const names = (list: Recipe[]) => list.map((r) => r.name);
-
-describe("filterRecipes", () => {
-  test("matches every search term on the name or the code", () => {
-    expect(names(filterRecipes(RECIPES, { ...ALL, search: "fried kimchi" }, null))).toEqual(["Kimchi Fried Rice"]);
-    expect(names(filterRecipes(RECIPES, { ...ALL, search: "ai-chicken" }, null))).toEqual(["Chicken Inasal Paa"]);
-  });
-
-  test("filters by status and brand", () => {
-    expect(names(filterRecipes(RECIPES, { ...ALL, status: "inactive" }, null))).toEqual(["Budae Jjigae"]);
-    expect(filterRecipes(RECIPES, { ...ALL, status: "active", brand: "GC" }, null)).toHaveLength(2);
-  });
-
-  test("lists the most recently updated first by default", () => {
-    expect(names(filterRecipes(RECIPES, ALL, null))).toEqual([
-      "Kimchi Fried Rice",
-      "Budae Jjigae",
-      "Bibimbap",
-      "Chicken Inasal Paa",
-    ]);
-  });
-
-  test("sorts by name or by update date in either direction", () => {
-    expect(names(filterRecipes(RECIPES, ALL, { by: "name", order: "asc" }))[0]).toBe("Bibimbap");
-    expect(names(filterRecipes(RECIPES, ALL, { by: "name", order: "desc" }))[0]).toBe("Kimchi Fried Rice");
-    expect(names(filterRecipes(RECIPES, ALL, { by: "modified_at", order: "asc" }))[0]).toBe("Chicken Inasal Paa");
-  });
-});
+const BRAND_ID = "00000000-0000-4000-8000-000000000001";
+const RECIPE_ID = "00000000-0000-4000-8000-000000000010";
 
 describe("formatRecipeDate", () => {
   test("shows the date in Manila time", () => {
     // 20:00 UTC is already the next day in Manila.
     expect(formatRecipeDate("2026-11-19T20:00:00.000Z")).toBe("Nov 20, 2026");
-  });
-});
-
-describe("mock recipes", () => {
-  test("have unique codes and resolve to known brands", () => {
-    const recipes = MOCK_RECIPES.map((r) => toRecipe(r, MOCK_BRANDS));
-    expect(new Set(recipes.map((r) => r.code)).size).toBe(recipes.length);
-    expect(recipes.some((r) => !r.active)).toBe(true);
   });
 });
 
@@ -83,26 +31,80 @@ describe("formatQuantity", () => {
   });
 });
 
-describe("findMockRecipe", () => {
-  const idOf = (name: string) => MOCK_RECIPES.find((r) => r.name === name)!.recipe_id;
+describe("brands", () => {
+  test("get a stable accent from their code, without the database's padding", () => {
+    expect(brandAccent("GC")).toBe(brandAccent("GC"));
+    expect(brandAccent("GC")).toMatch(/^#[0-9A-F]{6}$/);
+    const brand = toRecipeBrand({
+      brand_id: BRAND_ID,
+      code: "GC  ",
+      name: "Gamcheon",
+      logo_url: null,
+      is_active: true,
+      created_at: "2026-01-01T00:00:00.000Z",
+      modified_at: "2026-01-01T00:00:00.000Z",
+    });
+    expect(brand).toEqual({ id: BRAND_ID, code: "GC", name: "Gamcheon", accent: brandAccent("GC") });
+  });
+});
 
-  test("returns ingredients, steps in order and the menu items that use it", () => {
-    const recipe = findMockRecipe(idOf("Kimchi Fried Rice"))!;
-    expect(recipe.code).toBe("RCP-GC-KIMCHI-FRIED-RICE");
-    expect(recipe.ingredients[0]).toMatchObject({ name: "Cooked rice", quantity: "250.000", unit: "g" });
-    expect(recipe.steps.map((s) => s.number)).toEqual([1, 2, 3]);
-    expect(recipe.usedBy.map((u) => u.name)).toEqual(["Kimchi Fried Rice"]);
+describe("API records", () => {
+  test("map a recipe row to a table row", () => {
+    const brand = { id: BRAND_ID, code: "GC", name: "Gamcheon", accent: "#3D5A80" };
+    expect(
+      toRecipe(
+        {
+          recipe_id: RECIPE_ID,
+          brand_id: BRAND_ID,
+          code: "RCP-GC-KIMCHI",
+          name: "Kimchi Rice",
+          version: 2,
+          is_active: false,
+          created_at: "2026-01-01T00:00:00.000Z",
+          modified_at: "2026-02-01T00:00:00.000Z",
+        },
+        brand,
+      ),
+    ).toEqual({
+      id: RECIPE_ID,
+      code: "RCP-GC-KIMCHI",
+      name: "Kimchi Rice",
+      brand,
+      version: 2,
+      active: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      modifiedAt: "2026-02-01T00:00:00.000Z",
+    });
   });
 
-  test("gives a recipe without content empty lists, not filler", () => {
-    const recipe = findMockRecipe(idOf("Mandu"))!;
-    expect(recipe.ingredients).toEqual([]);
-    expect(recipe.steps).toEqual([]);
-    expect(recipe.formulationNotes).toBeNull();
+  test("put steps in step order", () => {
+    const step = (n: number) => ({ recipe_step_id: `${RECIPE_ID.slice(0, -1)}${n}`, step_no: n, instruction: `Step ${n}` });
+    expect(toSteps([step(2), step(1)]).map((s) => s.number)).toEqual([1, 2]);
   });
 
-  test("finds no menu items for a retired recipe, and nothing for an unknown id", () => {
-    expect(findMockRecipe(idOf("Budae Jjigae"))!.usedBy).toEqual([]);
-    expect(findMockRecipe("rcp-missing")).toBeNull();
+  test("turn a history row into a version, notes included", () => {
+    const version = toRecipeVersion({
+      recipe_history_id: "00000000-0000-4000-8000-000000000040",
+      version: 3,
+      recipe_snapshot: { code: "RCP-GC-KIMCHI", name: "Kimchi Rice", formulation_notes: "Day-old rice." },
+      ingredients_snapshot: [
+        {
+          recipe_ingredient_id: "00000000-0000-4000-8000-000000000020",
+          ingredient_name: "Rice",
+          quantity: "250",
+          unit_code: "g",
+          note: null,
+        },
+      ],
+      steps_snapshot: [],
+      created_at: "2026-03-01T00:00:00.000Z",
+    });
+    expect(version).toMatchObject({
+      version: 3,
+      savedAt: "2026-03-01T00:00:00.000Z",
+      name: "Kimchi Rice",
+      formulationNotes: "Day-old rice.",
+      ingredients: [{ name: "Rice", quantity: "250", unit: "g" }],
+    });
   });
 });

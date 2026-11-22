@@ -1,5 +1,6 @@
 "use client";
 
+import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import Textarea from "@/src/components/ui/atoms/textarea";
 import BrandSelect from "@/src/components/ui/molecules/brand-select";
 import FormField, { fieldMessageId } from "@/src/features/brands/components/molecules/form-field";
 import type { MenuBrand } from "@/src/features/menu/utils/menu";
-import { MOCK_BRANDS } from "@/src/features/menu/utils/mock-menu";
 import { useUnits } from "../../hooks/useUnits";
 import {
   countProblems,
@@ -24,6 +24,7 @@ import {
   type RecipeFormErrors,
   type RecipeFormValues,
 } from "../../utils/recipe-form";
+import type { RecipeSaveError } from "../../utils/recipe-errors";
 import { groupUnits, type Unit } from "../../utils/units";
 import ConfidentialTag from "../atoms/confidential-tag";
 import RecipePanel from "../atoms/recipe-panel";
@@ -43,19 +44,19 @@ type RecipeFormProps = {
   initialValues: RecipeFormValues;
   /** A new recipe's code follows its brand and name until someone types their own. */
   suggestCode: boolean;
+  /** The brands a new recipe can go to. */
+  brands: MenuBrand[];
   /** When editing: the API doesn't let a recipe move to another brand. */
   lockedBrand?: MenuBrand;
-  /** Codes other recipes use, uppercased. */
-  takenCodes: Set<string>;
   submitLabel: string;
   /** Finishes "Fix 2 problems to …", e.g. "add this recipe". */
   savePhrase: string;
   cancelHref: string;
   /**
-   * Called with values that pass validation. Returns a message to show in the
-   * action bar instead when there's nothing to save.
+   * Called with values that pass validation. Resolves to nothing once saved, or
+   * to what stopped it, which the form shows beside the field or the save button.
    */
-  onSave: (values: RecipeFormValues) => string | undefined;
+  onSave: (values: RecipeFormValues) => Promise<RecipeSaveError | undefined>;
 };
 
 // Laid out like the recipe page: details on top, ingredients beside steps,
@@ -64,8 +65,8 @@ export default function RecipeForm({
   header,
   initialValues,
   suggestCode,
+  brands,
   lockedBrand,
-  takenCodes,
   submitLabel,
   savePhrase,
   cancelHref,
@@ -76,8 +77,11 @@ export default function RecipeForm({
   // Errors show after the first save attempt, then follow every keystroke.
   const [submitted, setSubmitted] = useState(false);
   const [announcement, setAnnouncement] = useState("");
-  // A message from onSave, shown until the form changes.
-  const [notice, setNotice] = useState<{ text: string; values: RecipeFormValues } | null>(null);
+  // What stopped the last save, shown until the form changes.
+  const [notice, setNotice] = useState<{ error: RecipeSaveError; values: RecipeFormValues } | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Codes the API said another recipe already has; the Code field flags them from then on.
+  const [takenCodes, setTakenCodes] = useState<Set<string>>(() => new Set());
 
   // A row added or moved by a button gets focus once it has rendered.
   const focusAfterRender = useRef<string | null>(null);
@@ -169,8 +173,9 @@ export default function RecipeForm({
     setAnnouncement(`Step ${index + 1} is now step ${target + 1}.`);
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     setSubmitted(true);
     const found = validateRecipeForm(values, takenCodes, unitCodes);
     if (countProblems(found) > 0) {
@@ -178,8 +183,16 @@ export default function RecipeForm({
       if (id) document.getElementById(id)?.focus();
       return;
     }
-    const message = onSave(values);
-    setNotice(message ? { text: message, values } : null);
+    setSaving(true);
+    const error = await onSave(values);
+    setSaving(false);
+    if (error?.field === "code") {
+      setTakenCodes((current) => new Set(current).add(values.code.trim().toUpperCase()));
+      setNotice(null);
+      focusAfterRender.current = recipeFieldId.code;
+      return;
+    }
+    setNotice(error ? { error, values } : null);
   };
 
   const filledIngredients = values.ingredients.filter((row) => row.name.trim()).length;
@@ -208,7 +221,7 @@ export default function RecipeForm({
               <FormField id={recipeFieldId.brand} label="Brand" error={errors.brand}>
                 <BrandSelect
                   id={recipeFieldId.brand}
-                  brands={MOCK_BRANDS}
+                  brands={brands}
                   value={values.brand}
                   onChange={(code) => setDetail("brand", code)}
                   aria-invalid={Boolean(errors.brand)}
@@ -319,7 +332,15 @@ export default function RecipeForm({
               Fix {count(problems, "problem", "problems")} to {savePhrase}.
             </span>
           ) : showNotice ? (
-            <span className="font-semibold text-ink">{notice.text}</span>
+            <span
+              className={
+                notice.error.tone === "info"
+                  ? "font-semibold text-ink"
+                  : "font-semibold text-danger-ink dark:text-destructive"
+              }
+            >
+              {notice.error.message}
+            </span>
           ) : (
             <span className="text-ink-muted">Blank ingredient rows and steps are left out.</span>
           )}
@@ -331,8 +352,9 @@ export default function RecipeForm({
           >
             Cancel
           </Link>
-          <Button type="submit" size="lg" className="h-10 px-4 font-semibold">
-            {submitLabel}
+          <Button type="submit" size="lg" className="h-10 px-4 font-semibold" disabled={saving} aria-busy={saving}>
+            {saving ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : null}
+            {saving ? "Saving…" : submitLabel}
           </Button>
         </div>
       </div>

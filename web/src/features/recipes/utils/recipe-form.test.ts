@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MOCK_BRANDS } from "@/src/features/menu/utils/mock-menu";
+import type { RecipeDetail } from "./recipes";
 import {
   countProblems,
   emptyRecipeForm,
@@ -11,8 +11,6 @@ import {
   parseQuantity,
   suggestRecipeCode,
   toCreateRecipePayload,
-  toEditedRecipeDetail,
-  toNewRecipeDetail,
   toRecipeFormValues,
   toUpdateRecipePayload,
   validateRecipeForm,
@@ -160,19 +158,6 @@ describe("toCreateRecipePayload", () => {
       ],
     });
   });
-
-  it("turns into a version 1, active recipe on no menu yet", () => {
-    const brand = MOCK_BRANDS[0];
-    const detail = toNewRecipeDetail(
-      "rcp-new-1",
-      brand,
-      toCreateRecipePayload(validForm(), brand.id),
-      new Date("2026-11-22T08:00:00Z"),
-    );
-    expect(detail).toMatchObject({ version: 1, active: true, usedBy: [], modifiedAt: "2026-11-22T08:00:00.000Z" });
-    expect(detail.ingredients[0]).toMatchObject({ name: "Cooked rice", quantity: "250.000", unit: "g" });
-    expect(detail.steps.map((s) => s.number)).toEqual([1, 2]);
-  });
 });
 
 describe("emptyRecipeForm", () => {
@@ -189,21 +174,34 @@ describe("emptyRecipeForm", () => {
 });
 
 describe("editing", () => {
-  const recipe = toNewRecipeDetail(
-    "rcp-1",
-    MOCK_BRANDS[0],
-    toCreateRecipePayload(
-      validForm({ ingredients: [ingredient("Cooked rice", "250"), ingredient("Kimchi", "80", "g", "Chopped")] }),
-      MOCK_BRANDS[0].id,
-    ),
-    new Date("2026-11-01T00:00:00Z"),
-  );
+  const brand = { id: "00000000-0000-4000-8000-000000000001", code: "GC", name: "Gamcheon", accent: "#3D5A80" };
+  // As GET /recipes/:id, its ingredients and its steps arrive.
+  const recipe: RecipeDetail = {
+    id: "rcp-1",
+    code: "RCP-GC-KIMCHI-RICE",
+    name: "Kimchi Rice",
+    brand,
+    version: 1,
+    active: true,
+    createdAt: "2026-11-01T00:00:00.000Z",
+    modifiedAt: "2026-11-01T00:00:00.000Z",
+    ingredients: [
+      { id: "ing-rice", name: "Cooked rice", quantity: "250.000", unit: "g", note: null },
+      { id: "ing-kimchi", name: "Kimchi", quantity: "80.000", unit: "g", note: "Chopped" },
+    ],
+    steps: [
+      { id: "step-fry", number: 1, instruction: "Fry the kimchi." },
+      { id: "step-add", number: 2, instruction: "Add the rice." },
+    ],
+    formulationNotes: null,
+    usedBy: [],
+  };
   const [rice, kimchi] = recipe.ingredients;
   const [fry, add] = recipe.steps;
 
   it("fills the form with the recipe, keyed by the API's ids", () => {
     const values = toRecipeFormValues(recipe);
-    expect(values).toMatchObject({ brand: MOCK_BRANDS[0].code, name: "Kimchi Rice", notes: "" });
+    expect(values).toMatchObject({ brand: "GC", name: "Kimchi Rice", notes: "" });
     expect(values.ingredients.map((i) => [i.key, i.quantity, i.note])).toEqual([
       [rice.id, "250", ""],
       [kimchi.id, "80", "Chopped"],
@@ -246,15 +244,5 @@ describe("editing", () => {
         ],
       },
     });
-  });
-
-  it("saves as the next version, keeping existing ids", () => {
-    const values = toRecipeFormValues(recipe);
-    values.ingredients.push(ingredient("Egg", "1", "pc"));
-    const edited = toEditedRecipeDetail(recipe, values, new Date("2026-11-23T00:00:00Z"));
-    expect(edited).toMatchObject({ version: 2, modifiedAt: "2026-11-23T00:00:00.000Z", createdAt: recipe.createdAt });
-    expect(edited.ingredients.map((i) => i.id).slice(0, 2)).toEqual([rice.id, kimchi.id]);
-    expect(edited.ingredients[2]).toMatchObject({ name: "Egg", quantity: "1.000", unit: "pc" });
-    expect(edited.ingredients[2].id).not.toBe(rice.id);
   });
 });

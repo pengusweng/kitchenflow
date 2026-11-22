@@ -28,3 +28,17 @@ export default function RecipePanel({ id, title, aside, children }: RecipePanelP
 export function PanelEmpty({ children }: { children: ReactNode }) {
   return <p className="py-5 text-sm text-ink-muted">{children}</p>;
 }
+
+/** Why a panel's list isn't shown: still loading, failed, or not available to this role. */
+export type PanelNotice = { text: string; kind: "loading" | "error" | "info" };
+
+export function PanelMessage({ notice }: { notice: PanelNotice }) {
+  return (
+    <p
+      role={notice.kind === "error" ? "alert" : notice.kind === "loading" ? "status" : undefined}
+      className={`py-5 text-sm ${notice.kind === "error" ? "text-danger-ink dark:text-destructive" : "text-ink-muted"}`}
+    >
+      {notice.text}
+    </p>
+  );
+}

@@ -1,16 +1,18 @@
 import type { RecipeStep } from "../../utils/recipes";
-import RecipePanel, { PanelEmpty } from "../atoms/recipe-panel";
+import RecipePanel, { PanelEmpty, PanelMessage, type PanelNotice } from "../atoms/recipe-panel";
 
 // Numbered in a gutter so the instructions line up and a cook can find
 // "step 3" again after looking away at the pan.
-export default function StepList({ steps }: { steps: RecipeStep[] }) {
+export default function StepList({ steps, notice }: { steps: RecipeStep[]; notice?: PanelNotice }) {
   return (
     <RecipePanel
       id="recipe-steps-heading"
       title="Steps"
-      aside={steps.length > 0 ? `${steps.length} ${steps.length === 1 ? "step" : "steps"}` : null}
+      aside={!notice && steps.length > 0 ? `${steps.length} ${steps.length === 1 ? "step" : "steps"}` : null}
     >
-      {steps.length === 0 ? (
+      {notice ? (
+        <PanelMessage notice={notice} />
+      ) : steps.length === 0 ? (
         <PanelEmpty>No steps yet.</PanelEmpty>
       ) : (
         <ol className="py-1.5">

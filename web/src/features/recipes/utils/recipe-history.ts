@@ -1,4 +1,4 @@
-import { formatQuantity, type RecipeDetail, type RecipeIngredient, type RecipeStep } from "./recipes";
+import { formatQuantity, type RecipeIngredient, type RecipeStep } from "./recipes";
 
 /**
  * One saved version of a recipe: a recipe_histories row. The API snapshots the
@@ -15,19 +15,6 @@ export type RecipeVersion = {
   steps: RecipeStep[];
   formulationNotes: string | null;
 };
-
-/** The recipe as its current version's snapshot. */
-export function snapshotOf(recipe: RecipeDetail): RecipeVersion {
-  return {
-    version: recipe.version,
-    savedAt: recipe.modifiedAt,
-    name: recipe.name,
-    code: recipe.code,
-    ingredients: recipe.ingredients,
-    steps: recipe.steps,
-    formulationNotes: recipe.formulationNotes,
-  };
-}
 
 const nameKey = (name: string) => name.trim().toLowerCase();
 const amount = (i: RecipeIngredient) => `${formatQuantity(i.quantity)} ${i.unit}`;

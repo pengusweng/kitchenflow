@@ -185,6 +185,32 @@ describe('MenuItemsService mutations', () => {
         });
       },
     );
+
+    it('UT-MI-016: passes a recipe filter through to both listings', async () => {
+      menu.findAll.mockResolvedValue({ menuItems: [item], counts });
+      menu.findAllByBrand.mockResolvedValue({ menuItems: [item], counts });
+      const recipeId = '00000000-0000-4000-8000-000000000010';
+      const query = {
+        page: 1,
+        limit: 10,
+        activeOnly: false,
+        status: 'all' as const,
+        recipe_id: recipeId,
+      };
+
+      await service.findAll(query);
+      expect(menu.findAll).toHaveBeenCalledWith(0, 10, {
+        status: 'all',
+        search: undefined,
+        recipe_id: recipeId,
+      });
+      await service.findAllByBrand(query, brand.brand_id);
+      expect(menu.findAllByBrand).toHaveBeenCalledWith(brand.brand_id, 0, 10, {
+        status: 'all',
+        search: undefined,
+        recipe_id: recipeId,
+      });
+    });
   });
 
   it('UT-MI-004: rejects reactivating an already-active item without writing', async () => {

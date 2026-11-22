@@ -1,22 +1,25 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { RecipeUse } from "../../utils/recipes";
-import RecipePanel, { PanelEmpty } from "../atoms/recipe-panel";
+import RecipePanel, { PanelEmpty, PanelMessage, type PanelNotice } from "../atoms/recipe-panel";
 
 type UsedByListProps = {
   items: RecipeUse[];
   /** The brand's menu, where these items can be found and switched off. */
   menuHref: string;
+  /** How many items use the recipe in all, when that's more than `items` holds. */
+  total?: number;
+  notice?: PanelNotice;
 };
 
 // What changes if this recipe changes: worth seeing before an edit or a deactivation.
-export default function UsedByList({ items, menuHref }: UsedByListProps) {
+export default function UsedByList({ items, menuHref, total = items.length, notice }: UsedByListProps) {
   return (
     <RecipePanel
       id="recipe-used-by-heading"
       title="Used by"
       aside={
-        items.length > 0 ? (
+        !notice && items.length > 0 ? (
           <Link
             href={menuHref}
             className="inline-flex items-center gap-0.5 rounded-sm font-semibold text-ink underline decoration-hairline underline-offset-4 outline-none hover:decoration-ink focus-visible:ring-2 focus-visible:ring-primary/40"
@@ -27,7 +30,9 @@ export default function UsedByList({ items, menuHref }: UsedByListProps) {
         ) : null
       }
     >
-      {items.length === 0 ? (
+      {notice ? (
+        <PanelMessage notice={notice} />
+      ) : items.length === 0 ? (
         <PanelEmpty>No menu items use this recipe.</PanelEmpty>
       ) : (
         <ul>
@@ -49,6 +54,11 @@ export default function UsedByList({ items, menuHref }: UsedByListProps) {
           ))}
         </ul>
       )}
+      {!notice && total > items.length ? (
+        <p className="border-t border-hairline py-2.5 text-sm text-ink-muted">
+          And {total - items.length} more on the menu.
+        </p>
+      ) : null}
     </RecipePanel>
   );
 }

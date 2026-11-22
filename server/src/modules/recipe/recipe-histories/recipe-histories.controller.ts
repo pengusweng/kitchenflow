@@ -20,6 +20,7 @@ import { CreateRecipeHistoryDTO } from './dto/create-recipe-history.dto';
 import { RecipeHistoriesService } from './recipe-histories.service';
 import {
   CreateRecipeHistoryDocs,
+  FindManyRecipeHistoriesDocs,
   FindOneRecipeHistoryDocs,
   RecipeHistoriesDocs,
 } from './docs/recipe-histories.docs';
@@ -42,6 +43,18 @@ export class RecipeHistoriesController {
   @CreateRecipeHistoryDocs()
   create(@Body() dto: CreateRecipeHistoryDTO) {
     return this.recipeHistoriesService.create(dto);
+  }
+
+  // Snapshots carry the confidential formulation notes, so reading them is audited.
+  @Get('recipe/:recipeId')
+  @Audit({
+    action: 'RECIPE_HISTORY_LISTED',
+    entity: 'recipes',
+    id: fromParam('recipeId'),
+  })
+  @FindManyRecipeHistoriesDocs()
+  findMany(@Param('recipeId', ParseUUIDPipe) recipeId: string) {
+    return this.recipeHistoriesService.findMany(recipeId);
   }
 
   @Get(':id')

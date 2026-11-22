@@ -1,5 +1,14 @@
-import type { TableSort } from "@/src/lib/table-sort";
+import type { BrandResponse } from "@/src/features/brands/schemas/brandSchema";
 import type { MenuBrand } from "@/src/features/menu/utils/menu";
+import type { TableSort } from "@/src/lib/table-sort";
+import type {
+  IngredientRecord,
+  RecipeHistoryRecord,
+  RecipeMenuItems,
+  RecipeRecord,
+  StepRecord,
+} from "../schemas/recipeSchema";
+import type { RecipeVersion } from "./recipe-history";
 
 /** A row of the recipes table. */
 export type Recipe = {
@@ -52,14 +61,6 @@ export type RecipeSortField = "name" | "modified_at";
 /** null means the API default: most recently updated first. */
 export type RecipeSort = TableSort<RecipeSortField>;
 
-export type RecipeFilters = {
-  search: string;
-  /** Brand code; undefined means every brand. */
-  brand: string | undefined;
-  /** Undefined means active and inactive. */
-  status: RecipeStatusFilter | undefined;
-};
-
 export const RECIPES_PAGE_SIZE = 20;
 
 const date = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" });
@@ -69,34 +70,69 @@ export function formatRecipeDate(iso: string) {
   return date.format(new Date(iso));
 }
 
-// Same rule as the API: every space-separated term must match the name or the code.
-function matchesSearch(recipe: Recipe, search: string) {
-  const terms = search.toLowerCase().split(/\s+/).filter(Boolean);
-  const haystack = [recipe.name.toLowerCase(), recipe.code.toLowerCase()];
-  return terms.every((term) => haystack.some((field) => field.includes(term)));
+// The API has no brand colours, so each brand gets one of these by its code:
+// muted, distinct on light and dark, and the same on every page.
+const BRAND_ACCENTS = ["#3D5A80", "#9A4A1F", "#5C4033", "#2F6B4F", "#6B4C8A", "#8A6A12", "#7A3B4E", "#2C6E7F"];
+
+export function brandAccent(code: string) {
+  let hash = 0;
+  for (const char of code) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return BRAND_ACCENTS[hash % BRAND_ACCENTS.length];
 }
 
-function matchesStatus(recipe: Recipe, status: RecipeStatusFilter | undefined) {
-  if (!status) return true;
-  return status === "active" ? recipe.active : !recipe.active;
+// Brand codes are CHAR(4), so the database pads short ones ("GC  ").
+export function toRecipeBrand(brand: BrandResponse): MenuBrand {
+  const code = brand.code.trim();
+  return { id: brand.brand_id, code, name: brand.name, accent: brandAccent(code) };
 }
 
-function compare(a: Recipe, b: Recipe, sort: RecipeSort) {
-  if (!sort) return b.modifiedAt.localeCompare(a.modifiedAt) || a.name.localeCompare(b.name);
-  const direction = sort.order === "asc" ? 1 : -1;
-  const primary =
-    sort.by === "name" ? a.name.localeCompare(b.name) : a.modifiedAt.localeCompare(b.modifiedAt);
-  return primary * direction || a.name.localeCompare(b.name);
+/** For a recipe whose brand isn't in the loaded list. */
+export function unknownBrand(id: string): MenuBrand {
+  return { id, code: "", name: "Unknown brand", accent: "#8A94A6" };
 }
 
-/** The rows the table shows, in the chosen order. */
-export function filterRecipes(recipes: Recipe[], filters: RecipeFilters, sort: RecipeSort) {
-  return recipes
-    .filter(
-      (recipe) =>
-        matchesSearch(recipe, filters.search) &&
-        matchesStatus(recipe, filters.status) &&
-        (!filters.brand || recipe.brand.code === filters.brand),
-    )
-    .sort((a, b) => compare(a, b, sort));
+export function toRecipe(record: RecipeRecord, brand: MenuBrand): Recipe {
+  return {
+    id: record.recipe_id,
+    code: record.code,
+    name: record.name,
+    brand,
+    version: record.version,
+    active: record.is_active,
+    createdAt: record.created_at,
+    modifiedAt: record.modified_at,
+  };
+}
+
+export function toIngredient(record: IngredientRecord): RecipeIngredient {
+  return {
+    id: record.recipe_ingredient_id,
+    name: record.ingredient_name,
+    quantity: record.quantity,
+    unit: record.unit_code,
+    note: record.note,
+  };
+}
+
+/** In step order, whatever order they arrive in. */
+export function toSteps(records: StepRecord[]): RecipeStep[] {
+  return [...records]
+    .sort((a, b) => a.step_no - b.step_no)
+    .map((s) => ({ id: s.recipe_step_id, number: s.step_no, instruction: s.instruction }));
+}
+
+export function toRecipeVersion(record: RecipeHistoryRecord): RecipeVersion {
+  return {
+    version: record.version,
+    savedAt: record.created_at,
+    name: record.recipe_snapshot.name,
+    code: record.recipe_snapshot.code,
+    ingredients: record.ingredients_snapshot.map(toIngredient),
+    steps: toSteps(record.steps_snapshot),
+    formulationNotes: record.recipe_snapshot.formulation_notes ?? null,
+  };
+}
+
+export function toRecipeUses(page: RecipeMenuItems): RecipeUse[] {
+  return page.data.map((item) => ({ id: item.menu_item_id, name: item.name, code: item.code, active: item.is_active }));
 }

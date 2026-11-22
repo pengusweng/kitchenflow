@@ -1,11 +1,11 @@
 import { ChevronDown } from "lucide-react";
 import { describeChanges, type RecipeVersion } from "../../utils/recipe-history";
 import { formatQuantity, formatRecipeDate } from "../../utils/recipes";
-import RecipePanel, { PanelEmpty } from "../atoms/recipe-panel";
+import RecipePanel, { PanelEmpty, PanelMessage, type PanelNotice } from "../atoms/recipe-panel";
 
 // Every saved version, newest first, each saying what changed from the one
 // before. Opening a version shows the recipe as it was then.
-export default function RecipeHistory({ versions }: { versions: RecipeVersion[] }) {
+export default function RecipeHistory({ versions, notice }: { versions: RecipeVersion[]; notice?: PanelNotice }) {
   const rows = versions
     .map((version, index) => ({ version, changes: describeChanges(versions[index - 1], version) }))
     .reverse();
@@ -14,9 +14,11 @@ export default function RecipeHistory({ versions }: { versions: RecipeVersion[] 
     <RecipePanel
       id="recipe-history-heading"
       title="History"
-      aside={versions.length > 0 ? `${versions.length} ${versions.length === 1 ? "version" : "versions"}` : null}
+      aside={!notice && versions.length > 0 ? `${versions.length} ${versions.length === 1 ? "version" : "versions"}` : null}
     >
-      {rows.length === 0 ? (
+      {notice ? (
+        <PanelMessage notice={notice} />
+      ) : rows.length === 0 ? (
         <PanelEmpty>No saved versions yet.</PanelEmpty>
       ) : (
         <ol>

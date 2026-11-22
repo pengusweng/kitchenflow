@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban } from "lucide-react";
+import { Ban, CircleAlert, LoaderCircle } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,10 @@ type DeactivateRecipeModalProps = {
   /** Menu items linked to the recipe now; named so the impact is clear before confirming. */
   usedBy: RecipeUse[];
   onConfirm: () => void;
+  /** While DELETE /recipes/:id is in flight: the dialog stays open and can't be dismissed. */
+  pending: boolean;
+  /** Why the last attempt failed. */
+  error: string | null;
   /** Where focus goes once the dialog closes, since the button that opened it may be gone. */
   finalFocus: () => HTMLElement | null;
 };
@@ -37,6 +41,8 @@ export default function DeactivateRecipeModal({
   recipeName,
   usedBy,
   onConfirm,
+  pending,
+  error,
   finalFocus,
 }: DeactivateRecipeModalProps) {
   // Keep is the safe default, so it takes focus first.
@@ -45,7 +51,13 @@ export default function DeactivateRecipeModal({
   const more = usedBy.length - shown.length;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && pending) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent
         role="alertdialog"
         showCloseButton={false}
@@ -77,13 +89,35 @@ export default function DeactivateRecipeModal({
           </div>
         ) : null}
 
+        {error ? (
+          <p
+            role="alert"
+            className="mx-6 mb-5 flex items-start gap-2 text-sm leading-5 text-danger-ink dark:text-destructive"
+          >
+            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            {error}
+          </p>
+        ) : null}
+
         <DialogFooter className="mx-0 mb-0 border-hairline bg-transparent px-6 py-4">
-          <DialogClose ref={keepRef} render={<Button type="button" variant="outline" size="lg" className={ACTION} />}>
+          <DialogClose
+            ref={keepRef}
+            disabled={pending}
+            render={<Button type="button" variant="outline" size="lg" className={ACTION} />}
+          >
             Keep recipe
           </DialogClose>
-          <Button type="button" variant="destructive" size="lg" className={ACTION} onClick={onConfirm}>
-            <Ban aria-hidden="true" />
-            Deactivate
+          <Button
+            type="button"
+            variant="destructive"
+            size="lg"
+            className={ACTION}
+            onClick={onConfirm}
+            disabled={pending}
+            aria-busy={pending}
+          >
+            {pending ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : <Ban aria-hidden="true" />}
+            {pending ? "Deactivating…" : "Deactivate"}
           </Button>
         </DialogFooter>
       </DialogContent>

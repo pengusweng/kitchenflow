@@ -1,4 +1,3 @@
-import type { MenuBrand } from "@/src/features/menu/utils/menu";
 import { suggestCode } from "@/src/features/menu/utils/menu-form";
 import { formatQuantity, type RecipeDetail } from "./recipes";
 import { parseDecimal } from "./units";
@@ -220,32 +219,6 @@ export function toCreateRecipePayload(values: RecipeFormValues, brandId: string)
   };
 }
 
-/** What the static page adds to its list: version 1, active, and not on any menu yet. */
-export function toNewRecipeDetail(id: string, brand: MenuBrand, payload: CreateRecipePayload, now: Date): RecipeDetail {
-  const at = now.toISOString();
-  return {
-    id,
-    code: payload.code,
-    name: payload.name,
-    brand,
-    version: 1,
-    active: true,
-    createdAt: at,
-    modifiedAt: at,
-    ingredients: payload.ingredients.map((i, n) => ({
-      id: `${id}-ing-${n + 1}`,
-      name: i.ingredient_name,
-      // As the API sends a Decimal(12, 3) back.
-      quantity: i.quantity.toFixed(3),
-      unit: i.unit_code,
-      note: i.note,
-    })),
-    steps: payload.steps.map((s) => ({ id: `${id}-step-${s.step_no}`, number: s.step_no, instruction: s.instruction })),
-    formulationNotes: payload.formulation_notes,
-    usedBy: [],
-  };
-}
-
 /**
  * The form filled in with a recipe, for editing. Existing rows keep the API's ids
  * as their keys, which is how the update payload tells edits from additions.
@@ -363,35 +336,3 @@ export function toUpdateRecipePayload(recipe: RecipeDetail, values: RecipeFormVa
 
 /** The API refuses an edit with no changes (NO_RECIPE_CHANGES), since it would still add a version. */
 export const hasRecipeChanges = (payload: UpdateRecipePayload) => Object.keys(payload).length > 0;
-
-/** What the static page saves: the recipe as edited, one version up. */
-export function toEditedRecipeDetail(recipe: RecipeDetail, values: RecipeFormValues, now: Date): RecipeDetail {
-  const version = recipe.version + 1;
-  const known = new Set([...recipe.ingredients.map((i) => i.id), ...recipe.steps.map((s) => s.id)]);
-  // New rows get ids of their own, as the API would assign.
-  const idFor = (key: string) => (known.has(key) ? key : `${recipe.id}-v${version}-${key}`);
-  return {
-    ...recipe,
-    name: values.name.trim(),
-    code: values.code.trim(),
-    formulationNotes: values.notes.trim() || null,
-    version,
-    modifiedAt: now.toISOString(),
-    ingredients: values.ingredients
-      .filter((i) => !isBlankIngredient(i))
-      .map((row) => {
-        const payload = toIngredientPayload(row);
-        return {
-          id: idFor(row.key),
-          name: payload.ingredient_name,
-          // As the API sends a Decimal(12, 3) back.
-          quantity: payload.quantity.toFixed(3),
-          unit: payload.unit_code,
-          note: payload.note,
-        };
-      }),
-    steps: values.steps
-      .filter((s) => !isBlankStep(s))
-      .map((row, index) => ({ id: idFor(row.key), number: index + 1, instruction: row.instruction.trim() })),
-  };
-}

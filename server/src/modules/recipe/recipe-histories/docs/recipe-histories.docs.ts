@@ -74,6 +74,28 @@ export function CreateRecipeHistoryDocs() {
   );
 }
 
+export function FindManyRecipeHistoriesDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary:
+        "List a recipe's saved versions (recipe managers and superadmins).",
+      description:
+        'Every snapshot of the recipe, newest version first. Works for inactive recipes too, so retired recipes keep their history.',
+    }),
+    ApiParam({
+      name: 'recipeId',
+      schema: { type: 'string', format: 'uuid' },
+      description: 'Recipe ID.',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'The snapshots, newest version first.',
+      content: { 'application/json': { example: [recipeHistoryExample] } },
+    }),
+    ApiResponse({ status: 404, description: 'Recipe not found.' }),
+  );
+}
+
 export function FindOneRecipeHistoryDocs() {
   return applyDecorators(
     ApiOperation({

@@ -63,6 +63,29 @@ export class RecipeHistoriesService {
     return history;
   }
 
+  // Inactive recipes keep their history, so this looks the recipe up whatever its status.
+  async findMany(recipeId: string, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Finding recipe histories for recipe ${recipeId}`);
+
+    const recipe = await this.recipesRepository.findOne(
+      recipeId,
+      false,
+      false,
+      tx,
+    );
+    assertExists(recipe, 'Recipe', recipeId, this.logger);
+
+    const histories = await this.recipeHistoriesRepository.findMany(
+      recipeId,
+      tx,
+    );
+
+    this.logger.log(
+      `Found ${histories.length} recipe histories for recipe ${recipe.code}`,
+    );
+    return histories;
+  }
+
   async findOne(recipeHistoryId: string, tx?: Prisma.TransactionClient) {
     this.logger.debug(`Finding recipe history ${recipeHistoryId}`);
 
