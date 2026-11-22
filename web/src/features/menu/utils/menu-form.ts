@@ -1,4 +1,4 @@
-import type { MenuItem, MenuItemModifier, MenuModifierOption } from "./menu";
+import type { MenuBrand, MenuItem, MenuItemModifier, MenuModifierOption } from "./menu";
 
 /** A modifier row in the edit form. Removing a saved one only marks it, so it can be undone before saving. */
 export type ModifierDraft = {
@@ -24,7 +24,7 @@ export type MenuItemFormValues = {
   modifiers: ModifierDraft[];
 };
 
-type FieldName = "name" | "code" | "basePrice" | "servingDescription" | "description";
+type FieldName = "name" | "code" | "basePrice" | "servingDescription" | "description" | "recipe";
 
 export type MenuItemFormErrors = Partial<Record<FieldName, string>> & {
   /** Keyed by modifier draft id. */
@@ -70,6 +70,18 @@ export function toFormValues(item: MenuItem): MenuItemFormValues {
   };
 }
 
+/** A blank form for a new item; the recipe stays empty until a brand is picked. */
+export function emptyFormValues(): MenuItemFormValues {
+  return { name: "", code: "", basePrice: "", servingDescription: "", description: "", recipe: "", modifiers: [] };
+}
+
+/** The brand code plus the name, e.g. "GC" + "Kimchi Rice" gives "GC-KIMCHI-RICE". */
+export function suggestCode(brandCode: string | undefined, name: string): string {
+  const slug = name.toUpperCase().replace(/&/g, "AND").replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (!slug) return "";
+  return (brandCode ? `${brandCode}-${slug}` : slug).slice(0, LIMITS.code).replace(/-$/, "");
+}
+
 export function newModifierDraft(option: MenuModifierOption): ModifierDraft {
   return {
     id: `new-${option.id}`,
@@ -104,6 +116,8 @@ export function validateMenuItemForm(values: MenuItemFormValues, takenCodes: Set
 
   const basePrice = priceProblem(values.basePrice, "a price");
   if (basePrice) errors.basePrice = basePrice;
+
+  if (!values.recipe) errors.recipe = "Choose the recipe the kitchen follows.";
 
   if (values.servingDescription.trim().length > LIMITS.servingDescription)
     errors.servingDescription = `Keep this to ${LIMITS.servingDescription} characters.`;
@@ -171,4 +185,43 @@ export function applyMenuItemEdit(item: MenuItem, values: MenuItemFormValues, im
     imageUrl,
     modifiers,
   };
+}
+
+export type NewMenuItemErrors = MenuItemFormErrors & { brand?: string; photo?: string };
+
+/** Everything the edit form checks, plus what only a new item needs: a brand and a photo. */
+export function validateNewMenuItem(
+  values: MenuItemFormValues,
+  takenCodes: Set<string>,
+  { brand, hasPhoto }: { brand: string | undefined; hasPhoto: boolean },
+): NewMenuItemErrors {
+  const errors: NewMenuItemErrors = validateMenuItemForm(values, takenCodes);
+  if (!brand) {
+    errors.brand = "Choose the brand that sells this item.";
+    // Recipes come from the brand, so the brand error says it all.
+    delete errors.recipe;
+  }
+  if (!hasPhoto) errors.photo = "Add a photo. It's what the counter and delivery menus show.";
+  return errors;
+}
+
+/** The item as it reads once a valid new-item form is added. New items start active and available. */
+export function newMenuItem(id: string, brand: MenuBrand, values: MenuItemFormValues, imageUrl: string): MenuItem {
+  const blank: MenuItem = {
+    id,
+    code: "",
+    name: "",
+    brand,
+    description: null,
+    servingDescription: null,
+    recipe: "",
+    imageUrl: null,
+    basePrice: 0,
+    available: true,
+    active: true,
+    // Channel prices are set separately, after the item exists.
+    channels: [],
+    modifiers: [],
+  };
+  return applyMenuItemEdit(blank, values, imageUrl);
 }

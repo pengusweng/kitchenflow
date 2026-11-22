@@ -2,6 +2,7 @@
 // the API's snake_case shape so wiring it up only swaps the data source; the
 // page itself only ever sees `toMenuItem` output.
 import type { Channel, MenuBrand, MenuItem, MenuModifierOption } from "./menu";
+import { suggestCode } from "./menu-form";
 
 type MenuItemChannelRecord = { order_channel: Channel; price: string; is_available: boolean };
 
@@ -153,16 +154,12 @@ const SEEDS: Record<string, Seed[]> = {
 // Delivery platforms charge their commission back as a markup.
 const DELIVERY_MARKUP = 1.15;
 
-function toCode(brand: string, name: string) {
-  return `${brand}-${name.toUpperCase().replace(/&/g, "AND").replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
-}
-
 function toRecord(brand: MenuBrand, seed: Seed, index: number): MenuItemRecord {
   const deliveryPrice = Math.round(seed.price * DELIVERY_MARKUP);
   return {
     menu_item_id: `mi-${brand.code.toLowerCase()}-${String(index + 1).padStart(2, "0")}`,
     brand_id: brand.id,
-    code: toCode(brand.code, seed.name),
+    code: suggestCode(brand.code, seed.name),
     name: seed.name,
     description: seed.description ?? null,
     serving_description: seed.serving ?? null,

@@ -1,10 +1,13 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import Pagination from "@/src/components/ui/molecules/pagination";
 import PageTitle from "@/src/features/dashboard/components/atoms/page-title";
 import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
+import CreateMenuItemModal from "../components/organisms/create-menu-item-modal";
 import EditMenuItemModal from "../components/organisms/edit-menu-item-modal";
 import MenuFilterBar from "../components/organisms/menu-filter-bar";
 import MenuItemDetailModal from "../components/organisms/menu-item-detail-modal";
@@ -47,6 +50,7 @@ export default function MenuPage() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const viewing = items.find((item) => item.id === viewingId) ?? null;
 
   const updateItem = (id: string, patch: Partial<MenuItem>) =>
@@ -91,7 +95,13 @@ export default function MenuPage() {
 
   return (
     <section className="motion-safe:animate-page-in">
-      <PageTitle>Menu & availability</PageTitle>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageTitle>Menu & availability</PageTitle>
+        <Button size="lg" className="h-10 px-4 font-semibold" onClick={() => setCreating(true)}>
+          <Plus aria-hidden="true" />
+          Add menu item
+        </Button>
+      </div>
 
       <MenuFilterBar
         query={query}
@@ -168,6 +178,23 @@ export default function MenuPage() {
         recipes={viewing ? brandRecipes(items, viewing.brand.code) : []}
         modifierCatalog={MOCK_MODIFIER_CATALOG}
         takenCodes={new Set(items.filter((item) => item.id !== viewingId).map((item) => item.code))}
+      />
+
+      <CreateMenuItemModal
+        open={creating}
+        onOpenChange={setCreating}
+        onCreated={(created) => {
+          setItems((current) => [...current, created]);
+          // Confirm by opening the new item's details.
+          setCreating(false);
+          setViewingId(created.id);
+          setModalOpen(true);
+        }}
+        brands={MOCK_BRANDS}
+        defaultBrand={brand}
+        recipesFor={(code) => brandRecipes(items, code)}
+        modifierCatalog={MOCK_MODIFIER_CATALOG}
+        takenCodes={new Set(items.map((item) => item.code))}
       />
     </section>
   );

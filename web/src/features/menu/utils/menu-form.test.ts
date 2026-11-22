@@ -2,6 +2,10 @@ import { describe, expect, test } from "vitest";
 import type { MenuItem } from "./menu";
 import {
   applyMenuItemEdit,
+  emptyFormValues,
+  newMenuItem,
+  suggestCode,
+  validateNewMenuItem,
   hasFormChanges,
   newModifierDraft,
   parsePrice,
@@ -102,5 +106,76 @@ describe("applyMenuItemEdit", () => {
   test("blank optional fields are cleared", () => {
     const saved = applyMenuItemEdit(ITEM, { ...toFormValues(ITEM), servingDescription: "  " }, null);
     expect(saved.servingDescription).toBeNull();
+  });
+});
+
+describe("suggestCode", () => {
+  test("joins the brand code and the name", () => {
+    expect(suggestCode("GC", "Kimchi Fried Rice")).toBe("GC-KIMCHI-FRIED-RICE");
+    expect(suggestCode("KK", "  Café & Pastry! ")).toBe("KK-CAF-AND-PASTRY");
+  });
+
+  test("leaves the code empty until there is a name", () => {
+    expect(suggestCode("GC", "  ")).toBe("");
+  });
+
+  test("works before a brand is picked", () => {
+    expect(suggestCode(undefined, "Kimchi Rice")).toBe("KIMCHI-RICE");
+  });
+
+  test("stays within the code limit without a trailing dash", () => {
+    const code = suggestCode("GC", "a".repeat(60) + " bb");
+    expect(code.length).toBeLessThanOrEqual(64);
+    expect(code.endsWith("-")).toBe(false);
+  });
+});
+
+describe("validateNewMenuItem", () => {
+  const valid = { ...emptyFormValues(), name: "Kimchi Rice", code: "GC-KIMCHI-RICE", basePrice: "189", recipe: "Kimchi Rice" };
+
+  test("passes a complete form", () => {
+    expect(validateNewMenuItem(valid, new Set(), { brand: "GC", hasPhoto: true })).toEqual({});
+  });
+
+  test("asks for a brand and a photo", () => {
+    const errors = validateNewMenuItem(valid, new Set(), { brand: undefined, hasPhoto: false });
+    expect(errors.brand).toBeDefined();
+    expect(errors.photo).toBeDefined();
+  });
+
+  test("asks for a recipe only once a brand is picked", () => {
+    const blank = { ...valid, recipe: "" };
+    expect(validateNewMenuItem(blank, new Set(), { brand: "GC", hasPhoto: true }).recipe).toBeDefined();
+    expect(validateNewMenuItem(blank, new Set(), { brand: undefined, hasPhoto: true }).recipe).toBeUndefined();
+  });
+
+  test("rejects a code another item uses", () => {
+    expect(validateNewMenuItem(valid, new Set(["GC-KIMCHI-RICE"]), { brand: "GC", hasPhoto: true }).code).toBeDefined();
+  });
+});
+
+describe("newMenuItem", () => {
+  test("starts active and available, with no channels yet", () => {
+    const values = {
+      ...emptyFormValues(),
+      name: " Kimchi Rice ",
+      code: "gc-kimchi-rice",
+      basePrice: "189.50",
+      recipe: "Kimchi Rice",
+      modifiers: [newModifierDraft({ id: "mod-x", code: "EXTRA-RICE", name: "Extra rice", description: null, price: 35 })],
+    };
+    const item = newMenuItem("new-1", ITEM.brand, values, "blob:photo");
+    expect(item).toMatchObject({
+      id: "new-1",
+      name: "Kimchi Rice",
+      code: "GC-KIMCHI-RICE",
+      basePrice: 189.5,
+      servingDescription: null,
+      imageUrl: "blob:photo",
+      available: true,
+      active: true,
+      channels: [],
+    });
+    expect(item.modifiers).toHaveLength(1);
   });
 });

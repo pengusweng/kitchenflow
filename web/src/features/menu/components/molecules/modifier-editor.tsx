@@ -15,6 +15,8 @@ type ModifierEditorProps = {
   catalog: MenuModifierOption[];
   /** Keyed by draft id. */
   errors?: Record<string, string>;
+  /** Tag modifiers added during this edit. Off when the whole item is new. */
+  tagNew?: boolean;
 };
 
 const TAG = "inline-flex h-5 items-center rounded-full px-2 text-xs font-semibold";
@@ -25,7 +27,7 @@ export const modifierPriceId = (draftId: string) => `modifier-price-${draftId}`;
 // The item's add-ons, each with its own price. Removing a saved one strikes it
 // through with an Undo instead of deleting it on the spot, so a slip costs
 // nothing until Save. New ones are tagged so it's clear what Save will add.
-export default function ModifierEditor({ drafts, onChange, catalog, errors = {} }: ModifierEditorProps) {
+export default function ModifierEditor({ drafts, onChange, catalog, errors = {}, tagNew = true }: ModifierEditorProps) {
   const pickerId = useId();
   const attached = new Set(drafts.map((d) => d.code));
   const available = catalog.filter((option) => !attached.has(option.code));
@@ -80,7 +82,7 @@ export default function ModifierEditor({ drafts, onChange, catalog, errors = {} 
                     >
                       {draft.name}
                     </span>
-                    {draft.origin === "new" ? <span className={`${TAG} bg-ink text-card`}>New</span> : null}
+                    {tagNew && draft.origin === "new" ? <span className={`${TAG} bg-ink text-card`}>New</span> : null}
                     {!draft.available && !draft.removed ? (
                       <span className={`${TAG} bg-destructive/10 text-danger-ink`}>Off</span>
                     ) : null}
