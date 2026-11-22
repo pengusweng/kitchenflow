@@ -415,9 +415,7 @@ describe('Catalog HTTP endpoints (PostgreSQL integration)', () => {
       expect(retrieved.status).toBe(200);
       expect(
         (await json(retrieved))[target === 'brand' ? 'logo_url' : 'img_url'],
-      ).toBe(
-        target === 'brand' ? `https://files.example.test/${stored}` : stored,
-      );
+      ).toBe(`https://files.example.test/${stored}`);
       expect(storage.putObject).toHaveBeenCalledWith(
         stored,
         expect.any(Buffer),

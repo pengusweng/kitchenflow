@@ -8,6 +8,7 @@ import { isUUID } from 'class-validator';
 import { FindAllMenuItemsDTO } from './dto/find-all-menu-items.dto';
 import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
 import { RecipesRepository } from '../../recipe/recipes/recipes.repository';
+import { StorageService } from '../../../shared/storage/storage.service';
 
 @Injectable()
 export class MenuItemsService {
@@ -17,6 +18,7 @@ export class MenuItemsService {
     private readonly menuItemsRepository: MenuItemsRepository,
     private readonly brandsRepository: BrandsRepository,
     private readonly recipesRepository: RecipesRepository,
+    private readonly storage: StorageService,
   ) {}
 
   async createMenuItem(dto: CreateMenuItemDTO) {
@@ -27,7 +29,9 @@ export class MenuItemsService {
     assertExists(brand, 'Brand', dto.brand_id, this.logger);
     assertExists(recipe, 'Recipe', dto.recipe_id, this.logger);
 
-    return this.menuItemsRepository.createMenuItem(dto);
+    return this.withImageUrl(
+      await this.menuItemsRepository.createMenuItem(dto),
+    );
   }
 
   async findOneMenuItem(
@@ -56,7 +60,7 @@ export class MenuItemsService {
     assertExists(brand, 'Brand', menuItem.brand_id, this.logger);
 
     this.logger.log(`MenuItem ${menuItem.menu_item_id} found`);
-    return menuItem;
+    return this.withImageUrl(menuItem);
   }
 
   async findAll({ page, limit, activeOnly }: FindAllMenuItemsDTO) {
@@ -79,7 +83,9 @@ export class MenuItemsService {
     );
 
     return {
-      data: menuItems,
+      data: await Promise.all(
+        menuItems.map((menuItem) => this.withImageUrl(menuItem)),
+      ),
       meta: {
         page,
         limit,
@@ -114,7 +120,9 @@ export class MenuItemsService {
     );
 
     return {
-      data: menuItems,
+      data: await Promise.all(
+        menuItems.map((menuItem) => this.withImageUrl(menuItem)),
+      ),
       meta: {
         page,
         limit,
@@ -137,7 +145,7 @@ export class MenuItemsService {
     );
 
     this.logger.log(`Updated menu item ${menuItem.menu_item_id}`);
-    return updated;
+    return this.withImageUrl(updated);
   }
 
   async reactivateMenuItem(menuItemId: string) {
@@ -164,7 +172,7 @@ export class MenuItemsService {
     );
 
     this.logger.log(`Reactivated menu item ${menuItem.menu_item_id}`);
-    return reactivated;
+    return this.withImageUrl(reactivated);
   }
 
   async updateAvailability(menuItemId: string, availability: boolean) {
@@ -191,7 +199,7 @@ export class MenuItemsService {
       `Availability for menu item ${menuItem.menu_item_id} set to ${availability}`,
     );
 
-    return updatedMenuItem;
+    return this.withImageUrl(updatedMenuItem);
   }
 
   async deleteMenuItem(menuItemId: string) {
@@ -205,6 +213,16 @@ export class MenuItemsService {
     );
 
     this.logger.log(`Deactivated menu item ${menuItem.menu_item_id}`);
-    return deleted;
+    return this.withImageUrl(deleted);
+  }
+
+  /** Swaps a stored upload key for a download URL; external URLs pass through. */
+  private async withImageUrl<T extends { img_url: string }>(menuItem: T) {
+    return {
+      ...menuItem,
+      img_url: menuItem.img_url.startsWith('uploads/')
+        ? await this.storage.createDownloadUrl(menuItem.img_url, false)
+        : menuItem.img_url,
+    };
   }
 }

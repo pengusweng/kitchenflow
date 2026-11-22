@@ -31,6 +31,7 @@ describe('MenuCatalogService operations', () => {
   const menuItem = {
     menu_item_id: 'menu-id',
     name: 'Rice',
+    img_url: 'https://example.com/rice.jpg',
     menuChannels: [],
     menuItemModifiers: [
       { modifier_id: 'modifier-id', modifier: { name: 'Extra cheese' } },
@@ -76,6 +77,11 @@ describe('MenuCatalogService operations', () => {
       repository as unknown as MenuCatalogRepository,
       brands as unknown as BrandsRepository,
       modifiers as unknown as ModifiersRepository,
+      {
+        createDownloadUrl: jest.fn((key: string) =>
+          Promise.resolve(`https://files.example.test/${key}`),
+        ),
+      } as unknown as StorageService,
     );
   });
 
@@ -172,6 +178,19 @@ describe('MenuCatalogService operations', () => {
       response: { code: 'PAGINATION_UNSUPPORTED_RANGE' },
     });
     expect(repository.findMany).not.toHaveBeenCalled();
+  });
+
+  it('UT-MCAT-014: returns uploaded image keys as download URLs', async () => {
+    const key = 'uploads/user-id/image.png';
+    const uploaded = { ...menuItem, img_url: key };
+    repository.create.mockResolvedValue(uploaded);
+    repository.findMany.mockResolvedValue({ menuItems: [uploaded], total: 1 });
+    const expected = { img_url: `https://files.example.test/${key}` };
+
+    await expect(service.create(dto)).resolves.toMatchObject(expected);
+    await expect(
+      service.findAll('brand-id', new PaginationDTO()),
+    ).resolves.toMatchObject({ data: [expected] });
   });
 
   it('UT-MCAT-011: preserves catalog lookup errors', async () => {
@@ -303,6 +322,7 @@ describe('MenuCatalogService transactional creation', () => {
         repository,
         {} as BrandsRepository,
         modifiers,
+        {} as StorageService,
       );
 
       await expect(service.create(input)).resolves.toEqual({

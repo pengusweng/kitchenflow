@@ -4,6 +4,7 @@ import { BrandsRepository } from '../../../brands/brands.repository';
 import { MenuItemsRepository } from '../menu-items.repository';
 import { MenuItemsService } from '../menu-items.service';
 import { RecipesRepository } from '../../../recipe/recipes/recipes.repository';
+import { StorageService } from '../../../../shared/storage/storage.service';
 
 describe('MenuItemsService mutations', () => {
   const now = new Date('2030-01-01T00:00:00Z');
@@ -72,6 +73,11 @@ describe('MenuItemsService mutations', () => {
       menu as unknown as MenuItemsRepository,
       brands as unknown as BrandsRepository,
       { findOne: jest.fn() } as unknown as RecipesRepository,
+      {
+        createDownloadUrl: jest.fn((key: string) =>
+          Promise.resolve(`https://files.example.test/${key}`),
+        ),
+      } as unknown as StorageService,
     );
   });
 
@@ -133,6 +139,16 @@ describe('MenuItemsService mutations', () => {
     },
   );
 
+  it('UT-MI-011: returns uploaded image keys as download URLs', async () => {
+    const key = 'uploads/user-id/image.png';
+    menu.updateMenuItem.mockResolvedValue({ ...item, img_url: key });
+    await expect(
+      service.updateMenuItem(item.menu_item_id, dto),
+    ).resolves.toMatchObject({
+      img_url: `https://files.example.test/${key}`,
+    });
+  });
+
   it('UT-MI-004: rejects reactivating an already-active item without writing', async () => {
     menu.findOneMenuItemByUID.mockResolvedValue(item);
     await expect(
@@ -162,7 +178,7 @@ describe('MenuItemsService mutations', () => {
         menu.updateAvailability.mockResolvedValue(updated);
         await expect(
           service.updateAvailability(id, availability),
-        ).resolves.toBe(updated);
+        ).resolves.toEqual(updated);
         expect(menu.findOneMenuItemByUID).toHaveBeenCalledWith(id, true);
         expect(brands.findOneBrand).toHaveBeenCalledWith(item.brand_id);
         expect(menu.updateAvailability).toHaveBeenCalledWith(id, availability);

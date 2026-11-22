@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../../shared/prisma/prisma.module';
+import { StorageModule } from '../../../shared/storage/storage.module';
 import { BrandsModule } from '../../brands/brands.module';
 import { MenuChannelsModule } from '../menu-channels/menu-channels.module';
 import { MenuItemModifiersModule } from '../menu-item-modifiers/menu-item-modifiers.module';
@@ -17,6 +18,7 @@ import { MenuCatalogService } from './menu-catalog.service';
     MenuItemsModule,
     MenuItemModifiersModule,
     MenuChannelsModule,
+    StorageModule,
   ],
   controllers: [MenuCatalogController],
   providers: [MenuCatalogService, MenuCatalogRepository],

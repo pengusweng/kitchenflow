@@ -215,7 +215,7 @@ export function UpdateMenuItemDocs() {
     ApiResponse({
       status: 200,
       description:
-        'Updated menu item with its original creation timestamp. An uploaded image is returned as the stored asset key in img_url.',
+        'Updated menu item with its original creation timestamp. Uploaded images are returned as a download URL in img_url.',
       content: {
         'application/json': {
           example: {
