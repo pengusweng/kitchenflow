@@ -6,6 +6,8 @@ type AvailabilitySwitchProps = {
   itemName: string;
   available: boolean;
   onChange: (available: boolean) => void;
+  /** False where a nearby sentence already says the state, like the modal footer. */
+  showLabel?: boolean;
 };
 
 // The page's main control. On is quiet ink, the same fill as a selected chip,
@@ -14,7 +16,7 @@ type AvailabilitySwitchProps = {
 // lands on and the state never rests on color alone. Pressing stretches the
 // knob toward where it's going, the same gesture as the theme switch.
 // Phones show only the track; the row repeats "Unavailable" under the name.
-export default function AvailabilitySwitch({ itemName, available, onChange }: AvailabilitySwitchProps) {
+export default function AvailabilitySwitch({ itemName, available, onChange, showLabel = true }: AvailabilitySwitchProps) {
   return (
     <button
       type="button"
@@ -41,7 +43,7 @@ export default function AvailabilitySwitch({ itemName, available, onChange }: Av
           )}
         />
       </span>
-      {available ? (
+      {!showLabel ? null : available ? (
         <span aria-hidden="true" className="hidden text-sm text-ink-muted sm:inline">
           Available
         </span>

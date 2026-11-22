@@ -19,6 +19,7 @@ function item(code: string, name: string, brand: MenuBrand, overrides: Partial<M
     available: true,
     active: true,
     channels: [],
+    modifiers: [],
     ...overrides,
   };
 }

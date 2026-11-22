@@ -32,6 +32,18 @@ export type MenuItemChannel = {
   available: boolean;
 };
 
+/** An add-on or change the counter can apply to this item, e.g. "Extra rice". */
+export type MenuItemModifier = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  /** Added to the line price; 0 for free changes like "Less ice". */
+  price: number;
+  /** Off when the item is fine but this add-on has run out. */
+  available: boolean;
+};
+
 /** A row of the menu table. */
 export type MenuItem = {
   id: string;
@@ -48,6 +60,7 @@ export type MenuItem = {
   /** Still on the menu. Inactive items are archived, not just sold out. */
   active: boolean;
   channels: MenuItemChannel[];
+  modifiers: MenuItemModifier[];
 };
 
 export type AvailabilityFilter = "all" | "available" | "unavailable";
