@@ -171,7 +171,7 @@ export function FindOneMenuItemDocs() {
 export function FindAllMenuItemsDocs() {
   return applyDecorators(
     ApiOperation({
-      summary: 'List menu items across brands (superadmin).',
+      summary: 'List menu items across brands.',
       description:
         'Returns menu items newest first. Supports page, limit, activeOnly, status, and search. activeOnly defaults to true; false includes both active and inactive items. status (all, active, inactive) takes precedence over activeOnly when supplied. search is a case-insensitive partial match on name and code; every space-separated term must match one of them. Returns data and meta containing page, limit, total, totalPages, and counts; counts holds the all, active, and inactive totals for the current search regardless of the status filter. Uploaded image keys are resolved to download URLs in img_url.',
     }),

@@ -628,10 +628,10 @@ describe('Menu items HTTP endpoints', () => {
     },
   );
 
-  it('IT-MI-018: reserves the all-brands listing for superadmins', async () => {
+  it('IT-MI-018: opens the all-brands listing to any signed-in role', async () => {
     role = UserRole.SUPERVISOR;
-    expect((await fetch(url, { headers })).status).toBe(403);
-    expect(service.findAll).not.toHaveBeenCalled();
+    expect((await fetch(url, { headers })).status).toBe(200);
+    expect(service.findAll).toHaveBeenCalledTimes(1);
     expect((await fetch(url)).status).toBe(401);
   });
 
