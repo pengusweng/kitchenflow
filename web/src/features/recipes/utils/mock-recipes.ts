@@ -4,6 +4,7 @@
 import type { MenuBrand } from "@/src/features/menu/utils/menu";
 import { suggestCode } from "@/src/features/menu/utils/menu-form";
 import { MOCK_BRANDS, MOCK_MENU_ITEMS } from "@/src/features/menu/utils/mock-menu";
+import { snapshotOf, type RecipeVersion } from "./recipe-history";
 import type { Recipe, RecipeDetail, RecipeUse } from "./recipes";
 
 export type RecipeRecord = {
@@ -242,3 +243,37 @@ export const MOCK_RECIPE_DETAILS: RecipeDetail[] = MOCK_RECIPES.map((record) => 
   if (!detail) throw new Error(`Mock recipe ${record.recipe_id} has no detail.`);
   return detail;
 });
+
+// Each older version undoes one plausible edit, so the history reads like real work:
+// an ingredient added, an amount tuned, a step added, or the notes rewritten.
+function previousVersion(next: RecipeVersion, savedAt: string): RecipeVersion {
+  const older = { ...next, version: next.version - 1, savedAt };
+  const [first, ...rest] = next.ingredients;
+  if (next.version % 3 === 0 && next.ingredients.length > 1) return { ...older, ingredients: next.ingredients.slice(0, -1) };
+  if (next.version % 3 === 1 && first) {
+    const quantity = Number(first.quantity);
+    const before = quantity >= 10 ? Math.round(quantity * 0.8) : quantity * 2;
+    return { ...older, ingredients: [{ ...first, quantity: before.toFixed(3) }, ...rest] };
+  }
+  if (next.version % 3 === 2 && next.steps.length > 1) return { ...older, steps: next.steps.slice(0, -1) };
+  return { ...older, formulationNotes: next.formulationNotes ? null : "Draft. Check the yield before release." };
+}
+
+/** Versions 1 to the current one, oldest first, as recipe_histories would hold them. */
+export function mockRecipeHistory(recipe: RecipeDetail): RecipeVersion[] {
+  const versions = [snapshotOf(recipe)];
+  for (let version = recipe.version - 1; version >= 1; version--) {
+    const savedAt =
+      version === 1
+        ? recipe.createdAt
+        : new Date(Date.parse(recipe.modifiedAt) - (recipe.version - version) * 21 * DAY).toISOString();
+    versions.unshift(previousVersion(versions[0], savedAt));
+  }
+  // Version 1 was saved when the recipe was created, even if it was deactivated since.
+  versions[0] = { ...versions[0], savedAt: recipe.createdAt };
+  return versions;
+}
+
+export const MOCK_RECIPE_HISTORIES: Record<string, RecipeVersion[]> = Object.fromEntries(
+  MOCK_RECIPE_DETAILS.map((recipe) => [recipe.id, mockRecipeHistory(recipe)]),
+);

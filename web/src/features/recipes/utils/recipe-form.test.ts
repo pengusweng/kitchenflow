@@ -3,6 +3,7 @@ import { MOCK_BRANDS } from "@/src/features/menu/utils/mock-menu";
 import {
   countProblems,
   emptyRecipeForm,
+  hasRecipeChanges,
   firstProblemId,
   moveItem,
   newIngredientDraft,
@@ -10,7 +11,10 @@ import {
   parseQuantity,
   suggestRecipeCode,
   toCreateRecipePayload,
+  toEditedRecipeDetail,
   toNewRecipeDetail,
+  toRecipeFormValues,
+  toUpdateRecipePayload,
   validateRecipeForm,
   type RecipeFormValues,
 } from "./recipe-form";
@@ -181,5 +185,76 @@ describe("emptyRecipeForm", () => {
     expect(form.ingredients[0].key).toBe(emptyRecipeForm().ingredients[0].key);
     expect(newIngredientDraft().key).not.toBe(form.ingredients[0].key);
     expect(newStepDraft().key).not.toBe(form.steps[0].key);
+  });
+});
+
+describe("editing", () => {
+  const recipe = toNewRecipeDetail(
+    "rcp-1",
+    MOCK_BRANDS[0],
+    toCreateRecipePayload(
+      validForm({ ingredients: [ingredient("Cooked rice", "250"), ingredient("Kimchi", "80", "g", "Chopped")] }),
+      MOCK_BRANDS[0].id,
+    ),
+    new Date("2026-11-01T00:00:00Z"),
+  );
+  const [rice, kimchi] = recipe.ingredients;
+  const [fry, add] = recipe.steps;
+
+  it("fills the form with the recipe, keyed by the API's ids", () => {
+    const values = toRecipeFormValues(recipe);
+    expect(values).toMatchObject({ brand: MOCK_BRANDS[0].code, name: "Kimchi Rice", notes: "" });
+    expect(values.ingredients.map((i) => [i.key, i.quantity, i.note])).toEqual([
+      [rice.id, "250", ""],
+      [kimchi.id, "80", "Chopped"],
+    ]);
+    expect(values.steps.map((s) => s.key)).toEqual([fry.id, add.id]);
+  });
+
+  it("sends nothing when nothing changed", () => {
+    const payload = toUpdateRecipePayload(recipe, toRecipeFormValues(recipe));
+    expect(payload).toEqual({});
+    expect(hasRecipeChanges(payload)).toBe(false);
+  });
+
+  it("sends only what changed: field edits, additions, removals and renumbered steps", () => {
+    const values = toRecipeFormValues(recipe);
+    values.name = "Kimchi Fried Rice";
+    values.notes = " Day-old rice. ";
+    // Kimchi's amount changes, rice is cleared to blank (removed), and an egg is added.
+    values.ingredients = [
+      { ...values.ingredients[0], name: "", quantity: "", note: "" },
+      { ...values.ingredients[1], quantity: "100" },
+      ingredient("Egg", "1", "pc"),
+    ];
+    // The steps swap, and a new one goes last.
+    values.steps = [values.steps[1], { ...values.steps[0], instruction: "Fry the kimchi hard." }, step("Plate.")];
+
+    expect(toUpdateRecipePayload(recipe, values)).toEqual({
+      name: "Kimchi Fried Rice",
+      formulation_notes: "Day-old rice.",
+      ingredients: {
+        create: [{ ingredient_name: "Egg", quantity: 1, unit_code: "pc", note: null }],
+        update: [{ recipe_ingredient_id: kimchi.id, quantity: 100 }],
+        delete: [rice.id],
+      },
+      steps: {
+        create: [{ step_no: 3, instruction: "Plate." }],
+        update: [
+          { recipe_step_id: add.id, step_no: 1 },
+          { recipe_step_id: fry.id, step_no: 2, instruction: "Fry the kimchi hard." },
+        ],
+      },
+    });
+  });
+
+  it("saves as the next version, keeping existing ids", () => {
+    const values = toRecipeFormValues(recipe);
+    values.ingredients.push(ingredient("Egg", "1", "pc"));
+    const edited = toEditedRecipeDetail(recipe, values, new Date("2026-11-23T00:00:00Z"));
+    expect(edited).toMatchObject({ version: 2, modifiedAt: "2026-11-23T00:00:00.000Z", createdAt: recipe.createdAt });
+    expect(edited.ingredients.map((i) => i.id).slice(0, 2)).toEqual([rice.id, kimchi.id]);
+    expect(edited.ingredients[2]).toMatchObject({ name: "Egg", quantity: "1.000", unit: "pc" });
+    expect(edited.ingredients[2].id).not.toBe(rice.id);
   });
 });
