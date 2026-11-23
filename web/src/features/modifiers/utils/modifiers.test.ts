@@ -1,13 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { MenuBrand } from "@/src/features/menu/utils/menu";
 import type { ModifierDetailRecord } from "../schemas/modifierSchema";
-import {
-  formatUsePrice,
-  toModifier,
-  toModifierUses,
-  usesByBrand,
-  type ModifierUse,
-} from "./modifiers";
+import { formatUsePrice, toModifier, toModifierUses, usesByBrand, type ModifierUse } from "./modifiers";
 
 const GC: MenuBrand = {
   id: "b-gc",
@@ -52,9 +46,7 @@ const RECORD = {
 
 describe("toModifier", () => {
   test("takes the usage count from a list row", () => {
-    expect(
-      toModifier({ ...RECORD, _count: { menu_item_modifiers_modifier: 3 } }),
-    ).toEqual({
+    expect(toModifier({ ...RECORD, _count: { menu_item_modifiers_modifier: 3 } })).toEqual({
       id: RECORD.modifier_id,
       code: "MOD-ADD-EGG",
       name: "Add egg",
@@ -90,29 +82,22 @@ test("toModifierUses names each item's brand and reads its price as a number", (
       },
     ],
   };
-  expect(toModifierUses(detail, (id) => (id === AI.id ? AI : UNKNOWN))).toEqual(
-    [
-      {
-        id: "5ae68f7b-027f-47a6-a18e-fedad04d84a4",
-        itemName: "Batchoy",
-        itemCode: "AI-BATCHOY",
-        brand: AI,
-        price: 20,
-        available: false,
-        itemActive: true,
-      },
-    ],
-  );
+  expect(toModifierUses(detail, (id) => (id === AI.id ? AI : UNKNOWN))).toEqual([
+    {
+      id: "5ae68f7b-027f-47a6-a18e-fedad04d84a4",
+      itemName: "Batchoy",
+      itemCode: "AI-BATCHOY",
+      brand: AI,
+      price: 20,
+      available: false,
+      itemActive: true,
+    },
+  ]);
 });
 
 describe("usesByBrand", () => {
   test("groups in brand order, items by name, unknown brands last", () => {
-    const uses = [
-      offeredOn("Pecho", AI),
-      offeredOn("Lugaw", UNKNOWN),
-      offeredOn("Bibimbap", GC),
-      offeredOn("Paa", AI),
-    ];
+    const uses = [offeredOn("Pecho", AI), offeredOn("Lugaw", UNKNOWN), offeredOn("Bibimbap", GC), offeredOn("Paa", AI)];
     const groups = usesByBrand(uses, [GC, AI]);
     expect(groups.map((g) => g.brand.id)).toEqual(["b-gc", "b-ai", "b-x"]);
     expect(groups[1].uses.map((u) => u.itemName)).toEqual(["Paa", "Pecho"]);

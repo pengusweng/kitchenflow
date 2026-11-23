@@ -1,8 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  DataTable,
-  DataTableHead,
-} from "@/src/components/ui/organisms/data-table";
+import { DataTable, DataTableHead } from "@/src/components/ui/organisms/data-table";
 import type { Modifier } from "../../utils/modifiers";
 import { COL, COLUMN_COUNT } from "../../utils/table-columns";
 import ModifierRow from "../molecules/modifier-row";
@@ -40,17 +37,9 @@ export default function ModifiersTable({
       head={
         <>
           <DataTableHead className={COL.modifier}>Modifier</DataTableHead>
-          <DataTableHead className={`hidden md:table-cell ${COL.code}`}>
-            Code
-          </DataTableHead>
-          <DataTableHead className={`hidden lg:table-cell ${COL.updated}`}>
-            Updated
-          </DataTableHead>
-          <DataTableHead
-            className={`hidden text-right sm:table-cell ${COL.usedOn}`}
-          >
-            Used on
-          </DataTableHead>
+          <DataTableHead className={`hidden md:table-cell ${COL.code}`}>Code</DataTableHead>
+          <DataTableHead className={`hidden lg:table-cell ${COL.updated}`}>Updated</DataTableHead>
+          <DataTableHead className={`hidden text-right sm:table-cell ${COL.usedOn}`}>Used on</DataTableHead>
           <DataTableHead className={`w-px ${COL.status}`}>Status</DataTableHead>
           <DataTableHead className={`w-px ${COL.view}`}>
             <span className="sr-only">Actions</span>

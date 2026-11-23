@@ -1,12 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  createModifier,
-  deactivateModifier,
-  reactivateModifier,
-  updateModifier,
-} from "../services/modifiers.service";
+import { createModifier, deactivateModifier, reactivateModifier, updateModifier } from "../services/modifiers.service";
 import type { ModifierPayload } from "../utils/modifier-form";
 import { modifierKeys } from "./useModifiers";
 
@@ -27,8 +22,7 @@ export function useCreateModifier() {
 export function useUpdateModifier() {
   const invalidate = useInvalidateModifiers();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: ModifierPayload }) =>
-      updateModifier(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: ModifierPayload }) => updateModifier(id, payload),
     onSuccess: () => invalidate(),
   });
 }

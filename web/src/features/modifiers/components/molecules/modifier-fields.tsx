@@ -2,14 +2,8 @@
 
 import { Input } from "@/src/components/ui/atoms/input";
 import Textarea from "@/src/components/ui/atoms/textarea";
-import FormField, {
-  fieldMessageId,
-} from "@/src/features/brands/components/molecules/form-field";
-import {
-  LIMITS,
-  type ModifierFormErrors,
-  type ModifierFormValues,
-} from "../../utils/modifier-form";
+import FormField, { fieldMessageId } from "@/src/features/brands/components/molecules/form-field";
+import { LIMITS, type ModifierFormErrors, type ModifierFormValues } from "../../utils/modifier-form";
 
 type ModifierFieldsProps = {
   /** Prefixes every field id, e.g. "edit-modifier" gives "edit-modifier-name". */
@@ -21,25 +15,13 @@ type ModifierFieldsProps = {
 };
 
 // What the counter sees (name), what the system keys on (code), and a note for staff.
-export default function ModifierFields({
-  idPrefix,
-  values,
-  onChange,
-  errors,
-  codeHint,
-}: ModifierFieldsProps) {
+export default function ModifierFields({ idPrefix, values, onChange, errors, codeHint }: ModifierFieldsProps) {
   const id = (name: keyof ModifierFormValues) => `${idPrefix}-${name}`;
-  const descriptionHint =
-    "Optional. Shown to staff when they add it to an order.";
+  const descriptionHint = "Optional. Shown to staff when they add it to an order.";
 
   return (
     <>
-      <FormField
-        id={id("name")}
-        label="Name"
-        hint="As the counter sees it, e.g. Extra rice."
-        error={errors.name}
-      >
+      <FormField id={id("name")} label="Name" hint="As the counter sees it, e.g. Extra rice." error={errors.name}>
         <Input
           id={id("name")}
           autoComplete="off"
@@ -51,12 +33,7 @@ export default function ModifierFields({
         />
       </FormField>
 
-      <FormField
-        id={id("code")}
-        label="Code"
-        hint={codeHint}
-        error={errors.code}
-      >
+      <FormField id={id("code")} label="Code" hint={codeHint} error={errors.code}>
         <Input
           id={id("code")}
           autoComplete="off"
@@ -71,12 +48,7 @@ export default function ModifierFields({
         />
       </FormField>
 
-      <FormField
-        id={id("description")}
-        label="Description"
-        hint={descriptionHint}
-        error={errors.description}
-      >
+      <FormField id={id("description")} label="Description" hint={descriptionHint} error={errors.description}>
         <Textarea
           id={id("description")}
           maxLength={LIMITS.description}

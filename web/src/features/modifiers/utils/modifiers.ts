@@ -1,9 +1,5 @@
 import { formatPeso, type MenuBrand } from "@/src/features/menu/utils/menu";
-import type {
-  ModifierDetailRecord,
-  ModifierListRecord,
-  ModifierRecord,
-} from "../schemas/modifierSchema";
+import type { ModifierDetailRecord, ModifierListRecord, ModifierRecord } from "../schemas/modifierSchema";
 
 /** One menu item that offers the modifier, with the price and stock that item sets for it. */
 export type ModifierUse = {
@@ -40,10 +36,7 @@ export type ModifierSortField = "name" | "code" | "created_at" | "modified_at";
 export const MODIFIER_PAGE_SIZE = 10;
 
 /** A list row, or a record from a write, which comes back without its usage. */
-export function toModifier(
-  record: ModifierListRecord | ModifierRecord,
-  useCount?: number,
-): Modifier {
+export function toModifier(record: ModifierListRecord | ModifierRecord, useCount?: number): Modifier {
   return {
     id: record.modifier_id,
     code: record.code,
@@ -52,16 +45,11 @@ export function toModifier(
     active: record.is_active,
     createdAt: record.created_at,
     modifiedAt: record.modified_at,
-    useCount:
-      useCount ??
-      ("_count" in record ? record._count.menu_item_modifiers_modifier : 0),
+    useCount: useCount ?? ("_count" in record ? record._count.menu_item_modifiers_modifier : 0),
   };
 }
 
-export function toModifierUses(
-  record: ModifierDetailRecord,
-  brandFor: (id: string) => MenuBrand,
-): ModifierUse[] {
+export function toModifierUses(record: ModifierDetailRecord, brandFor: (id: string) => MenuBrand): ModifierUse[] {
   return record.menu_item_modifiers_modifier.map((use) => ({
     id: use.menu_item_modifier_id,
     itemName: use.menu_item.name,

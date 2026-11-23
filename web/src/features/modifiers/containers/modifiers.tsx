@@ -12,20 +12,10 @@ import EditModifierModal from "../components/organisms/edit-modifier-modal";
 import ModifierDetailModal from "../components/organisms/modifier-detail-modal";
 import ModifiersFilterBar from "../components/organisms/modifiers-filter-bar";
 import ModifiersTable from "../components/organisms/modifiers-table";
-import {
-  useCreateModifier,
-  useSetModifierActive,
-  useUpdateModifier,
-} from "../hooks/useModifierMutations";
+import { useCreateModifier, useSetModifierActive, useUpdateModifier } from "../hooks/useModifierMutations";
 import { useModifier, useModifiers } from "../hooks/useModifiers";
 import { modifierStatusError } from "../utils/modifier-errors";
-import {
-  MODIFIER_PAGE_SIZE,
-  toModifier,
-  toModifierUses,
-  type Modifier,
-  type StatusFilter,
-} from "../utils/modifiers";
+import { MODIFIER_PAGE_SIZE, toModifier, toModifierUses, type Modifier, type StatusFilter } from "../utils/modifiers";
 
 // The shared catalog of add-ons ("Extra rice", "Oat milk"). Each menu item
 // picks which ones it offers and at what price; this page owns what they're
@@ -38,9 +28,7 @@ export default function ModifiersPage() {
   const [status, setStatus] = useState<StatusFilter | undefined>("active");
   const [brand, setBrand] = useState<string | undefined>();
   const search = useDebouncedValue(query.trim());
-  const brandRecord = brand
-    ? brands.brands.find((b) => b.code === brand)
-    : undefined;
+  const brandRecord = brand ? brands.brands.find((b) => b.code === brand) : undefined;
 
   // Any filter change returns to page 1.
   const filterKey = `${brand ?? ""}|${status ?? ""}|${search}`;
@@ -72,9 +60,7 @@ export default function ModifiersPage() {
     detail.data && detail.data.modifier_id === viewing?.id
       ? toModifier(detail.data, detail.data.menu_item_modifiers_modifier.length)
       : viewing;
-  const uses = detail.data
-    ? toModifierUses(detail.data, brands.brandFor)
-    : undefined;
+  const uses = detail.data ? toModifierUses(detail.data, brands.brandFor) : undefined;
 
   const createModifier = useCreateModifier();
   const updateModifier = useUpdateModifier();
@@ -97,20 +83,14 @@ export default function ModifiersPage() {
   }
 
   const filtered = Boolean(query.trim() || brand || status !== "active");
-  let emptyMessage = filtered
-    ? "No modifiers match these filters."
-    : "No modifiers yet.";
+  let emptyMessage = filtered ? "No modifiers match these filters." : "No modifiers yet.";
   if (modifiers.error) emptyMessage = modifiers.error.message;
 
   return (
     <section className="motion-safe:animate-page-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PageTitle>Modifiers</PageTitle>
-        <Button
-          size="lg"
-          className="h-10 px-4 font-semibold"
-          onClick={() => setCreating(true)}
-        >
+        <Button size="lg" className="h-10 px-4 font-semibold" onClick={() => setCreating(true)}>
           <Plus aria-hidden="true" />
           Add modifier
         </Button>
@@ -171,10 +151,7 @@ export default function ModifiersPage() {
         pending={setActive.isPending}
         actionError={
           setActive.error
-            ? modifierStatusError(
-                setActive.error,
-                setActive.variables?.active ? "reactivate" : "deactivate",
-              )
+            ? modifierStatusError(setActive.error, setActive.variables?.active ? "reactivate" : "deactivate")
             : undefined
         }
       />

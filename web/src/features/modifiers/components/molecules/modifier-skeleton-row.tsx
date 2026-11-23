@@ -12,10 +12,7 @@ const WIDTHS = [
 export default function ModifierSkeletonRow({ index }: { index: number }) {
   const w = WIDTHS[index % WIDTHS.length];
   return (
-    <TableRow
-      aria-hidden="true"
-      className="border-hairline hover:bg-transparent motion-safe:animate-pulse"
-    >
+    <TableRow aria-hidden="true" className="border-hairline hover:bg-transparent motion-safe:animate-pulse">
       <TableCell className="px-3 py-2.5 md:px-4">
         <SkeletonBar className={w.name} />
       </TableCell>

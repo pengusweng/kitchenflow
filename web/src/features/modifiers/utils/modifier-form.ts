@@ -6,9 +6,7 @@ export type ModifierFormValues = {
   description: string;
 };
 
-export type ModifierFormErrors = Partial<
-  Record<keyof ModifierFormValues, string>
->;
+export type ModifierFormErrors = Partial<Record<keyof ModifierFormValues, string>>;
 
 /** The body of POST and PATCH /modifiers. */
 export type ModifierPayload = {
@@ -36,20 +34,16 @@ export function toFormValues(modifier: Modifier): ModifierFormValues {
 }
 
 /** Problems to fix before saving; empty when the form can be saved. The API checks that the code is unused. */
-export function validateModifierForm(
-  values: ModifierFormValues,
-): ModifierFormErrors {
+export function validateModifierForm(values: ModifierFormValues): ModifierFormErrors {
   const errors: ModifierFormErrors = {};
   const name = values.name.trim();
   const code = values.code.trim();
 
   if (!name) errors.name = "Enter the modifier's name.";
-  else if (name.length > LIMITS.name)
-    errors.name = `Keep the name to ${LIMITS.name} characters.`;
+  else if (name.length > LIMITS.name) errors.name = `Keep the name to ${LIMITS.name} characters.`;
 
   if (!code) errors.code = "Enter a code.";
-  else if (code.length > LIMITS.code)
-    errors.code = `Keep the code to ${LIMITS.code} characters.`;
+  else if (code.length > LIMITS.code) errors.code = `Keep the code to ${LIMITS.code} characters.`;
 
   if (values.description.trim().length > LIMITS.description)
     errors.description = `Keep the description to ${LIMITS.description} characters.`;

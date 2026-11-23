@@ -56,9 +56,7 @@ export const modifierDetailSchema = modifierRecordSchema.extend({
 });
 
 export type ModifierRecord = z.infer<typeof modifierRecordSchema>;
-export type ModifierListRecord = z.infer<
-  typeof modifiersPageSchema
->["data"][number];
+export type ModifierListRecord = z.infer<typeof modifiersPageSchema>["data"][number];
 export type ModifiersPage = z.infer<typeof modifiersPageSchema>;
 export type ModifierUseRecord = z.infer<typeof modifierUseRecordSchema>;
 export type ModifierDetailRecord = z.infer<typeof modifierDetailSchema>;

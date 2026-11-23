@@ -1,11 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import {
-  getModifier,
-  getModifiers,
-  type GetModifiersParams,
-} from "../services/modifiers.service";
+import { getModifier, getModifiers, type GetModifiersParams } from "../services/modifiers.service";
 
 export const modifierKeys = {
   all: ["modifiers"] as const,

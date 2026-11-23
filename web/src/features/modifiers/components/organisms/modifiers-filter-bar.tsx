@@ -40,11 +40,7 @@ export default function ModifiersFilterBar({
 }: ModifiersFilterBarProps) {
   return (
     <div className="mt-6 flex flex-col gap-3 rounded-xl border border-hairline bg-card p-3 md:px-4 xl:flex-row xl:items-center xl:gap-x-4">
-      <SearchField
-        label="Search modifier name or code"
-        value={query}
-        onChange={onQueryChange}
-      />
+      <SearchField label="Search modifier name or code" value={query} onChange={onQueryChange} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-x-4">
         <FilterSelect
           label="Filter by brand"
@@ -72,10 +68,7 @@ export default function ModifiersFilterBar({
               Clear filters
             </button>
           ) : null}
-          <p
-            aria-live="polite"
-            className="text-sm whitespace-nowrap text-ink-muted tabular-nums"
-          >
+          <p aria-live="polite" className="text-sm whitespace-nowrap text-ink-muted tabular-nums">
             {resultCount} {resultCount === 1 ? "modifier" : "modifiers"}
           </p>
         </div>

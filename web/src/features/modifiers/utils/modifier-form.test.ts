@@ -1,11 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  hasFormChanges,
-  LIMITS,
-  toFormValues,
-  toPayload,
-  validateModifierForm,
-} from "./modifier-form";
+import { hasFormChanges, LIMITS, toFormValues, toPayload, validateModifierForm } from "./modifier-form";
 import type { Modifier } from "./modifiers";
 
 const RICE: Modifier = {
@@ -53,15 +47,11 @@ describe("validateModifierForm", () => {
 describe("hasFormChanges", () => {
   test("the saved values are no change, and neither is case or whitespace in the code", () => {
     expect(hasFormChanges(RICE, toFormValues(RICE))).toBe(false);
-    expect(
-      hasFormChanges(RICE, { ...toFormValues(RICE), code: " extra-rice " }),
-    ).toBe(false);
+    expect(hasFormChanges(RICE, { ...toFormValues(RICE), code: " extra-rice " })).toBe(false);
   });
 
   test("a new description is a change", () => {
-    expect(
-      hasFormChanges(RICE, { ...toFormValues(RICE), description: "One cup." }),
-    ).toBe(true);
+    expect(hasFormChanges(RICE, { ...toFormValues(RICE), description: "One cup." })).toBe(true);
   });
 });
 

@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { ApiError } from "@/src/lib/api-error";
-import {
-  modifierDetailSchema,
-  modifierRecordSchema,
-  modifiersPageSchema,
-} from "../schemas/modifierSchema";
+import { modifierDetailSchema, modifierRecordSchema, modifiersPageSchema } from "../schemas/modifierSchema";
 import type { ModifierPayload } from "../utils/modifier-form";
 import type { ModifierSortField, StatusFilter } from "../utils/modifiers";
 
@@ -18,11 +14,7 @@ type RequestOptions = {
 
 // Every modifier call: JSON in and out, a 10 s limit, ApiError on failure, and
 // the response checked against its schema before anything renders it.
-async function request<S extends z.ZodType>(
-  path: string,
-  schema: S,
-  options: RequestOptions,
-): Promise<z.infer<S>> {
+async function request<S extends z.ZodType>(path: string, schema: S, options: RequestOptions): Promise<z.infer<S>> {
   const { method = "GET", body, fallback, signal } = options;
   const timeout = AbortSignal.timeout(10_000);
   let response: Response;
@@ -45,11 +37,7 @@ async function request<S extends z.ZodType>(
   if (!response.ok) throw await ApiError.fromResponse(response, fallback);
   const result = schema.safeParse(await response.json().catch(() => null));
   if (!result.success)
-    throw new ApiError(
-      response.status,
-      undefined,
-      "The server sent something unexpected. Please try again.",
-    );
+    throw new ApiError(response.status, undefined, "The server sent something unexpected. Please try again.");
   return result.data;
 }
 
@@ -83,14 +71,10 @@ const modifierPath = (id: string) => encodeURIComponent(id);
 
 /** Active or not, with the menu items that offer it. */
 export function getModifier(id: string, signal?: AbortSignal) {
-  return request(
-    `/modifiers/${modifierPath(id)}?activeOnly=false`,
-    modifierDetailSchema,
-    {
-      fallback: "Unable to load the modifier. Please try again.",
-      signal,
-    },
-  );
+  return request(`/modifiers/${modifierPath(id)}?activeOnly=false`, modifierDetailSchema, {
+    fallback: "Unable to load the modifier. Please try again.",
+    signal,
+  });
 }
 
 export function createModifier(payload: ModifierPayload) {
@@ -117,12 +101,8 @@ export function deactivateModifier(id: string) {
 }
 
 export function reactivateModifier(id: string) {
-  return request(
-    `/modifiers/reactivate/${modifierPath(id)}`,
-    modifierRecordSchema,
-    {
-      method: "PATCH",
-      fallback: "Unable to reactivate the modifier. Please try again.",
-    },
-  );
+  return request(`/modifiers/reactivate/${modifierPath(id)}`, modifierRecordSchema, {
+    method: "PATCH",
+    fallback: "Unable to reactivate the modifier. Please try again.",
+  });
 }
