@@ -145,11 +145,30 @@ describe('Modifiers HTTP endpoints', () => {
     );
     expect(operations[1]?.responses['200']).toHaveProperty(
       'content.application/json.examples.populated.value.meta',
-      { page: 1, limit: 10, total: 1, totalPages: 1 },
+      {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+        counts: { all: 2, active: 1, inactive: 1 },
+      },
     );
     expect(operations[1]?.responses['200']).toHaveProperty(
       'content.application/json.examples.empty.value',
-      { data: [], meta: { page: 1, limit: 10, total: 0, totalPages: 0 } },
+      {
+        data: [],
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+          counts: { all: 0, active: 0, inactive: 0 },
+        },
+      },
+    );
+    expect(operations[2]?.responses['200']).toHaveProperty(
+      'content.application/json.example.menu_item_modifiers_modifier.0.menu_item.code',
+      'GC-BIBIMBAP',
     );
     expect(operations[3]?.responses['200']).toHaveProperty(
       'content.application/json.example.name',
@@ -172,7 +191,7 @@ describe('Modifiers HTTP endpoints', () => {
     for (const [name, defaultValue] of [
       ['page', 1],
       ['limit', 10],
-      ['activeOnly', true],
+      ['status', 'active'],
     ] as const) {
       expect(
         document.paths['/api/modifiers'].get?.parameters?.find(
@@ -200,14 +219,32 @@ describe('Modifiers HTTP endpoints', () => {
       path: '',
       status: 200,
       handler: 'findAll',
-      args: [{ page: 1, limit: 10, activeOnly: true }],
+      args: [{ page: 1, limit: 10, status: 'active' }],
     },
     {
       method: 'GET',
-      path: '?page=2&limit=5&activeOnly=false',
+      path: `?page=2&limit=5&status=all&search=%20extra%20rice%20&brand_id=${modifierId}&sortBy=name&sortOrder=desc`,
       status: 200,
       handler: 'findAll',
-      args: [{ page: 2, limit: 5, activeOnly: false }],
+      args: [
+        {
+          page: 2,
+          limit: 5,
+          status: 'all',
+          search: 'extra rice',
+          brand_id: modifierId,
+          sortBy: 'name',
+          sortOrder: 'desc',
+        },
+      ],
+    },
+    {
+      method: 'GET',
+      path: '?status=inactive&search=%20%20',
+      status: 200,
+      handler: 'findAll',
+      // A blank search is no search.
+      args: [{ page: 1, limit: 10, status: 'inactive', search: undefined }],
     },
     {
       method: 'GET',
@@ -351,7 +388,12 @@ describe('Modifiers HTTP endpoints', () => {
     { method: 'DELETE', path: '/invalid' },
     { method: 'GET', path: '?page=0' },
     { method: 'GET', path: '?limit=101' },
-    { method: 'GET', path: '?activeOnly=invalid' },
+    { method: 'GET', path: '?activeOnly=false' },
+    { method: 'GET', path: '?status=retired' },
+    { method: 'GET', path: '?brand_id=not-a-uuid' },
+    { method: 'GET', path: '?sortBy=price' },
+    { method: 'GET', path: '?sortOrder=up' },
+    { method: 'GET', path: `?search=${'a'.repeat(101)}` },
     { method: 'GET', path: '/EXTRA?activeOnly=invalid' },
   ] as const)(
     'IT-MOD-007: $method $path rejects invalid input before calling the service',

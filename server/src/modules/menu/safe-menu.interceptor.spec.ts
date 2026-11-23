@@ -57,4 +57,46 @@ describe('Safe MENU projection', () => {
       {},
     );
   });
+
+  it('UT-SAFE-003: preserves list status counts and modifier usage without the recipe', () => {
+    const counts = { all: 3, active: 2, inactive: 1 };
+    const menuItem = {
+      menu_item_id: 'menu',
+      name: 'Bibimbap',
+      is_active: true,
+    };
+    expect(
+      safeMenuProjection({
+        data: [
+          { modifier_id: 'a', _count: { menu_item_modifiers_modifier: 6 } },
+          {
+            modifier_id: 'b',
+            menu_item_modifiers_modifier: [
+              {
+                menu_item_modifier_id: 'link',
+                additional_price: '35',
+                menu_item: { ...menuItem, recipe: { notes: 'private' } },
+              },
+            ],
+          },
+        ],
+        meta: { page: 1, limit: 10, total: 2, totalPages: 1, counts },
+      }),
+    ).toEqual({
+      data: [
+        { modifier_id: 'a', _count: { menu_item_modifiers_modifier: 6 } },
+        {
+          modifier_id: 'b',
+          menu_item_modifiers_modifier: [
+            {
+              menu_item_modifier_id: 'link',
+              additional_price: '35',
+              menu_item: menuItem,
+            },
+          ],
+        },
+      ],
+      meta: { page: 1, limit: 10, total: 2, totalPages: 1, counts },
+    });
+  });
 });

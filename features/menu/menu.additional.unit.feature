@@ -27,3 +27,12 @@ Feature: Additional menu unit coverage
     Given a menu response containing prices, timestamps, nulls, and availability
     When the safe menu interceptor maps the response
     Then safe values are preserved
+
+  # Jest: server/src/modules/menu/safe-menu.interceptor.spec.ts
+  # Context: Safe MENU projection
+  @UT-SAFE-003
+  Scenario: Preserves list status counts and modifier usage without the recipe
+    Test Case ID: UT-SAFE-003
+    Given a list response with per-status counts and modifiers carrying their usage
+    When the safe menu interceptor maps the response
+    Then the counts, usage counts and offering menu items are kept and nested recipes are removed
