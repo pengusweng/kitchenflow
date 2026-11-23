@@ -31,7 +31,7 @@ class _FakeAuthRepository extends AuthRepository {
 
 void main() {
   testWidgets(
-    'LogoutButton renders with tooltip and triggers sign-out on tap',
+    'WT-MOB-LOGOUT-001 LogoutButton renders with tooltip and triggers sign-out on tap',
     (tester) async {
       final repo = _FakeAuthRepository();
       var onLoggedOutCalled = false;

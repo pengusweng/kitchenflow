@@ -1,6 +1,21 @@
 @backend @integration @kitchen
 Feature: Draft and kitchen fulfillment cancellation endpoints
 
+  @IT-KFUL-023
+  Scenario Outline: Roll back a partial fulfillment transition and retry
+    Given a persisted order and kitchen ticket ready for <operation>
+    When the next service fails after a real write inside the fulfillment transaction
+    Then the order ticket QC attempts and rejection records remain unchanged
+    And the same request succeeds after the injected failure is removed
+
+    Examples:
+      | operation |
+      | prepare   |
+      | check     |
+      | pass      |
+      | reject    |
+      | hand-over |
+
   @IT-KFUL-001
   Scenario: Cancel an order and kitchen ticket atomically and preserve retries
     Given a confirmed or preparing order with a cancellable kitchen ticket in PostgreSQL

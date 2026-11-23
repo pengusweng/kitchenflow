@@ -1,3 +1,5 @@
+import 'gherkin_scenarios.dart';
+
 /// Classifies a test file by the test APIs it declares, not its filename alone.
 String categoryForTestSource(String source) {
   if (RegExp(r'^\s*goldenTest\s*\(', multiLine: true).hasMatch(source)) {
@@ -23,9 +25,16 @@ void describeFlutterSuite(
   final scenarios = <Map<String, dynamic>>[];
   for (final test in tests) {
     final source = test['source'] as String? ?? 'Unknown test file';
-    final category = categoryForTestSource(sourceContents[source] ?? '');
-    test['category'] = category;
     final name = (test['name'] as String).replaceAll(RegExp(r'[\r\n]+'), ' ');
+    final declaredId = mobileTestId(name);
+    if (declaredId != null) test['testId'] = declaredId;
+    final category = switch (declaredId?.split('-').first) {
+      'UT' => 'Unit',
+      'WT' => 'Widget',
+      'GT' => 'Golden',
+      _ => categoryForTestSource(sourceContents[source] ?? ''),
+    };
+    test['category'] = category;
     final path = source.replaceAll('\\', '/');
     final testIndex = path.lastIndexOf('/test/');
     final displayPath = testIndex >= 0 ? path.substring(testIndex + 1) : path;
@@ -34,7 +43,7 @@ void describeFlutterSuite(
     for (final byte in '$displayPath\n$name'.codeUnits) {
       hash = ((hash ^ byte) * 0x01000193) & 0xffffffff;
     }
-    final id = 'CASE-${hash.toRadixString(16).padLeft(8, '0')}';
+    final caseId = 'CASE-${hash.toRadixString(16).padLeft(8, '0')}';
     final businessSteps = RegExp(
       r'\bGiven\s+(.+?)\s+When\s+(.+?)\s+Then\s+(.+)$',
     ).firstMatch(name);
@@ -50,7 +59,8 @@ void describeFlutterSuite(
               '  When the test "$name" is executed\n'
               '  Then its declared assertions should hold';
     scenarios.add({
-      'id': id,
+      'id': declaredId ?? caseId,
+      if (declaredId != null) 'caseId': caseId,
       'feature': 'Flutter unit, widget, and golden tests',
       'name': name,
       'category': category,

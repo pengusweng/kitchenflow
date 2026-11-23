@@ -2,13 +2,14 @@ name: Flutter CI
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  flutter-ci:
-    name: Flutter CI Pipeline
+  unit-widget-golden-tests:
+    name: Stage 1 - Unit, Widget & Golden Tests and Build
     runs-on: ubuntu-24.04
     env:
       CI: 'true'
@@ -81,3 +82,15 @@ jobs:
           name: app-debug-apk
           path: mobile/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: ignore
+
+  integration-tests:
+    name: Stage 2 - Flutter-to-API Integration Tests
+    needs: unit-widget-golden-tests
+    uses: ./.github/workflows/flutter-api-ci.yml
+
+  e2e-tests:
+    name: Stage 3 - Order and Kitchen E2E Tests
+    needs: integration-tests
+    uses: ./.github/workflows/flutter-api-ci.yml
+    with:
+      order_lifecycle: true

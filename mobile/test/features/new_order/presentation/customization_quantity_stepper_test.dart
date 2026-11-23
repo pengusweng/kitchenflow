@@ -26,18 +26,21 @@ void main() {
   }
 
   group('CustomizationQuantityStepper - Typing', () {
-    testWidgets('displays current quantity in the text field', (tester) async {
-      await tester.pumpWidget(buildStepper(quantity: 3, onChanged: (_) {}));
+    testWidgets(
+      'WT-MOB-CUSTOMIZE-001 displays current quantity in the text field',
+      (tester) async {
+        await tester.pumpWidget(buildStepper(quantity: 3, onChanged: (_) {}));
 
-      final textFieldFinder = find.byKey(
-        const ValueKey('customize-quantity-field'),
-      );
-      expect(textFieldFinder, findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
-    });
+        final textFieldFinder = find.byKey(
+          const ValueKey('customize-quantity-field'),
+        );
+        expect(textFieldFinder, findsOneWidget);
+        expect(find.text('3'), findsOneWidget);
+      },
+    );
 
     testWidgets(
-      'allows user to type a new valid quantity and calls onChanged',
+      'WT-MOB-CUSTOMIZE-002 allows user to type a new valid quantity and calls onChanged',
       (tester) async {
         int? updatedQuantity;
 
@@ -67,7 +70,7 @@ void main() {
     );
 
     testWidgets(
-      'clamps to min (1) when typing 0 or clearing field upon focus loss',
+      'WT-MOB-CUSTOMIZE-003 clamps to min (1) when typing 0 or clearing field upon focus loss',
       (tester) async {
         int currentQuantity = 5;
 
@@ -116,122 +119,128 @@ void main() {
       },
     );
 
-    testWidgets('clamps to max (999) when typing larger value', (tester) async {
-      int currentQuantity = 1;
+    testWidgets(
+      'WT-MOB-CUSTOMIZE-004 clamps to max (999) when typing larger value',
+      (tester) async {
+        int currentQuantity = 1;
 
-      await tester.pumpWidget(
-        StatefulBuilder(
-          builder: (context, setState) {
-            return buildStepper(
-              quantity: currentQuantity,
-              max: 99,
-              onChanged: (val) {
-                setState(() => currentQuantity = val);
-              },
-            );
-          },
-        ),
-      );
+        await tester.pumpWidget(
+          StatefulBuilder(
+            builder: (context, setState) {
+              return buildStepper(
+                quantity: currentQuantity,
+                max: 99,
+                onChanged: (val) {
+                  setState(() => currentQuantity = val);
+                },
+              );
+            },
+          ),
+        );
 
-      final quantityField = find.byKey(
-        const ValueKey('customize-quantity-field'),
-      );
-      await tester.enterText(quantityField, '150');
-      await tester.pumpAndSettle();
+        final quantityField = find.byKey(
+          const ValueKey('customize-quantity-field'),
+        );
+        await tester.enterText(quantityField, '150');
+        await tester.pumpAndSettle();
 
-      // Clamped to max 99
-      expect(currentQuantity, 99);
-    });
+        // Clamped to max 99
+        expect(currentQuantity, 99);
+      },
+    );
   });
 
   group('CustomizationQuantityStepper - Single Tap', () {
-    testWidgets('single tap on increment increases quantity by 1', (
-      tester,
-    ) async {
-      int currentQuantity = 1;
+    testWidgets(
+      'WT-MOB-CUSTOMIZE-005 single tap on increment increases quantity by 1',
+      (tester) async {
+        int currentQuantity = 1;
 
-      await tester.pumpWidget(
-        StatefulBuilder(
-          builder: (context, setState) {
-            return buildStepper(
-              quantity: currentQuantity,
-              onChanged: (val) {
-                setState(() => currentQuantity = val);
-              },
-            );
-          },
-        ),
-      );
+        await tester.pumpWidget(
+          StatefulBuilder(
+            builder: (context, setState) {
+              return buildStepper(
+                quantity: currentQuantity,
+                onChanged: (val) {
+                  setState(() => currentQuantity = val);
+                },
+              );
+            },
+          ),
+        );
 
-      final incFinder = find.byKey(
-        const ValueKey('customize-quantity-increment'),
-      );
-      await tester.tap(incFinder);
-      await tester.pumpAndSettle();
+        final incFinder = find.byKey(
+          const ValueKey('customize-quantity-increment'),
+        );
+        await tester.tap(incFinder);
+        await tester.pumpAndSettle();
 
-      expect(currentQuantity, 2);
-      expect(find.text('2'), findsOneWidget);
-    });
+        expect(currentQuantity, 2);
+        expect(find.text('2'), findsOneWidget);
+      },
+    );
 
-    testWidgets('single tap on decrement decreases quantity by 1', (
-      tester,
-    ) async {
-      int currentQuantity = 4;
+    testWidgets(
+      'WT-MOB-CUSTOMIZE-006 single tap on decrement decreases quantity by 1',
+      (tester) async {
+        int currentQuantity = 4;
 
-      await tester.pumpWidget(
-        StatefulBuilder(
-          builder: (context, setState) {
-            return buildStepper(
-              quantity: currentQuantity,
-              onChanged: (val) {
-                setState(() => currentQuantity = val);
-              },
-            );
-          },
-        ),
-      );
+        await tester.pumpWidget(
+          StatefulBuilder(
+            builder: (context, setState) {
+              return buildStepper(
+                quantity: currentQuantity,
+                onChanged: (val) {
+                  setState(() => currentQuantity = val);
+                },
+              );
+            },
+          ),
+        );
 
-      final decFinder = find.byKey(
-        const ValueKey('customize-quantity-decrement'),
-      );
-      await tester.tap(decFinder);
-      await tester.pumpAndSettle();
+        final decFinder = find.byKey(
+          const ValueKey('customize-quantity-decrement'),
+        );
+        await tester.tap(decFinder);
+        await tester.pumpAndSettle();
 
-      expect(currentQuantity, 3);
-      expect(find.text('3'), findsOneWidget);
-    });
+        expect(currentQuantity, 3);
+        expect(find.text('3'), findsOneWidget);
+      },
+    );
 
-    testWidgets('decrement button is disabled when quantity is at min (1)', (
-      tester,
-    ) async {
-      int currentQuantity = 1;
+    testWidgets(
+      'WT-MOB-CUSTOMIZE-007 decrement button is disabled when quantity is at min (1)',
+      (tester) async {
+        int currentQuantity = 1;
 
-      await tester.pumpWidget(
-        StatefulBuilder(
-          builder: (context, setState) {
-            return buildStepper(
-              quantity: currentQuantity,
-              onChanged: (val) {
-                setState(() => currentQuantity = val);
-              },
-            );
-          },
-        ),
-      );
+        await tester.pumpWidget(
+          StatefulBuilder(
+            builder: (context, setState) {
+              return buildStepper(
+                quantity: currentQuantity,
+                onChanged: (val) {
+                  setState(() => currentQuantity = val);
+                },
+              );
+            },
+          ),
+        );
 
-      final decFinder = find.byKey(
-        const ValueKey('customize-quantity-decrement'),
-      );
-      await tester.tap(decFinder);
-      await tester.pumpAndSettle();
+        final decFinder = find.byKey(
+          const ValueKey('customize-quantity-decrement'),
+        );
+        await tester.tap(decFinder);
+        await tester.pumpAndSettle();
 
-      expect(currentQuantity, 1);
-    });
+        expect(currentQuantity, 1);
+      },
+    );
   });
 
   group('CustomizationQuantityStepper - Hold to Continually Step', () {
     testWidgets(
-      'holding increment continually increases quantity until release',
+      'WT-MOB-CUSTOMIZE-008 holding increment continually increases quantity until release',
       (tester) async {
         int currentQuantity = 1;
 
@@ -285,7 +294,7 @@ void main() {
     );
 
     testWidgets(
-      'holding decrement continually decreases quantity and stops at min',
+      'WT-MOB-CUSTOMIZE-009 holding decrement continually decreases quantity and stops at min',
       (tester) async {
         int currentQuantity = 4;
 

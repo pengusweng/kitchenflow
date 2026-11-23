@@ -23,6 +23,7 @@ import { AuthService } from '../../../auth/auth.service';
 import { AllOrdersController } from '../all-orders.controller';
 import { OrdersController } from '../orders.controller';
 import { KitchenTicketChanges } from '../../../kitchen/kitchen-ticket/kitchen-ticket-changes.service';
+import { KitchenTicketService } from '../../../kitchen/kitchen-ticket/kitchen-ticket.service';
 
 describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
   let app: INestApplication;
@@ -316,6 +317,109 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     ).toBe(200);
     return savedOrder(body.order_id);
   }
+
+  it.each(['prepare', 'check', 'pass', 'reject', 'hand-over'] as const)(
+    'IT-KFUL-023: rolls back fulfillment writes when %s fails after its first write and permits retry',
+    async (operation) => {
+      const order = await confirmedOrder();
+      const ticketId = order.kitchen_tickets_order!.kitchen_ticket_id;
+      const hasAttempt = operation === 'pass' || operation === 'reject';
+      const status =
+        operation === 'prepare'
+          ? 'ACKNOWLEDGED'
+          : operation === 'check'
+            ? 'FOR_CHECKING'
+            : operation === 'hand-over'
+              ? 'READY'
+              : 'CHECKING';
+      await prisma.order.update({
+        where: { order_id: order.order_id },
+        data: { status: operation === 'prepare' ? 'CONFIRMED' : 'PREPARING' },
+      });
+      await prisma.kitchenTicket.update({
+        where: { kitchen_ticket_id: ticketId },
+        data: {
+          status,
+          preparer_id: fixture.users[5].user_id,
+          checker_id: fixture.users[4].user_id,
+        },
+      });
+      const attempt = hasAttempt
+        ? await prisma.kitchenTicketQcAttempt.create({
+            data: {
+              kitchen_ticket_id: ticketId,
+              checker_id: fixture.users[4].user_id,
+              attempt_number: 1,
+              status: 'IN_PROGRESS',
+            },
+          })
+        : null;
+      const path = hasAttempt
+        ? `/kitchen-fulfillment/qc-attempts/${attempt!.qc_attempt_id}/${operation}`
+        : `/kitchen-fulfillment/${ticketId}/${operation}`;
+      const body =
+        operation === 'reject'
+          ? {
+              rejections: [
+                {
+                  order_item_id: order.order_items_order[0].order_item_id,
+                  portion_number: 1,
+                  rejection_reason: QcRejectionReason.INCOMPLETE,
+                  description: 'Needs another portion',
+                },
+              ],
+            }
+          : undefined;
+      const actor =
+        operation === 'prepare' || operation === 'hand-over' ? 5 : 4;
+      const before = await savedOrder(order.order_id);
+      const history = () =>
+        prisma.kitchenTicketQcAttempt.findMany({
+          where: { kitchen_ticket_id: ticketId },
+          include: { rejections: true },
+        });
+      const beforeHistory = await history();
+      const error = new Error(
+        'Injected failure after the first transactional write',
+      );
+      const tickets = app.get(KitchenTicketService);
+      // The preceding service call performs a real write in this transaction.
+      const failure =
+        operation === 'prepare'
+          ? jest
+              .spyOn(app.get(OrdersService), 'prepare')
+              .mockRejectedValueOnce(error)
+          : operation === 'check'
+            ? jest.spyOn(tickets, 'check').mockRejectedValueOnce(error)
+            : operation === 'pass'
+              ? jest.spyOn(tickets, 'ready').mockRejectedValueOnce(error)
+              : operation === 'reject'
+                ? jest.spyOn(tickets, 'rework').mockRejectedValueOnce(error)
+                : jest.spyOn(tickets, 'handOver').mockRejectedValueOnce(error);
+      try {
+        expect((await request(path, 'POST', body, actor)).status).toBe(500);
+        expect(failure).toHaveBeenCalledTimes(1);
+      } finally {
+        failure.mockRestore();
+      }
+      expect(await savedOrder(order.order_id)).toEqual(before);
+      expect(await history()).toEqual(beforeHistory);
+      expect(
+        await prisma.handoff.count({ where: { kitchen_ticket_id: ticketId } }),
+      ).toBe(0);
+      expect((await request(path, 'POST', body, actor)).status).toBe(200);
+      const expected = {
+        prepare: 'PREPARING',
+        check: 'CHECKING',
+        pass: 'READY',
+        reject: 'REWORKING',
+        'hand-over': 'HANDED_OVER',
+      }[operation];
+      expect(
+        (await savedOrder(order.order_id)).kitchen_tickets_order!.status,
+      ).toBe(expected);
+    },
+  );
 
   it('IT-KFUL-015: completes preparation rejection rework QC approval and image-free handover through authenticated endpoints', async () => {
     const order = await confirmedOrder();

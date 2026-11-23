@@ -29,7 +29,7 @@ class _FakeCancelRepository implements CancelOrderRepository {
 
 void main() {
   testWidgets(
-    'ReviewOrderStepView (Step 4): Shows "Cancel order" below "Confirm and send", opens CancelOrderScreen, Keep order returns, and cancel completes',
+    'WT-MOB-CANCEL-014 ReviewOrderStepView (Step 4): Shows "Cancel order" below "Confirm and send", opens CancelOrderScreen, Keep order returns, and cancel completes',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;

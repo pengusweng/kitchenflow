@@ -7,7 +7,7 @@ import 'package:mobile/shared/widgets/kkfc_switch.dart';
 
 void main() {
   testWidgets(
-    'IT-MOB-AVAIL-001 Given sample availability When toggling one row Then change only that row and its semantics',
+    'WT-MOB-AVAIL-001 Given sample availability When toggling one row Then change only that row and its semantics',
     (tester) async {
       tester.view.physicalSize = const Size(1068, 1200);
       tester.view.devicePixelRatio = 1;
@@ -57,7 +57,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-AVAIL-002 Given a narrow phone with enlarged text When opening availability Then render without overflow and allow scrolling to toggles',
+    'WT-MOB-AVAIL-002 Given a narrow phone with enlarged text When opening availability Then render without overflow and allow scrolling to toggles',
     (tester) async {
       tester.view.physicalSize = const Size(320, 900);
       tester.view.devicePixelRatio = 1;

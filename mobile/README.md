@@ -50,6 +50,13 @@ Both must pass. After changing a model or enum with `freezed` or `json_serializa
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+Start each test title with a stable ID in the form `<type>-MOB-<scope>-<nnn>`.
+Use `UT` for `test`, `WT` for `testWidgets` under `test/`, `GT` for
+`goldenTest`, and `IT` or `E2E` for device tests under `integration_test/`.
+Choose a short scope such as `CART`, `KITCHEN`, or `AUTH` and assign a new
+three-digit number within that scope. A parameterized declaration keeps its
+ID across variants. Existing feature scenarios use the same ID as the test.
+
 ### Unit, widget, and golden test reports
 
 Run from `mobile/`:
@@ -63,7 +70,8 @@ This runs `test/` (including golden tests) and writes a new folder under
 `results.json`, and `run.log`. The HTML groups counts by test type and includes
 test durations, failure details, blockers, and Given/When/Then scenarios. Each
 executed test, including parameter variants, gets its own scenario and result.
-Descriptions are generated from the test names and fixtures; existing
+Reports show the declared test ID. Each executed variant also has a separate
+execution tag in the generated Gherkin. Descriptions are generated from the test names and fixtures; existing
 Given/When/Then wording in names is preserved. Results apply to complete tests,
 not independently executed Gherkin steps.
 
@@ -76,8 +84,27 @@ Flutter CI uses this command and uploads the `flutter-test-results` artifact
 even when tests fail. Coverage remains in `flutter-coverage-report`; golden
 failure comparison images are uploaded as `flutter-golden-failures` when present.
 Download and extract the results artifact, then open its `report.html` file.
-This CI job runs unit, widget, and golden tests only; real API integration tests
-continue to run separately.
+These checks and the debug APK build run in Stage 1 of Flutter CI.
+
+### Flutter-to-API tests in GitHub Actions
+
+The repository's CI workflow calls Flutter CI for Flutter changes. Each stage
+starts after the previous stage passes:
+
+1. **Unit, Widget & Golden Tests and Build** runs formatting, analysis, the
+   Flutter test suite, and the Android debug build.
+2. **Flutter-to-API Integration Tests** runs `--suite=auth` and `--suite=pos` on
+   Android and uploads `flutter-api-integration-results`.
+3. **Order and Kitchen E2E Tests** runs `--suite=orders` on Android and uploads
+   `flutter-api-order-results`.
+
+Each device stage starts a fresh PostgreSQL service, applies Prisma migrations,
+and generates its test accounts before starting the real API on port `3001`.
+The Android emulator reaches it at `http://10.0.2.2:3001/api`. The device stages
+upload the HTML, JSON, Gherkin, raw test output, and API log on success or failure.
+
+Once the workflow is on the default branch, it can also be started from
+**Actions → Flutter CI → Run workflow**. Pick the branch you want to test.
 
 ### Real API login integration tests
 
@@ -90,13 +117,13 @@ These tests cover authentication only; the separate POS suite covers the API men
 ### Mobile POS core flow integration tests
 
 `integration_test/pos_core_test.dart` is a separate device suite covering the real
-API-backed flow from login through the assigned brand, channel selection, menu,
+API-backed flow from login through provider selection, channel selection, menu,
 and cart. It checks adding and merging quantities, cart controls and clearing,
 Dine-in to Takeaway repricing, search, and rejection of unavailable menu items.
-Staff currently have one assigned brand; the test verifies the assigned brand
-loads from the API rather than testing access to multiple brands. The cart is
-local draft state. Order submission, payments, and persisted orders are outside
-this suite's scope. No providers or HTTP responses are mocked.
+The test selects its fixture brand from the real catalog and checks that
+switching to Takeaway in Order details reprices the existing cart. The cart is
+local draft state. The `orders` suite covers persisted orders. No providers or
+HTTP responses are mocked.
 
 Start the same isolated database and test API described below. Then, from
 `server/`, prepare fixtures on that API's test database:
@@ -109,8 +136,9 @@ npx.cmd ts-node -P prisma/tsconfig.seed.json prisma/mobile-pos-fixtures.ts prepa
 This creates a private test brand, cashier account, recipe, two menu items, and
 Dine-in (100 pesos) / Takeaway (125 pesos) channel prices. It saves generated test
 credentials and IDs in gitignored `mobile/.fixtures/pos-flow.json`. Preparation
-requires a database with `test` in its name and refuses to overwrite an existing
-fixture file. It does not reset or alter existing accounts or catalogs.
+requires a database with `test` in its name. Rerunning preparation reuses fixtures
+that still exist in that database and regenerates them after the temporary
+database is recreated.
 
 With the API and emulator running, run from `mobile/`:
 
@@ -120,8 +148,8 @@ dart run tool/run_integration_tests.dart --suite=pos -d emulator-5554
 
 HTML, JSON, Gherkin, and raw logs are saved under `reports/integration/<timestamp>/`.
 The Gherkin source is `features/mobile/pos-core.integration.feature`. The default
-runner without `--suite=pos` still runs only the authentication suite. Neither
-device suite runs in CI.
+runner without a `--suite` option runs the authentication suite. Both run in
+Stage 2 of Flutter CI.
 
 For a USB-connected phone, configure `adb reverse tcp:3001 tcp:3001` and use:
 
@@ -142,22 +170,26 @@ the suite if they were removed.
 
 ### Order review and API lifecycle integration tests
 
-The separate `--suite=orders` suite combines current mobile UI coverage with real
-API contract checks. **The mobile Send action currently only creates a draft.**
-It does not call `/verify` or `/confirm`, the duplicate-specific UI is not wired
-to API conflicts, and the confirmation screen's ticket is a placeholder.
-These limitations are also shown in the HTML report; passing this suite does not
-mean the complete verification/confirmation flow is connected in the mobile UI.
+The `--suite=orders` suite combines the current mobile flow with API contract
+checks. Review order creates the draft from Order details. Confirm and send
+confirms it and displays the API-issued ticket number.
 
 The suite covers:
 
-- Login, assigned brand/channel/menu/cart, review, and repeated-send suppression
-  in the UI, followed by direct API verification and confirmation of that draft.
+- Login, provider selection, cart, Order details, review, and repeated-send
+  suppression in the UI. A separate API verification check exercises `/verify`.
 - Real API create retries, conflicting UUID payloads, brand-prefixed daily order
   codes, platform duplicate prevention, and idempotent confirmation/ticket creation.
 - Availability changes through an isolated fixture manager: the API rejects a
   stale draft at verification/confirmation, and the UI preserves a rejected cart.
   Stock quantity reservation/posting is outside the backend's current scope.
+- One persisted Takeaway order continues from the cashier UI into a kitchen-head
+  login, acknowledgement, preparation, QC rejection/rework, approval, and handover.
+  The test checks the saved order and ticket at each transition, two distinct QC
+  attempts, removal from the active board, and navigation to the live availability
+  catalog and back. The first QC check and rejection use the production
+  repository to test external SSE updates. The remaining kitchen actions use
+  the UI. No responses or providers are mocked.
 
 Start the shared test API below, then prepare separate order fixtures from
 `server/` (these do not overwrite the earlier POS fixture):
@@ -173,8 +205,10 @@ Run from `mobile/`:
 dart run tool/run_integration_tests.dart --suite=orders -d emulator-5554
 ```
 
-The gitignored `.fixtures/order-flow.json` contains the dedicated brand, staff
-and manager accounts and menu IDs. The suite creates real test orders and
+The gitignored `.fixtures/order-flow.json` contains the dedicated brand, cashier,
+supervisor, and kitchen-head accounts and menu IDs. Rerun `prepare --orders` to
+add the kitchen account to older fixtures or regenerate a stale manifest. The
+suite creates real test orders and
 tickets. References/UUIDs are unique per run and tests restore changed availability.
 Run cleanup from `server/` with the same `TEST_DATABASE_URL` when finished:
 
@@ -183,8 +217,13 @@ npx.cmd ts-node -P prisma/tsconfig.seed.json prisma/mobile-pos-fixtures.ts clean
 ```
 
 Cleanup removes this fixture's orders, tickets, daily counters, catalog, accounts,
-and sessions only. Reports include HTML, Gherkin, JSON, and raw logs under
-`reports/integration/`. This suite is not added to CI.
+QC attempts, rejected portions, handoffs, and sessions only. Reports include HTML, Gherkin, JSON, and raw logs under
+`reports/integration/`. This suite runs in Stage 3 of Flutter CI.
+
+To run only the connected kitchen flow, append `--plain-name=IT-MOB-ORD-005`.
+It uses Takeaway so camera access and S3 are unnecessary. Delivery upload coverage
+still belongs to the separate backend storage/E2E checks. The mobile orders list
+is a placeholder, so this flow verifies completed orders through the API.
 
 ### Shared test API setup
 
@@ -257,9 +296,9 @@ The HTML report also displays the Given/When/Then scenarios from
 Results apply to the whole scenario; individual steps are descriptive and do not
 have separately measured pass/fail statuses. Flutter remains the test executor.
 
-Additional Flutter test options are forwarded. Supplying any `--dart-define`
-option replaces the default emulator config, so include both `ENV=test` and
-`API_URL` for a physical device or custom backend. For example, after configuring
+Additional Flutter test options are forwarded. `--dart-define` overrides a
+single value from the suite defaults. An explicit `--dart-define-from-file`
+selects a different file. For example, after configuring
 `adb reverse tcp:3001 tcp:3001` for a USB-connected phone:
 
 ```powershell
@@ -284,8 +323,7 @@ test environment variables), and stop the temporary database from the root:
 docker compose -p kkfc-mobile-test -f docker-compose.mobile-test.yml down
 ```
 
-These device tests run separately from `flutter test` and the existing unit/widget
-CI job. See the [Flutter integration test guide](https://docs.flutter.dev/testing/integration-tests)
+See the [Flutter integration test guide](https://docs.flutter.dev/testing/integration-tests)
 for the SDK runner used here.
 
 ### Golden tests

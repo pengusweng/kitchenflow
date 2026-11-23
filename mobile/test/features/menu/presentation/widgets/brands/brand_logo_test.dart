@@ -12,7 +12,9 @@ const _assets = <String, String>{
 
 void main() {
   for (final brand in sampleAssignedBrands) {
-    testWidgets('renders the ${brand.name} logo', (tester) async {
+    testWidgets('WT-MOB-BRAND-007 renders the ${brand.name} logo', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Center(child: BrandLogo(brand: brand)),
@@ -25,18 +27,19 @@ void main() {
     });
   }
 
-  testWidgets('falls back to the brand name for an unknown brand', (
-    tester,
-  ) async {
-    const brand = AssignedBrand(id: 'unknown', code: 'XX', name: 'Unknown');
+  testWidgets(
+    'WT-MOB-BRAND-008 falls back to the brand name for an unknown brand',
+    (tester) async {
+      const brand = AssignedBrand(id: 'unknown', code: 'XX', name: 'Unknown');
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Center(child: BrandLogo(brand: brand)),
-      ),
-    );
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Center(child: BrandLogo(brand: brand)),
+        ),
+      );
 
-    expect(find.text('Unknown'), findsOneWidget);
-    expect(find.byType(Image), findsNothing);
-  });
+      expect(find.text('Unknown'), findsOneWidget);
+      expect(find.byType(Image), findsNothing);
+    },
+  );
 }

@@ -25,18 +25,21 @@ ProviderContainer _container(String token, _FakeTokenStore store) {
 }
 
 void main() {
-  test('401 for the current token signs out and flags the expiry', () {
-    final store = _FakeTokenStore();
-    final container = _container('abc', store);
+  test(
+    'UT-MOB-AUTH-001 401 for the current token signs out and flags the expiry',
+    () {
+      final store = _FakeTokenStore();
+      final container = _container('abc', store);
 
-    container.read(sessionTokenProvider.notifier).expire('abc');
+      container.read(sessionTokenProvider.notifier).expire('abc');
 
-    expect(container.read(sessionProvider), isFalse);
-    expect(container.read(sessionExpiredProvider), isTrue);
-    expect(store.cleared, isTrue);
-  });
+      expect(container.read(sessionProvider), isFalse);
+      expect(container.read(sessionExpiredProvider), isTrue);
+      expect(store.cleared, isTrue);
+    },
+  );
 
-  test('a late 401 for an older token does not sign out the new session', () {
+  test('UT-MOB-AUTH-002 a late 401 for an older token does not sign out the new session', () {
     final store = _FakeTokenStore();
     final container = _container('new-token', store);
 
@@ -47,7 +50,7 @@ void main() {
     expect(store.cleared, isFalse);
   });
 
-  test('signing in again clears the expired flag', () {
+  test('UT-MOB-AUTH-003 signing in again clears the expired flag', () {
     final store = _FakeTokenStore();
     final container = _container('abc', store);
     final notifier = container.read(sessionTokenProvider.notifier);

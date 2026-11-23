@@ -239,7 +239,7 @@ class _FakeAuthRepository extends AuthRepository {
 
 void main() {
   group('KitchenBoardRepository', () {
-    test('requests GET /api/kitchen-ticket/today/stream first and parses active lanes', () async {
+    test('UT-MOB-KITCHEN-001 requests GET /api/kitchen-ticket/today/stream first and parses active lanes', () async {
       final payload = [
         {
           'kitchen_ticket_id': '00000000-0000-4000-8000-000000000016',
@@ -319,7 +319,7 @@ void main() {
       expect(tickets[1].data.brand.code, 'AI');
     });
 
-    test('falls back to GET /api/kitchen-ticket/today when GET /api/kitchen-ticket/today/stream fails', () async {
+    test('UT-MOB-KITCHEN-002 falls back to GET /api/kitchen-ticket/today when GET /api/kitchen-ticket/today/stream fails', () async {
       final adapter = _RecordingAdapter((options) async {
         if (options.uri.path.endsWith('/today/stream')) {
           throw DioException.connectionError(
@@ -360,7 +360,69 @@ void main() {
       expect(tickets.first.data.ticketNumber, 'T-016');
     });
 
-    test('streamTodaysTickets emits multiple SSE updates in real time and ignores : ping heartbeats', () async {
+    test('UT-MOB-KITCHEN-003 fragmented CRLF SSE preserves ticket identity across QC rework and ready snapshots including the final unterminated event', () async {
+      const id = '00000000-0000-4000-8000-000000000016';
+      String event(String status, int sequence) =>
+          'id: $sequence\r\nevent: tickets\r\nretry: 1000\r\ndata: ${jsonEncode([
+            {'kitchen_ticket_id': id, 'order_id': '00000000-0000-4000-8000-000000000116', 'order_code': 'KK-00016', 'ticket_number': 'T-016', 'status': status, 'created_at': '2026-11-10T09:39:00.000Z'},
+          ])}';
+      final wire =
+          ': ping\r\n\r\n${event('CHECKING', 1)}\r\n\r\n${event('REWORKING', 2)}\r\n\r\n${event('READY', 3)}';
+      final bytes = utf8.encode(wire);
+      final chunks = <Uint8List>[];
+      for (var offset = 0; offset < bytes.length; offset += 7) {
+        chunks.add(
+          Uint8List.fromList(
+            bytes.sublist(offset, (offset + 7).clamp(0, bytes.length)),
+          ),
+        );
+      }
+      final adapter = _RecordingAdapter(
+        (_) async => ResponseBody(
+          Stream.fromIterable(chunks),
+          200,
+          headers: {
+            Headers.contentTypeHeader: ['text/event-stream'],
+          },
+        ),
+      );
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000/api'))
+        ..httpClientAdapter = adapter;
+      addTearDown(() => dio.close(force: true));
+      final snapshots = await KitchenBoardRepository(dio)
+          .streamTodaysTickets()
+          .toList();
+      expect(snapshots, hasLength(3));
+      expect(snapshots.map((s) => s.single.kitchenTicketId), everyElement(id));
+      expect(snapshots.map((s) => s.single.rawStatus), [
+        'CHECKING',
+        'REWORKING',
+        'READY',
+      ]);
+      expect(snapshots.map((s) => s.single.lane), [
+        KitchenBoardLane.qcCheck,
+        KitchenBoardLane.rework,
+        KitchenBoardLane.ready,
+      ]);
+      expect(adapter.requests, hasLength(1));
+    });
+
+    test('UT-MOB-KITCHEN-004 a stream cancelled before listening does not open a request or use the REST fallback', () async {
+      final adapter = _RecordingAdapter(
+        (_) async => throw StateError('No request should start'),
+      );
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000/api'))
+        ..httpClientAdapter = adapter;
+      addTearDown(() => dio.close(force: true));
+      final cancellation = CancelToken()..cancel('Left the kitchen workspace');
+      final snapshots = await KitchenBoardRepository(dio)
+          .watchTodaysTickets(cancelToken: cancellation)
+          .toList();
+      expect(snapshots, isEmpty);
+      expect(adapter.requests, isEmpty);
+    });
+
+    test('UT-MOB-KITCHEN-005 streamTodaysTickets emits multiple SSE updates in real time and ignores : ping heartbeats', () async {
       final streamController = StreamController<Uint8List>();
       final adapter = _RecordingAdapter((options) async {
         return ResponseBody(
@@ -376,10 +438,16 @@ void main() {
         ..httpClientAdapter = adapter;
       final repo = KitchenBoardRepository(dio);
 
-      final emissions = <List<KitchenBoardTicket>>[];
-      final sub = repo
-          .streamTodaysTickets(now: DateTime.parse('2026-11-10T09:41:00.000Z'))
-          .listen(emissions.add);
+      final updates = StreamIterator(
+        repo.streamTodaysTickets(
+          now: DateTime.parse('2026-11-10T09:41:00.000Z'),
+        ),
+      );
+      addTearDown(() async {
+        await updates.cancel();
+        dio.close(force: true);
+        await streamController.close();
+      });
 
       // 1. Emit initial snapshot
       streamController.add(
@@ -391,14 +459,14 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(emissions, hasLength(1));
-      expect(emissions.first.first.lane, KitchenBoardLane.queued);
+      expect(
+        await updates.moveNext().timeout(const Duration(seconds: 5)),
+        true,
+      );
+      expect(updates.current.single.lane, KitchenBoardLane.queued);
 
       // 2. Emit heartbeat comment (: ping) — should be ignored
       streamController.add(Uint8List.fromList(utf8.encode(': ping\n\n')));
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(emissions, hasLength(1));
 
       // 3. Emit updated snapshot where ticket moved to PREPARING
       streamController.add(
@@ -410,15 +478,20 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(emissions, hasLength(2));
-      expect(emissions.last.first.lane, KitchenBoardLane.preparing);
-
-      unawaited(sub.cancel());
+      expect(
+        await updates.moveNext().timeout(const Duration(seconds: 5)),
+        true,
+      );
+      expect(updates.current.single.lane, KitchenBoardLane.preparing);
+      // Drain to completion: any extra event emitted for a heartbeat fails.
       unawaited(streamController.close());
+      expect(
+        await updates.moveNext().timeout(const Duration(seconds: 5)),
+        false,
+      );
     });
 
-    test('watchTodaysTickets falls back to GET /api/kitchen-ticket/today when stream fails', () async {
+    test('UT-MOB-KITCHEN-006 watchTodaysTickets falls back to GET /api/kitchen-ticket/today when stream fails', () async {
       final adapter = _RecordingAdapter((options) async {
         if (options.uri.path.endsWith('/today/stream')) {
           return ResponseBody.fromString('Service Unavailable', 503);
@@ -456,7 +529,7 @@ void main() {
       expect(results.first.first.data.ticketNumber, 'T-015');
     });
 
-    test('KitchenBoardNotifier updates state in real time from GET /api/kitchen-ticket/today/stream', () async {
+    test('UT-MOB-KITCHEN-007 KitchenBoardNotifier updates state in real time from GET /api/kitchen-ticket/today/stream', () async {
       final streamController = StreamController<Uint8List>();
       final adapter = _RecordingAdapter((options) async {
         if (options.uri.path.endsWith('/today/stream')) {
@@ -529,7 +602,7 @@ void main() {
       expect(boardState.tickets[1].lane, KitchenBoardLane.ready);
     });
 
-    test('acknowledgeTicket sends POST /api/kitchen-fulfillment/{kitchenTicketId}/acknowledge', () async {
+    test('UT-MOB-KITCHEN-008 acknowledgeTicket sends POST /api/kitchen-fulfillment/{kitchenTicketId}/acknowledge', () async {
       const ticketId = '00000000-0000-4000-8000-000000000016';
       final adapter = _RecordingAdapter(
         (_) async => _jsonResponse({
@@ -552,7 +625,7 @@ void main() {
       );
     });
 
-    test('prepareTicket sends POST /api/kitchen-fulfillment/{kitchenTicketId}/prepare', () async {
+    test('UT-MOB-KITCHEN-009 prepareTicket sends POST /api/kitchen-fulfillment/{kitchenTicketId}/prepare', () async {
       const ticketId = '00000000-0000-4000-8000-000000000016';
       final adapter = _RecordingAdapter(
         (_) async => _jsonResponse({
@@ -575,7 +648,7 @@ void main() {
       );
     });
 
-    test('prepareTicket assigns preparer before calling prepare if preparerId is provided', () async {
+    test('UT-MOB-KITCHEN-010 prepareTicket assigns preparer before calling prepare if preparerId is provided', () async {
       const ticketId = '00000000-0000-4000-8000-000000000016';
       const preparerId = '00000000-0000-4000-8000-000000000001';
       final adapter = _RecordingAdapter(
@@ -606,7 +679,7 @@ void main() {
       );
     });
 
-    test('sendToQc sends POST /api/kitchen-fulfillment/{kitchenTicketId}/for-checking', () async {
+    test('UT-MOB-KITCHEN-011 sendToQc sends POST /api/kitchen-fulfillment/{kitchenTicketId}/for-checking', () async {
       const ticketId = '00000000-0000-4000-8000-000000000015';
       final adapter = _RecordingAdapter(
         (_) async => _jsonResponse({
@@ -629,7 +702,7 @@ void main() {
       );
     });
 
-    test('passQcAttempt sends POST /api/kitchen-fulfillment/qc-attempts/{attemptId}/pass', () async {
+    test('UT-MOB-KITCHEN-012 passQcAttempt sends POST /api/kitchen-fulfillment/qc-attempts/{attemptId}/pass', () async {
       const attemptId = '00000000-0000-4000-8000-000000000099';
       final adapter = _RecordingAdapter(
         (_) async =>
@@ -650,7 +723,7 @@ void main() {
       );
     });
 
-    test('passQcForTicket starts a new check attempt when latest attempt is FAILED', () async {
+    test('UT-MOB-KITCHEN-013 passQcForTicket starts a new check attempt when latest attempt is FAILED', () async {
       const ticketId = '00000000-0000-4000-8000-000000000015';
       const newAttemptId = '00000000-0000-4000-8000-000000000022';
       final adapter = _RecordingAdapter((options) async {
@@ -691,7 +764,7 @@ void main() {
       expect(passRequest.uri.path, endsWith('/qc-attempts/$newAttemptId/pass'));
     });
 
-    test('handOverTicket sends POST /api/kitchen-fulfillment/{kitchenTicketId}/hand-over', () async {
+    test('UT-MOB-KITCHEN-014 handOverTicket sends POST /api/kitchen-fulfillment/{kitchenTicketId}/hand-over', () async {
       const ticketId = '00000000-0000-4000-8000-000000000014';
       final adapter = _RecordingAdapter(
         (_) async => _jsonResponse({
@@ -714,7 +787,7 @@ void main() {
       );
     });
 
-    test('handOverTicket sends POST with FormData files for delivery orders with photo evidence', () async {
+    test('UT-MOB-KITCHEN-015 handOverTicket sends POST with FormData files for delivery orders with photo evidence', () async {
       const ticketId = '00000000-0000-4000-8000-000000000014';
       final adapter = _RecordingAdapter(
         (_) async => _jsonResponse({
@@ -749,7 +822,7 @@ void main() {
       expect(formData.files.first.value.contentType?.mimeType, 'image/png');
     });
 
-    test('handOverTicket normalizes photo extension and defaults content type to image/jpeg if missing extension', () async {
+    test('UT-MOB-KITCHEN-016 handOverTicket normalizes photo extension and defaults content type to image/jpeg if missing extension', () async {
       const ticketId = '00000000-0000-4000-8000-000000000014';
       final adapter = _RecordingAdapter(
         (_) async => _jsonResponse({
@@ -776,7 +849,7 @@ void main() {
       expect(formData.files.first.value.contentType?.mimeType, 'image/jpeg');
     });
 
-    test('fetchOrder sends GET /api/brands/{brandId}/orders/{orderId} and returns order data', () async {
+    test('UT-MOB-KITCHEN-017 fetchOrder sends GET /api/brands/{brandId}/orders/{orderId} and returns order data', () async {
       const brandId = '00000000-0000-4000-8000-000000000001';
       const orderId = '00000000-0000-4000-8000-000000000115';
       final adapter = _RecordingAdapter(
@@ -808,7 +881,7 @@ void main() {
   });
 
   group('Order Channel & Kitchen Ticket', () {
-    test('tryFromApiJson parses channel and reference when order is passed instead of Takeaway fallback', () {
+    test('UT-MOB-KITCHEN-018 tryFromApiJson parses channel and reference when order is passed instead of Takeaway fallback', () {
       final ticket = KitchenBoardTicket.tryFromApiJson(
         {
           'kitchen_ticket_id': '00000000-0000-4000-8000-000000000015',
@@ -825,7 +898,7 @@ void main() {
       expect(ticket.data.reference, 'Table 4');
     });
 
-    test('applyOrder passes order channel to kitchen ticket and updates display details', () {
+    test('UT-MOB-KITCHEN-019 applyOrder passes order channel to kitchen ticket and updates display details', () {
       final baseTicket = KitchenBoardTicket.tryFromApiJson({
         'kitchen_ticket_id': '00000000-0000-4000-8000-000000000015',
         'order_id': '00000000-0000-4000-8000-000000000115',
@@ -850,7 +923,7 @@ void main() {
     });
 
     testWidgets(
-      'KitchenTicketCard displays order channel and chair icon for Dine-in order instead of Takeaway',
+      'WT-MOB-KITCHEN-001 KitchenTicketCard displays order channel and chair icon for Dine-in order instead of Takeaway',
       (tester) async {
         final ticket = KitchenBoardTicket.tryFromApiJson(
           {
@@ -919,7 +992,7 @@ void main() {
     }
 
     testWidgets(
-      'renders AppHeader, toolbar, 4 lanes, empty QC state, and KitchenTicketCard items',
+      'WT-MOB-KITCHEN-002 renders AppHeader, toolbar, 4 lanes, empty QC state, and KitchenTicketCard items',
       (tester) async {
         final repo = _FakeKitchenBoardRepository(
           () async => sampleKitchenBoardTickets,
@@ -975,7 +1048,7 @@ void main() {
     );
 
     testWidgets(
-      'acknowledging ticket closes popup, updates board to Acknowledged lane with Start Preparing CTA, and opening popup shows fire icon & Acknowledged badge',
+      'WT-MOB-KITCHEN-003 acknowledging ticket closes popup, updates board to Acknowledged lane with Start Preparing CTA, and opening popup shows fire icon & Acknowledged badge',
       (tester) async {
         final repo = _FakeKitchenBoardRepository(
           () async => sampleKitchenBoardTickets,
@@ -1108,7 +1181,7 @@ void main() {
     );
 
     testWidgets(
-      'KitchenTicketStatusDialog renders Acknowledged badge, Start Preparing label, and fire icon for acknowledged ticket',
+      'WT-MOB-KITCHEN-004 KitchenTicketStatusDialog renders Acknowledged badge, Start Preparing label, and fire icon for acknowledged ticket',
       (tester) async {
         final acknowledgedTicket = sampleKitchenBoardTickets.first.copyWith(
           rawStatus: 'ACKNOWLEDGED',
@@ -1160,7 +1233,7 @@ void main() {
     );
 
     testWidgets(
-      'KitchenTicketStatusDialog renders magnifying glass icon next to Send to QC button for preparing ticket',
+      'WT-MOB-KITCHEN-005 KitchenTicketStatusDialog renders magnifying glass icon next to Send to QC button for preparing ticket',
       (tester) async {
         final preparingTicket = sampleKitchenBoardTickets[1].copyWith(
           rawStatus: 'PREPARING',
@@ -1221,7 +1294,7 @@ void main() {
     );
 
     testWidgets(
-      'clicking Send to QC on the card and popup calls POST /api/kitchen-fulfillment/{kitchenTicketId}/for-checking and closes popup',
+      'WT-MOB-KITCHEN-006 clicking Send to QC on the card and popup calls POST /api/kitchen-fulfillment/{kitchenTicketId}/for-checking and closes popup',
       (tester) async {
         final repo = _FakeKitchenBoardRepository(
           () async => sampleKitchenBoardTickets,
@@ -1276,24 +1349,25 @@ void main() {
       },
     );
 
-    testWidgets('adapts cleanly across tablet portrait and phone viewports', (
-      tester,
-    ) async {
-      final repo = _FakeKitchenBoardRepository(
-        () async => sampleKitchenBoardTickets,
-      );
+    testWidgets(
+      'WT-MOB-KITCHEN-007 adapts cleanly across tablet portrait and phone viewports',
+      (tester) async {
+        final repo = _FakeKitchenBoardRepository(
+          () async => sampleKitchenBoardTickets,
+        );
 
-      // Tablet Portrait (768px -> 2x2 lanes)
-      await pumpBoard(tester, repository: repo, size: const Size(768, 1024));
-      expect(tester.takeException(), isNull);
-      expect(find.byType(KitchenTicketCard), findsNWidgets(3));
+        // Tablet Portrait (768px -> 2x2 lanes)
+        await pumpBoard(tester, repository: repo, size: const Size(768, 1024));
+        expect(tester.takeException(), isNull);
+        expect(find.byType(KitchenTicketCard), findsNWidgets(3));
 
-      // Phone (390px -> stacked lanes)
-      await pumpBoard(tester, repository: repo, size: const Size(390, 844));
-      expect(tester.takeException(), isNull);
-    });
+        // Phone (390px -> stacked lanes)
+        await pumpBoard(tester, repository: repo, size: const Size(390, 844));
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    test('UserRole.canPassQc authorization rules', () {
+    test('UT-MOB-KITCHEN-020 UserRole.canPassQc authorization rules', () {
       expect(UserRole.superadmin.canPassQc, isTrue);
       expect(UserRole.manager.canPassQc, isTrue);
       expect(UserRole.supervisor.canPassQc, isTrue);
@@ -1305,55 +1379,49 @@ void main() {
       expect(UserRole.inventoryStaff.canPassQc, isFalse);
     });
 
-    test(
-      'UserRole supervisor read-only and ticket transition authorization rules',
-      () {
-        // Supervisor is explicitly read-only on the kitchen board except for QC
-        expect(UserRole.supervisor.isKitchenReadOnlyExceptQc, isTrue);
-        expect(UserRole.kitchenHead.isKitchenReadOnlyExceptQc, isFalse);
-        expect(UserRole.kitchenStaff.isKitchenReadOnlyExceptQc, isFalse);
-        expect(UserRole.manager.isKitchenReadOnlyExceptQc, isFalse);
-        expect(UserRole.superadmin.isKitchenReadOnlyExceptQc, isFalse);
+    test('UT-MOB-KITCHEN-021 UserRole supervisor read-only and ticket transition authorization rules', () {
+      // Supervisor is explicitly read-only on the kitchen board except for QC
+      expect(UserRole.supervisor.isKitchenReadOnlyExceptQc, isTrue);
+      expect(UserRole.kitchenHead.isKitchenReadOnlyExceptQc, isFalse);
+      expect(UserRole.kitchenStaff.isKitchenReadOnlyExceptQc, isFalse);
+      expect(UserRole.manager.isKitchenReadOnlyExceptQc, isFalse);
+      expect(UserRole.superadmin.isKitchenReadOnlyExceptQc, isFalse);
 
-        // Supervisor can ONLY change ticket status for QC check
-        expect(
-          UserRole.supervisor.canChangeTicketStatus(isQcCheck: true),
-          isTrue,
-        );
-        expect(
-          UserRole.supervisor.canChangeTicketStatus(isQcCheck: false),
-          isFalse,
-        );
+      // Supervisor can ONLY change ticket status for QC check
+      expect(
+        UserRole.supervisor.canChangeTicketStatus(isQcCheck: true),
+        isTrue,
+      );
+      expect(
+        UserRole.supervisor.canChangeTicketStatus(isQcCheck: false),
+        isFalse,
+      );
 
-        // Kitchen Head and Manager can change status across all lanes
-        expect(
-          UserRole.kitchenHead.canChangeTicketStatus(isQcCheck: true),
-          isTrue,
-        );
-        expect(
-          UserRole.kitchenHead.canChangeTicketStatus(isQcCheck: false),
-          isTrue,
-        );
-        expect(UserRole.manager.canChangeTicketStatus(isQcCheck: true), isTrue);
-        expect(
-          UserRole.manager.canChangeTicketStatus(isQcCheck: false),
-          isTrue,
-        );
+      // Kitchen Head and Manager can change status across all lanes
+      expect(
+        UserRole.kitchenHead.canChangeTicketStatus(isQcCheck: true),
+        isTrue,
+      );
+      expect(
+        UserRole.kitchenHead.canChangeTicketStatus(isQcCheck: false),
+        isTrue,
+      );
+      expect(UserRole.manager.canChangeTicketStatus(isQcCheck: true), isTrue);
+      expect(UserRole.manager.canChangeTicketStatus(isQcCheck: false), isTrue);
 
-        // Kitchen Staff can change non-QC lanes but cannot pass QC
-        expect(
-          UserRole.kitchenStaff.canChangeTicketStatus(isQcCheck: false),
-          isTrue,
-        );
-        expect(
-          UserRole.kitchenStaff.canChangeTicketStatus(isQcCheck: true),
-          isFalse,
-        );
-      },
-    );
+      // Kitchen Staff can change non-QC lanes but cannot pass QC
+      expect(
+        UserRole.kitchenStaff.canChangeTicketStatus(isQcCheck: false),
+        isTrue,
+      );
+      expect(
+        UserRole.kitchenStaff.canChangeTicketStatus(isQcCheck: true),
+        isFalse,
+      );
+    });
 
     testWidgets(
-      'Supervisor is in read-only mode for Queued, Preparing, and Ready tickets, but can execute QC check',
+      'WT-MOB-KITCHEN-008 Supervisor is in read-only mode for Queued, Preparing, and Ready tickets, but can execute QC check',
       (tester) async {
         final queuedTicket = sampleKitchenBoardTickets[0]; // T-016 (Queued)
         final preparingTicket =
@@ -1501,7 +1569,7 @@ void main() {
       },
     );
 
-    test('KitchenBoardNotifier rejects status transitions for supervisor except QC', () async {
+    test('UT-MOB-KITCHEN-022 KitchenBoardNotifier rejects status transitions for supervisor except QC', () async {
       final repo = _FakeKitchenBoardRepository(
         () async => sampleKitchenBoardTickets,
       );
@@ -1539,7 +1607,7 @@ void main() {
     });
 
     testWidgets(
-      'QC Check button on ticket card says "QC check" and is unclickable and muted for unauthorized role (KITCHEN_STAFF)',
+      'WT-MOB-KITCHEN-009 QC Check button on ticket card says "QC check" and is unclickable and muted for unauthorized role (KITCHEN_STAFF)',
       (tester) async {
         final qcTicket = sampleKitchenBoardTickets[1].copyWith(
           kitchenTicketId: '00000000-0000-4000-8000-000000000017',
@@ -1601,7 +1669,7 @@ void main() {
     );
 
     testWidgets(
-      'QC Check button is clickable for authorized role, renders QC modal layout, and clicking All items passed calls passQc',
+      'WT-MOB-KITCHEN-010 QC Check button is clickable for authorized role, renders QC modal layout, and clicking All items passed calls passQc',
       (tester) async {
         final qcTicket = sampleKitchenBoardTickets[1].copyWith(
           kitchenTicketId: '00000000-0000-4000-8000-000000000017',
@@ -1721,7 +1789,7 @@ void main() {
     );
 
     testWidgets(
-      'QC checker cannot press "All items passed" (button is muted) without clicking pass on every item in that ticket',
+      'WT-MOB-KITCHEN-011 QC checker cannot press "All items passed" (button is muted) without clicking pass on every item in that ticket',
       (tester) async {
         final multiItemQcTicket = KitchenBoardTicket(
           kitchenTicketId: '00000000-0000-4000-8000-000000000088',
@@ -1850,7 +1918,7 @@ void main() {
     );
 
     testWidgets(
-      'tapping logout button in AppHeader displays confirmation dialog and can cancel or confirm',
+      'WT-MOB-KITCHEN-012 tapping logout button in AppHeader displays confirmation dialog and can cancel or confirm',
       (tester) async {
         final repo = _FakeKitchenBoardRepository(
           () async => sampleKitchenBoardTickets,
@@ -1920,7 +1988,7 @@ void main() {
       },
     );
 
-    test('KitchenBoardState.ticketsForLane routes REWORKING tickets to rework lane and PREPARING tickets to preparing lane', () {
+    test('UT-MOB-KITCHEN-023 KitchenBoardState.ticketsForLane routes REWORKING tickets to rework lane and PREPARING tickets to preparing lane', () {
       final samplePreparing = sampleKitchenBoardTickets.firstWhere(
         (t) => t.lane == KitchenBoardLane.preparing,
       );
@@ -1969,7 +2037,7 @@ void main() {
     });
 
     testWidgets(
-      'QC Fail flow: Fail QC button disabled when no failed items, item Fail button opens dialog with portion number, and Fail QC and rework dispatches rejections to API',
+      'WT-MOB-KITCHEN-013 QC Fail flow: Fail QC button disabled when no failed items, item Fail button opens dialog with portion number, and Fail QC and rework dispatches rejections to API',
       (tester) async {
         final qcTicket = sampleKitchenBoardTickets
             .firstWhere((t) => t.lane == KitchenBoardLane.ready)
@@ -2100,7 +2168,7 @@ void main() {
     );
 
     testWidgets(
-      'Handover UI flow: renders outgoing check, disables confirm button until all 3 checkboxes ticked, and confirms handover with success dialog',
+      'WT-MOB-KITCHEN-014 Handover UI flow: renders outgoing check, disables confirm button until all 3 checkboxes ticked, and confirms handover with success dialog',
       (tester) async {
         final readyTicket = sampleKitchenBoardTickets
             .firstWhere((t) => t.lane == KitchenBoardLane.ready)
@@ -2237,7 +2305,7 @@ void main() {
     );
 
     testWidgets(
-      'Handover UI flow (Delivery ticket): renders 3-step stepper, photo evidence card, dynamic item count, and transitions button to "Add the photo to hand over"',
+      'WT-MOB-KITCHEN-015 Handover UI flow (Delivery ticket): renders 3-step stepper, photo evidence card, dynamic item count, and transitions button to "Add the photo to hand over"',
       (tester) async {
         final deliveryTicket = sampleKitchenBoardTickets
             .firstWhere((t) => t.data.ticketNumber == 'T-014')
@@ -2336,7 +2404,7 @@ void main() {
     );
 
     testWidgets(
-      'Handover UI flow (Delivery ticket): attaching photo enables Confirm handover and passes photos to repo.handOverTicket and opens success dialog',
+      'WT-MOB-KITCHEN-016 Handover UI flow (Delivery ticket): attaching photo enables Confirm handover and passes photos to repo.handOverTicket and opens success dialog',
       (tester) async {
         final deliveryTicket = sampleKitchenBoardTickets
             .firstWhere((t) => t.data.ticketNumber == 'T-014')
@@ -2423,7 +2491,7 @@ void main() {
     );
 
     testWidgets(
-      'KitchenTicketHandoverView for delivery ticket: uploading photo enables Confirm handover, shows Attached badge and thumbnail, supports 5-photo maximum and removal',
+      'WT-MOB-KITCHEN-017 KitchenTicketHandoverView for delivery ticket: uploading photo enables Confirm handover, shows Attached badge and thumbnail, supports 5-photo maximum and removal',
       (tester) async {
         final deliveryTicket = sampleKitchenBoardTickets
             .firstWhere((t) => t.data.ticketNumber == 'T-014')
@@ -2535,7 +2603,7 @@ void main() {
       },
     );
 
-    test('automatically refreshes tickets when the user logs in or switches tokens', () async {
+    test('UT-MOB-KITCHEN-024 automatically refreshes tickets when the user logs in or switches tokens', () async {
       var currentTickets = [sampleKitchenBoardTickets[0]];
       final repo = _FakeKitchenBoardRepository(() async => currentTickets);
 
@@ -2583,7 +2651,7 @@ void main() {
     });
 
     testWidgets(
-      'KitchenBoardScreen automatically refreshes and displays new tickets when user logs in',
+      'WT-MOB-KITCHEN-018 KitchenBoardScreen automatically refreshes and displays new tickets when user logs in',
       (tester) async {
         var currentTickets = [sampleKitchenBoardTickets[0]]; // Only T-016
         final repo = _FakeKitchenBoardRepository(() async => currentTickets);
@@ -2630,7 +2698,7 @@ void main() {
     );
 
     testWidgets(
-      'renders background canvas wave accents and header wave arcs on KitchenBoardScreen',
+      'WT-MOB-KITCHEN-019 renders background canvas wave accents and header wave arcs on KitchenBoardScreen',
       (tester) async {
         final repo = _FakeKitchenBoardRepository(
           () async => sampleKitchenBoardTickets,
@@ -2662,7 +2730,7 @@ void main() {
     );
 
     testWidgets(
-      'choreographs kitchen board entrance, ticket stagger, lane badge spring, and physical card press compression',
+      'WT-MOB-KITCHEN-020 choreographs kitchen board entrance, ticket stagger, lane badge spring, and physical card press compression',
       (tester) async {
         var currentTickets = [sampleKitchenBoardTickets[0]]; // T-016 in Queued
         final repo = _FakeKitchenBoardRepository(() async => currentTickets);
@@ -2738,7 +2806,7 @@ void main() {
     );
 
     testWidgets(
-      'Queued ticket popup renders Cancel ticket button below Acknowledge and opens static CancelKitchenTicketDialog (max 200 chars)',
+      'WT-MOB-KITCHEN-021 Queued ticket popup renders Cancel ticket button below Acknowledge and opens static CancelKitchenTicketDialog (max 200 chars)',
       (tester) async {
         final repo = _FakeKitchenBoardRepository(
           () async => sampleKitchenBoardTickets,
@@ -2853,7 +2921,7 @@ void main() {
     );
 
     testWidgets(
-      'Cancel ticket button does NOT exist when user role is kitchen staff, but exists for allowed roles (kitchen head, supervisor, manager, superadmin)',
+      'WT-MOB-KITCHEN-022 Cancel ticket button does NOT exist when user role is kitchen staff, but exists for allowed roles (kitchen head, supervisor, manager, superadmin)',
       (tester) async {
         final repo = _FakeKitchenBoardRepository(
           () async => sampleKitchenBoardTickets,
@@ -2907,7 +2975,7 @@ void main() {
     );
 
     testWidgets(
-      'Rework UI flow: card layout, Preparing lane priority, rework dialog with 200 char placeholder, and returning to QC displays rework note',
+      'WT-MOB-KITCHEN-023 Rework UI flow: card layout, Preparing lane priority, rework dialog with 200 char placeholder, and returning to QC displays rework note',
       (tester) async {
         final reworkTicket = sampleKitchenBoardTickets[1].copyWith(
           rawStatus: 'REWORKING',
@@ -3113,7 +3181,7 @@ void main() {
     );
 
     testWidgets(
-      'In rework state, fail reason displays directly under each item in KitchenTicketItemTile for multi-item tickets',
+      'WT-MOB-KITCHEN-024 In rework state, fail reason displays directly under each item in KitchenTicketItemTile for multi-item tickets',
       (tester) async {
         final multiItemReworkTicket = sampleKitchenBoardTickets[1].copyWith(
           kitchenTicketId: 'rework-multi-item-ticket',
@@ -3231,7 +3299,7 @@ void main() {
     );
 
     testWidgets(
-      'kitchen board is scrollable sideways horizontally across all 6 columns',
+      'WT-MOB-KITCHEN-025 kitchen board is scrollable sideways horizontally across all 6 columns',
       (tester) async {
         final repo = _FakeKitchenBoardRepository(
           () async => sampleKitchenBoardTickets,

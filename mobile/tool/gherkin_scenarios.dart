@@ -1,4 +1,13 @@
-/// Reads the tagged, plain scenarios used by the authentication test suite.
+const _mobileIdSuffix = r'-MOB-(?:[A-Z0-9]+-)+\d{3}';
+final _testIdInTitle = RegExp(
+  '(?:^|\\s)((?:UT|WT|GT|IT|E2E)$_mobileIdSuffix)(?=[:\\s]|\$)',
+);
+final _deviceIdTag = RegExp('(?:^|\\s)@((?:IT|E2E)$_mobileIdSuffix)(?=\\s|\$)');
+
+String? mobileTestId(String title) =>
+    _testIdInTitle.firstMatch(title)?.group(1);
+
+/// Reads the tagged, plain scenarios used by the Flutter device suites.
 /// This maps descriptions to Flutter results; it does not execute Gherkin steps.
 List<Map<String, String>> readAuthScenarios(String source) {
   final scenarios = <Map<String, String>>[];
@@ -9,9 +18,7 @@ List<Map<String, String>> readAuthScenarios(String source) {
     final text = line.trim();
     if (text.isEmpty || text.startsWith('#')) continue;
     if (text.startsWith('@')) {
-      pendingId = RegExp(r'@([A-Z]+-MOB-(?:AUTH|POS|ORD)-\d+)\b')
-          .firstMatch(text)
-          ?.group(1);
+      pendingId = _deviceIdTag.firstMatch(text)?.group(1) ?? pendingId;
     } else if (text.startsWith('Feature:')) {
       feature = text.substring('Feature:'.length).trim();
     } else if (text.startsWith('Scenario:')) {
@@ -53,11 +60,7 @@ List<Map<String, dynamic>> scenarioResults(
 ) => scenarios.map((scenario) {
   final id = scenario['id']!;
   final matching = tests
-      .where(
-        (test) =>
-            RegExp('(^|\\s)${RegExp.escape(id)}(\\s|\$)')
-                .hasMatch(test['name'] as String),
-      )
+      .where((test) => mobileTestId(test['name'] as String) == id)
       .toList();
   final statuses = matching.map((test) => test['status']).toSet();
   final status = matching.isEmpty
@@ -93,6 +96,7 @@ String gherkinWithResults(Map<String, dynamic> report) {
       );
     }
     buffer.writeln('  @${scenario['id']}');
+    if (scenario['caseId'] != null) buffer.writeln('  @${scenario['caseId']}');
     for (final line in (scenario['gherkin'] as String).split('\n')) {
       buffer.writeln('  $line');
     }

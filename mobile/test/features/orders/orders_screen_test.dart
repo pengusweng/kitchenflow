@@ -51,27 +51,30 @@ Future<ProviderContainer> _pumpOrders(
 }
 
 void main() {
-  testWidgets('logout ends the server session and clears the local session', (
+  testWidgets(
+    'WT-MOB-ORDERS-001 logout ends the server session and clears the local session',
+    (tester) async {
+      final repo = _FakeAuthRepository();
+      final container = await _pumpOrders(
+        tester,
+        repo,
+        token: 'tok-abc',
+        expired: true,
+      );
+
+      await tester.tap(find.text('Logout'));
+      await tester.pump();
+
+      expect(container.read(sessionTokenProvider), isNull);
+      expect(container.read(sessionProvider), isFalse);
+      expect(container.read(sessionExpiredProvider), isFalse);
+      expect(repo.logoutTokens, ['tok-abc']);
+    },
+  );
+
+  testWidgets('WT-MOB-ORDERS-002 logout does nothing when already signed out', (
     tester,
   ) async {
-    final repo = _FakeAuthRepository();
-    final container = await _pumpOrders(
-      tester,
-      repo,
-      token: 'tok-abc',
-      expired: true,
-    );
-
-    await tester.tap(find.text('Logout'));
-    await tester.pump();
-
-    expect(container.read(sessionTokenProvider), isNull);
-    expect(container.read(sessionProvider), isFalse);
-    expect(container.read(sessionExpiredProvider), isFalse);
-    expect(repo.logoutTokens, ['tok-abc']);
-  });
-
-  testWidgets('logout does nothing when already signed out', (tester) async {
     final repo = _FakeAuthRepository();
     final container = await _pumpOrders(tester, repo);
 
@@ -82,44 +85,47 @@ void main() {
     expect(repo.logoutTokens, isEmpty);
   });
 
-  testWidgets('opens the live cancel screen with the entered order UUID', (
+  testWidgets(
+    'WT-MOB-ORDERS-003 opens the live cancel screen with the entered order UUID',
+    (tester) async {
+      const orderId = '11111111-1111-4111-8111-111111111111';
+      final router = GoRouter(
+        initialLocation: AppRoutes.orders,
+        routes: [
+          GoRoute(
+            path: AppRoutes.orders,
+            builder: (context, state) => const OrdersScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.cancelOrder,
+            builder: (context, state) => Scaffold(
+              body: Text('order=${state.uri.queryParameters['orderId']}'),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp.router(theme: counterTheme, routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel a real order (live API, QA)'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), orderId);
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('order=$orderId'), findsOneWidget);
+    },
+  );
+
+  testWidgets('WT-MOB-ORDERS-004 shows the navigation rail on a wide screen', (
     tester,
   ) async {
-    const orderId = '11111111-1111-4111-8111-111111111111';
-    final router = GoRouter(
-      initialLocation: AppRoutes.orders,
-      routes: [
-        GoRoute(
-          path: AppRoutes.orders,
-          builder: (context, state) => const OrdersScreen(),
-        ),
-        GoRoute(
-          path: AppRoutes.cancelOrder,
-          builder: (context, state) => Scaffold(
-            body: Text('order=${state.uri.queryParameters['orderId']}'),
-          ),
-        ),
-      ],
-    );
-    addTearDown(router.dispose);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp.router(theme: counterTheme, routerConfig: router),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Cancel a real order (live API, QA)'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), orderId);
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('order=$orderId'), findsOneWidget);
-  });
-
-  testWidgets('shows the navigation rail on a wide screen', (tester) async {
     final router = GoRouter(
       initialLocation: AppRoutes.orders,
       routes: [

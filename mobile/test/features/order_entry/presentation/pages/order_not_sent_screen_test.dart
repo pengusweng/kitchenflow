@@ -27,7 +27,7 @@ void main() {
 
   group('OrderNotSentScreen Tablet layout', () {
     testWidgets(
-      'renders all tablet components including rail, cards and actions',
+      'WT-MOB-ORDER-ENTRY-001 renders all tablet components including rail, cards and actions',
       (tester) async {
         tester.view.physicalSize = const Size(1024, 768);
         tester.view.devicePixelRatio = 1.0;
@@ -92,7 +92,7 @@ void main() {
 
   group('OrderNotSentScreen Phone layout', () {
     testWidgets(
-      'renders compact phone layout with bottom nav and tone notice',
+      'WT-MOB-ORDER-ENTRY-002 renders compact phone layout with bottom nav and tone notice',
       (tester) async {
         tester.view.physicalSize = const Size(390, 844);
         tester.view.devicePixelRatio = 1.0;

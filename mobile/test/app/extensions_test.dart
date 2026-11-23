@@ -8,20 +8,20 @@ import 'package:mobile/app/theme/ticket_age.dart';
 import 'package:mobile/core/models/order_status.dart';
 
 void main() {
-  test('every order status has a tone in both modes', () {
+  test('UT-MOB-THEME-EXT-001 every order status has a tone in both modes', () {
     for (final status in OrderStatus.values) {
       expect(KkfcStatusColors.light.toneFor(status).bg, isA<Color>());
       expect(KkfcStatusColors.dark.toneFor(status).fg, isA<Color>());
     }
   });
 
-  test('ticket age uses the proposed thresholds', () {
+  test('UT-MOB-THEME-EXT-002 ticket age uses the proposed thresholds', () {
     expect(ticketAgeLevel(const Duration(minutes: 4)), TicketAgeLevel.normal);
     expect(ticketAgeLevel(const Duration(minutes: 5)), TicketAgeLevel.caution);
     expect(ticketAgeLevel(const Duration(minutes: 8)), TicketAgeLevel.overdue);
   });
 
-  test('brand theme exposes the selected accent', () {
+  test('UT-MOB-THEME-EXT-003 brand theme exposes the selected accent', () {
     final themed = themeForBrand(counterTheme, KkfcBrand.aurelias);
     expect(
       themed.extension<KkfcBrandColors>()!.accent,
@@ -29,7 +29,7 @@ void main() {
     );
   });
 
-  test('base themes carry status colors', () {
+  test('UT-MOB-THEME-EXT-004 base themes carry status colors', () {
     expect(counterTheme.extension<KkfcStatusColors>(), isNotNull);
     expect(kitchenTheme.extension<KkfcStatusColors>(), isNotNull);
   });

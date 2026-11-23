@@ -85,7 +85,7 @@ void main() {
   }
 
   testWidgets(
-    'State 1: Initial state shows title, order details, reason field, disclaimer, and action buttons',
+    'WT-MOB-CANCEL-001 State 1: Initial state shows title, order details, reason field, disclaimer, and action buttons',
     (tester) async {
       await pumpCancelOrder(
         tester,
@@ -128,7 +128,7 @@ void main() {
   );
 
   testWidgets(
-    'State 2: Tapping "Cancel order" without reason triggers validation error message and red border',
+    'WT-MOB-CANCEL-002 State 2: Tapping "Cancel order" without reason triggers validation error message and red border',
     (tester) async {
       await pumpCancelOrder(tester);
 
@@ -147,7 +147,7 @@ void main() {
   );
 
   testWidgets(
-    'State 3: Active typing clears validation error and updates character counter',
+    'WT-MOB-CANCEL-012 State 3: Active typing clears validation error and updates character counter',
     (tester) async {
       await pumpCancelOrder(tester);
 
@@ -180,7 +180,7 @@ void main() {
   );
 
   testWidgets(
-    'State 4: Submitting cancellation navigates to "Order cancelled" success state with "Back to menu" button',
+    'WT-MOB-CANCEL-004 State 4: Submitting cancellation navigates to "Order cancelled" success state with "Back to menu" button',
     (tester) async {
       await pumpCancelOrder(
         tester,
@@ -214,7 +214,7 @@ void main() {
   );
 
   testWidgets(
-    'Live cancellation: Calls backend repository with brandId, orderId, and reason',
+    'WT-MOB-CANCEL-008 Live cancellation: Calls backend repository with brandId, orderId, and reason',
     (tester) async {
       final repository = _FakeCancelRepository(
         CancelOrderAccepted(
@@ -250,7 +250,7 @@ void main() {
   );
 
   testWidgets(
-    'Live cancellation: Displays server denial message if backend rejects',
+    'WT-MOB-CANCEL-009 Live cancellation: Displays server denial message if backend rejects',
     (tester) async {
       final repository = _FakeCancelRepository(
         const CancelOrderDenied(
@@ -277,7 +277,7 @@ void main() {
   );
 
   testWidgets(
-    'Callback verification: "Keep order" and "Back to menu" trigger appropriate callbacks',
+    'WT-MOB-CANCEL-013 Callback verification: "Keep order" and "Back to menu" trigger appropriate callbacks',
     (tester) async {
       var keepOrderCalled = false;
       var backToMenuCalled = false;

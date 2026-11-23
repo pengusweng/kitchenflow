@@ -41,7 +41,7 @@ Future<void> _pump(
 
 void main() {
   testWidgets(
-    'Channel filter uses API availability and refresh picks up restored stock',
+    'WT-MOB-MENU-022 Channel filter uses API availability and refresh picks up restored stock',
     (tester) async {
       var grabAvailable = false;
       var loads = 0;
@@ -101,7 +101,7 @@ void main() {
   );
   for (final availability in MenuAvailability.values) {
     testWidgets(
-      'IT-MOB-MENU-001 Given ${availability.name} availability When tapping an item Then only available items enter the cart',
+      'WT-MOB-MENU-001 Given ${availability.name} availability When tapping an item Then only available items enter the cart',
       (tester) async {
         final container = ProviderContainer();
         final item = MenuItem(
@@ -147,7 +147,7 @@ void main() {
   }
 
   testWidgets(
-    'IT-MOB-MENU-002 Given a pending menu When data arrives Then replace the skeleton with menu cards',
+    'WT-MOB-MENU-002 Given a pending menu When data arrives Then replace the skeleton with menu cards',
     (tester) async {
       final pending = Completer<List<MenuItem>>();
       final container = ProviderContainer(
@@ -164,7 +164,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-MENU-003 Given a failed menu When retrying Then reload and display recovered data',
+    'WT-MOB-MENU-003 Given a failed menu When retrying Then reload and display recovered data',
     (tester) async {
       var loads = 0;
       final container = ProviderContainer(
@@ -187,7 +187,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-MENU-004 Given no search matches When clearing search Then restore menu cards and the search field',
+    'WT-MOB-MENU-004 Given no search matches When clearing search Then restore menu cards and the search field',
     (tester) async {
       final container = ProviderContainer(
         overrides: [
@@ -214,7 +214,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-MENU-005 Given an empty catalog When loading completes Then show an empty state without menu cards',
+    'WT-MOB-MENU-005 Given an empty catalog When loading completes Then show an empty state without menu cards',
     (tester) async {
       final container = ProviderContainer(
         overrides: [menuItemsProvider.overrideWith((ref) async => [])],
@@ -227,7 +227,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-MENU-006 Given available and unavailable items When tapping Unavailable button Then hide unavailable items',
+    'WT-MOB-MENU-008 Given available and unavailable items When tapping Unavailable button Then hide unavailable items',
     (tester) async {
       const availableItem = MenuItem(
         id: 'avail-meal',

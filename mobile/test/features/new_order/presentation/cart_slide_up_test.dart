@@ -37,7 +37,7 @@ class _FakeActiveBrandNotifier extends ActiveBrandNotifier {
 
 void main() {
   testWidgets(
-    'Tapping View order on CartBar slides up CartPanel sheet, allowing review and close',
+    'WT-MOB-CART-004 Tapping View order on CartBar slides up CartPanel sheet, allowing review and close',
     (tester) async {
       tester.view.physicalSize = _phoneSize;
       tester.view.devicePixelRatio = 1;

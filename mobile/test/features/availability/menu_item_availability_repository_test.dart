@@ -39,7 +39,7 @@ class _FakeAdapter implements HttpClientAdapter {
 
 void main() {
   group('MenuItemAvailabilityRepository', () {
-    test('sends PATCH /api/menu-items/availability/:id with { availability: false }', () async {
+    test('UT-MOB-AVAIL-001 sends PATCH /api/menu-items/availability/:id with { availability: false }', () async {
       late _FakeAdapter adapter;
       final dio = Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl));
       adapter = _FakeAdapter((body) async {
@@ -68,7 +68,7 @@ void main() {
       expect(decodedBody, {'availability': false});
     });
 
-    test('sends PATCH /api/menu-items/availability/:id with { availability: true }', () async {
+    test('UT-MOB-AVAIL-002 sends PATCH /api/menu-items/availability/:id with { availability: true }', () async {
       late _FakeAdapter adapter;
       final dio = Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl));
       adapter = _FakeAdapter((body) async {
@@ -97,7 +97,7 @@ void main() {
       expect(decodedBody, {'availability': true});
     });
 
-    test('propagates error when API call fails', () async {
+    test('UT-MOB-AVAIL-003 propagates error when API call fails', () async {
       final dio = Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl));
       dio.httpClientAdapter = _FakeAdapter((body) async {
         return ResponseBody.fromString(

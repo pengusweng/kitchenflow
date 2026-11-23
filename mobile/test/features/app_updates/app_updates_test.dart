@@ -77,7 +77,7 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  test('Only published Android releases from the expected repository are accepted', () {
+  test('UT-MOB-UPDATES-001 Only published Android releases from the expected repository are accepted', () {
     expect(
       AppUpdate.fromRelease(_release(101), appUpdateRepository)?.buildNumber,
       101,
@@ -102,33 +102,33 @@ void main() {
     }
   });
 
+  test('UT-MOB-UPDATES-002 Checking never downloads; dismissal survives a fresh service instance', () async {
+    final update = await service.check();
+    expect(update?.buildNumber, 101);
+    expect(downloads, 0);
+    await service.dismiss(update!);
+    expect(await AppUpdateService(dio).check(), isNull);
+    dio.httpClientAdapter = _Adapter((_) => _release(102));
+    expect((await service.check())?.buildNumber, 102);
+  });
+
   test(
-    'Checking never downloads; dismissal survives a fresh service instance',
+    'UT-MOB-UPDATES-003 Current or older builds and failed checks stay silent',
     () async {
-      final update = await service.check();
-      expect(update?.buildNumber, 101);
+      for (final build in [99, 100]) {
+        dio.httpClientAdapter = _Adapter((_) => _release(build));
+        expect(await service.check(), isNull);
+      }
+      dio.httpClientAdapter = _Adapter(
+        (options) => throw DioException(requestOptions: options),
+      );
+      expect(await service.check(), isNull);
       expect(downloads, 0);
-      await service.dismiss(update!);
-      expect(await AppUpdateService(dio).check(), isNull);
-      dio.httpClientAdapter = _Adapter((_) => _release(102));
-      expect((await service.check())?.buildNumber, 102);
     },
   );
 
-  test('Current or older builds and failed checks stay silent', () async {
-    for (final build in [99, 100]) {
-      dio.httpClientAdapter = _Adapter((_) => _release(build));
-      expect(await service.check(), isNull);
-    }
-    dio.httpClientAdapter = _Adapter(
-      (options) => throw DioException(requestOptions: options),
-    );
-    expect(await service.check(), isNull);
-    expect(downloads, 0);
-  });
-
   testWidgets(
-    'Notice never blocks ordering and dismissal survives navigation',
+    'WT-MOB-UPDATES-001 Notice never blocks ordering and dismissal survives navigation',
     (tester) async {
       final update = AppUpdate.fromRelease(_release(101), appUpdateRepository)!;
       final container = ProviderContainer(
@@ -171,7 +171,9 @@ void main() {
     },
   );
 
-  testWidgets('Only an explicit tap opens the download', (tester) async {
+  testWidgets('WT-MOB-UPDATES-002 Only an explicit tap opens the download', (
+    tester,
+  ) async {
     final container = ProviderContainer(
       overrides: [
         availableAppUpdateProvider.overrideWith(

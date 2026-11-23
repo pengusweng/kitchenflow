@@ -12,6 +12,83 @@ import { QcRejectionReason } from '@prisma/client';
 import { KitchenFulfillmentService } from '../kitchen-fulfillment.service';
 
 describe('KitchenFulfillmentService', () => {
+  it.each(['prepare', 'check', 'pass', 'reject', 'handOver'] as const)(
+    'UT-KFUL-009: does not publish a board update when %s finishes its writes but transaction commit fails',
+    async (operation) => {
+      const error = new Error('Transaction commit failed');
+      const tx = {} as Prisma.TransactionClient;
+      const ticket = { kitchen_ticket_id: 'ticket', order_id: 'order' };
+      const attempt = { qc_attempt_id: 'attempt', kitchen_ticket_id: 'ticket' };
+      const tickets = {
+        prepare: jest.fn().mockResolvedValue(ticket),
+        check: jest.fn().mockResolvedValue(ticket),
+        ready: jest.fn().mockResolvedValue(ticket),
+        rework: jest.fn().mockResolvedValue(ticket),
+        findOne: jest.fn().mockResolvedValue(ticket),
+        handOver: jest.fn().mockResolvedValue(ticket),
+        notifyChange: jest.fn(),
+      };
+      const prisma = {
+        $transaction: jest.fn(
+          async (
+            work: (client: Prisma.TransactionClient) => Promise<unknown>,
+          ) => {
+            await work(tx);
+            throw error;
+          },
+        ),
+      };
+      const module = await Test.createTestingModule({
+        providers: [KitchenFulfillmentService],
+      })
+        .useMocker((token) => {
+          if (token === PrismaService) return prisma;
+          if (token === KitchenTicketService) return tickets;
+          if (token === OrdersService)
+            return {
+              prepare: jest.fn().mockResolvedValue({}),
+              complete: jest
+                .fn()
+                .mockResolvedValue({ order_channel: 'TAKEAWAY' }),
+            };
+          if (token === KitchenQcService)
+            return {
+              create: jest.fn().mockResolvedValue(attempt),
+              passAttempt: jest.fn().mockResolvedValue(attempt),
+              failAttempt: jest.fn().mockResolvedValue(attempt),
+            };
+          if (token === OrderItemQcRejectionService)
+            return { create: jest.fn().mockResolvedValue({}) };
+          return {};
+        })
+        .compile();
+      try {
+        const service = module.get(KitchenFulfillmentService);
+        const work = {
+          prepare: () => service.prepare('ticket', 'actor'),
+          check: () => service.check('ticket', 'actor'),
+          pass: () => service.passQCAttempt('attempt', 'actor'),
+          reject: () =>
+            service.rejectQcAttempt('attempt', 'actor', {
+              rejections: [
+                {
+                  order_item_id: 'item',
+                  portion_number: 1,
+                  rejection_reason: QcRejectionReason.INCOMPLETE,
+                },
+              ],
+            }),
+          handOver: () => service.handOver('ticket', 'actor'),
+        };
+        await expect(work[operation]()).rejects.toBe(error);
+        expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(tickets.notifyChange).not.toHaveBeenCalled();
+      } finally {
+        await module.close();
+      }
+    },
+  );
+
   describe('rejectQcAttempt', () => {
     const tx = {} as Prisma.TransactionClient;
     const dto = {

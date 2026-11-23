@@ -5,7 +5,9 @@ import 'package:mobile/app/theme/theme.dart';
 import 'package:mobile/shared/widgets/kkfc_radio.dart';
 
 void main() {
-  testWidgets('tapping selects only that option', (tester) async {
+  testWidgets('WT-MOB-RADIO-001 tapping selects only that option', (
+    tester,
+  ) async {
     String? selected = 'plain';
     await tester.pumpWidget(
       MaterialApp(
@@ -38,7 +40,7 @@ void main() {
     expect(selected, 'garlic');
   });
 
-  testWidgets('disabled radio ignores taps', (tester) async {
+  testWidgets('WT-MOB-RADIO-002 disabled radio ignores taps', (tester) async {
     String? selected;
     await tester.pumpWidget(
       MaterialApp(
@@ -59,7 +61,9 @@ void main() {
     expect(selected, isNull);
   });
 
-  testWidgets('still builds at large text scale', (tester) async {
+  testWidgets('WT-MOB-RADIO-003 still builds at large text scale', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: counterTheme,

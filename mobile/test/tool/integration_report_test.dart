@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../tool/integration_report.dart';
 
 void main() {
-  test('HTML retains framework diagnostics emitted as print events', () {
+  test('UT-MOB-REPORT-004 HTML retains framework diagnostics emitted as print events', () {
     final parser = IntegrationReport();
     for (final event in [
       {
@@ -71,31 +71,28 @@ void main() {
     arguments: ['test', '--machine'],
   );
 
-  test(
-    'counts cases, ignores successful lifecycle events and build output',
-    () {
-      report.addLine('Building APK...');
-      start(0, 'loading integration_test/auth_api_test.dart');
-      done(0, hidden: true);
-      start(1, 'login');
-      done(1);
-      start(2, 'optional case');
-      done(2, skipped: true);
-      event({'type': 'done', 'success': true});
+  test('UT-MOB-REPORT-005 counts cases, ignores successful lifecycle events and build output', () {
+    report.addLine('Building APK...');
+    start(0, 'loading integration_test/auth_api_test.dart');
+    done(0, hidden: true);
+    start(1, 'login');
+    done(1);
+    start(2, 'optional case');
+    done(2, skipped: true);
+    event({'type': 'done', 'success': true});
 
-      final result = summary();
-      expect(result['status'], 'Passed');
-      expect(result['counts'], {
-        'Passed': 1,
-        'Failed': 0,
-        'Skipped': 1,
-        'Not completed': 0,
-      });
-      expect((result['tests'] as List).first['durationMs'], 50);
-    },
-  );
+    final result = summary();
+    expect(result['status'], 'Passed');
+    expect(result['counts'], {
+      'Passed': 1,
+      'Failed': 0,
+      'Skipped': 1,
+      'Not completed': 0,
+    });
+    expect((result['tests'] as List).first['durationMs'], 50);
+  });
 
-  test('late errors override earlier success and preserve diagnostics', () {
+  test('UT-MOB-REPORT-006 late errors override earlier success and preserve diagnostics', () {
     start(1, 'login');
     done(1);
     event({
@@ -114,22 +111,25 @@ void main() {
     expect(reportHtml(result), contains('auth_api_test.dart:50'));
   });
 
-  test('setup failure is a blocker, not a product test failure', () {
-    start(1, '(setUpAll)');
-    event({
-      'type': 'error',
-      'testID': 1,
-      'error': 'Missing API_URL',
-      'stackTrace': '',
-    });
-    event({'type': 'done', 'success': false});
-    final result = summary(exitCode: 1);
-    expect(result['status'], 'Blocked');
-    expect(result['tests'], isEmpty);
-    expect(result['blockers'].join(), contains('Missing API_URL'));
-  });
+  test(
+    'UT-MOB-REPORT-007 setup failure is a blocker, not a product test failure',
+    () {
+      start(1, '(setUpAll)');
+      event({
+        'type': 'error',
+        'testID': 1,
+        'error': 'Missing API_URL',
+        'stackTrace': '',
+      });
+      event({'type': 'done', 'success': false});
+      final result = summary(exitCode: 1);
+      expect(result['status'], 'Blocked');
+      expect(result['tests'], isEmpty);
+      expect(result['blockers'].join(), contains('Missing API_URL'));
+    },
+  );
 
-  test('missing or incomplete protocol never produces a passing report', () {
+  test('UT-MOB-REPORT-008 missing or incomplete protocol never produces a passing report', () {
     expect(summary()['status'], 'Blocked');
     start(1, 'login');
     expect(summary()['status'], 'Blocked');
@@ -138,14 +138,14 @@ void main() {
     expect(summary()['status'], 'Blocked');
   });
 
-  test('all skipped is reported separately from passed', () {
+  test('UT-MOB-REPORT-009 all skipped is reported separately from passed', () {
     start(1, 'login');
     done(1, skipped: true);
     event({'type': 'done', 'success': true});
     expect(summary()['status'], 'Skipped');
   });
 
-  test('HTML escapes test diagnostics and names', () {
+  test('UT-MOB-REPORT-010 HTML escapes test diagnostics and names', () {
     start(1, '<script>alert(1)</script>');
     event({
       'type': 'error',

@@ -54,38 +54,41 @@ void main() {
     return selected;
   }
 
-  testWidgets('renders brand image logos and codes for all standard brands', (
-    tester,
-  ) async {
-    await openPicker(tester);
+  testWidgets(
+    'WT-MOB-BRAND-PICKER-001 renders brand image logos and codes for all standard brands',
+    (tester) async {
+      await openPicker(tester);
 
-    // Dialog title & Eyebrow badge
-    expect(find.text('Choose assigned brand'), findsOneWidget);
-    expect(find.text('DEMO ACCOUNT · 3 ASSIGNED BRANDS'), findsOneWidget);
+      // Dialog title & Eyebrow badge
+      expect(find.text('Choose assigned brand'), findsOneWidget);
+      expect(find.text('DEMO ACCOUNT · 3 ASSIGNED BRANDS'), findsOneWidget);
 
-    // Verify Brand names and codes
-    expect(find.text('Gamcheon'), findsOneWidget);
-    expect(find.text('GC'), findsOneWidget);
-    expect(find.text("Aurelia's Inasal"), findsOneWidget);
-    expect(find.text('AI'), findsOneWidget);
-    expect(find.text('King Kungs Kafé'), findsOneWidget);
-    expect(find.text('KK'), findsOneWidget);
+      // Verify Brand names and codes
+      expect(find.text('Gamcheon'), findsOneWidget);
+      expect(find.text('GC'), findsOneWidget);
+      expect(find.text("Aurelia's Inasal"), findsOneWidget);
+      expect(find.text('AI'), findsOneWidget);
+      expect(find.text('King Kungs Kafé'), findsOneWidget);
+      expect(find.text('KK'), findsOneWidget);
 
-    // Verify Image assets rendered
-    final imageWidgets = tester.widgetList<Image>(find.byType(Image)).toList();
-    final imageSources = imageWidgets
-        .map((img) => img.image)
-        .whereType<AssetImage>()
-        .map((asset) => asset.assetName)
-        .toList();
+      // Verify Image assets rendered
+      final imageWidgets = tester
+          .widgetList<Image>(find.byType(Image))
+          .toList();
+      final imageSources = imageWidgets
+          .map((img) => img.image)
+          .whereType<AssetImage>()
+          .map((asset) => asset.assetName)
+          .toList();
 
-    expect(imageSources, contains('assets/images/gamcheon.png'));
-    expect(imageSources, contains('assets/images/aurelia.png'));
-    expect(imageSources, contains('assets/images/king_kungs.png'));
-  });
+      expect(imageSources, contains('assets/images/gamcheon.png'));
+      expect(imageSources, contains('assets/images/aurelia.png'));
+      expect(imageSources, contains('assets/images/king_kungs.png'));
+    },
+  );
 
   testWidgets(
-    'allows switching selected brand and applies brand color to continue button',
+    'WT-MOB-BRAND-PICKER-002 allows switching selected brand and applies brand color to continue button',
     (tester) async {
       AssignedBrand? result;
       await tester.pumpWidget(
@@ -138,22 +141,23 @@ void main() {
     },
   );
 
-  testWidgets('renders gracefully with fallback for unknown or test brands', (
-    tester,
-  ) async {
-    const customBrands = [
-      AssignedBrand(id: 'c1', code: 'C1', name: 'Custom Brand 1'),
-      AssignedBrand(id: 'c2', code: 'C2', name: 'Custom Brand 2'),
-    ];
+  testWidgets(
+    'WT-MOB-BRAND-PICKER-003 renders gracefully with fallback for unknown or test brands',
+    (tester) async {
+      const customBrands = [
+        AssignedBrand(id: 'c1', code: 'C1', name: 'Custom Brand 1'),
+        AssignedBrand(id: 'c2', code: 'C2', name: 'Custom Brand 2'),
+      ];
 
-    await openPicker(tester, brands: customBrands, current: customBrands[0]);
+      await openPicker(tester, brands: customBrands, current: customBrands[0]);
 
-    expect(find.text('Custom Brand 1'), findsWidgets);
-    expect(find.text('C1'), findsOneWidget);
-    expect(find.text('Custom Brand 2'), findsWidgets);
-    expect(find.text('C2'), findsOneWidget);
+      expect(find.text('Custom Brand 1'), findsWidgets);
+      expect(find.text('C1'), findsOneWidget);
+      expect(find.text('Custom Brand 2'), findsWidgets);
+      expect(find.text('C2'), findsOneWidget);
 
-    await tester.tap(find.text('Continue with selected brand'));
-    await tester.pumpAndSettle();
-  });
+      await tester.tap(find.text('Continue with selected brand'));
+      await tester.pumpAndSettle();
+    },
+  );
 }

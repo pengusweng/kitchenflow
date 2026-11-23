@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'integration_report.dart';
 import 'gherkin_scenarios.dart';
+import 'integration_test_config.dart';
 
 Future<void> main(List<String> args) async {
   if (args.contains('--help') || args.contains('-h')) {
@@ -10,8 +11,8 @@ Future<void> main(List<String> args) async {
       'Run from mobile/: dart run tool/run_integration_tests.dart -d <device-id>\n'
       'Use --suite=pos for the separate Login -> Brand/Channel -> Menu -> Cart suite.\n'
       'Use --suite=orders for current mobile review plus real API lifecycle checks.\n'
-      'Additional Flutter test arguments are forwarded. The default config is\n'
-      'env/test-emulator.json unless you supply any --dart-define option.\n'
+      'Additional Flutter test arguments are forwarded. --dart-define overrides\n'
+      'individual defaults. --dart-define-from-file replaces the suite file.\n'
       'Reports: reports/integration/<timestamp>/report.html, results.json, run.log',
     );
     return;
@@ -37,21 +38,13 @@ Future<void> main(List<String> args) async {
   await directory.create(recursive: true);
   final log = File('${directory.path}/run.log').openWrite();
   final report = IntegrationReport();
-  final arguments = [
+  final arguments = <String>[
     'test',
     isOrders
         ? 'integration_test/order_lifecycle_test.dart'
         : isPos
         ? 'integration_test/pos_core_test.dart'
         : 'integration_test/auth_api_test.dart',
-    if (!forwarded.any((arg) => arg.startsWith('--dart-define')))
-      '--dart-define-from-file=${isOrders
-          ? '.fixtures/order-flow.json'
-          : isPos
-          ? '.fixtures/pos-flow.json'
-          : 'env/test-emulator.json'}',
-    ...forwarded,
-    '--machine',
   ];
   var resultCode = 1;
   String? launchError;
@@ -72,10 +65,15 @@ Future<void> main(List<String> args) async {
         !args.any((a) => a.startsWith('--device-id=') || a.startsWith('-d='))) {
       throw ArgumentError('Specify a device with -d <device-id>.');
     }
+    final mobileDirectory = Directory.fromUri(Platform.script.resolve('../'));
+    arguments.addAll(
+      await integrationConfigArgs(mobileDirectory, suite, forwarded),
+    );
+    arguments.add('--machine');
     final process = await Process.start(
       'flutter',
       arguments,
-      workingDirectory: Directory.fromUri(Platform.script.resolve('../')).path,
+      workingDirectory: mobileDirectory.path,
       runInShell: Platform.isWindows,
     );
     // Drain both streams concurrently to prevent a full pipe blocking Flutter.
@@ -112,10 +110,11 @@ Future<void> main(List<String> args) async {
   summary['gherkinFile'] = featureFile;
   if (isPos) summary['title'] = 'Mobile POS core flow integration test report';
   if (isOrders) {
-    summary['title'] = 'Mobile order review and real API lifecycle test report';
+    summary['title'] = 'Mobile order and kitchen lifecycle test report';
     summary['limitations'] = [
-      'Mobile Send currently creates a DRAFT only. Verification and confirmation in this suite are direct real API checks, not UI-triggered lifecycle calls.',
-      'The mobile confirmation screen still displays a placeholder ticket. Real order codes and kitchen ticket identities are verified from API responses.',
+      'Order details creates the draft on Review order, and Confirm and send calls the API and displays the returned ticket. The separate /verify endpoint is exercised directly by the verification scenario.',
+      'The kitchen scenario uses real UI actions for acknowledgement, preparation, return from rework, QC approval, and handover. Its first QC check and rejection use the production repository directly to verify live board updates.',
+      'The kitchen scenario covers Takeaway without photo uploads. Delivery photo evidence remains outside this mobile scenario.',
       'Availability coverage checks catalog and channel rules. Inventory stock reservation and posting are not implemented by order confirmation.',
     ];
   }

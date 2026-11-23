@@ -45,7 +45,7 @@ Dio _dioWith(
 }
 
 void main() {
-  test('sends the Bearer token when signed in', () async {
+  test('UT-MOB-API-001 sends the Bearer token when signed in', () async {
     final dio = _dioWith(() => 'abc123');
     await dio.get<dynamic>('/orders');
 
@@ -53,56 +53,68 @@ void main() {
     expect(adapter.last!.headers['Authorization'], 'Bearer abc123');
   });
 
-  test('sends no Authorization header when signed out', () async {
-    final dio = _dioWith(() => null);
-    await dio.get<dynamic>('/orders');
+  test(
+    'UT-MOB-API-002 sends no Authorization header when signed out',
+    () async {
+      final dio = _dioWith(() => null);
+      await dio.get<dynamic>('/orders');
 
-    final adapter = dio.httpClientAdapter as _CaptureAdapter;
-    expect(adapter.last!.headers.containsKey('Authorization'), isFalse);
-  });
+      final adapter = dio.httpClientAdapter as _CaptureAdapter;
+      expect(adapter.last!.headers.containsKey('Authorization'), isFalse);
+    },
+  );
 
-  test('401 on a protected request reports the rejected token', () async {
-    String? rejected;
-    final dio = _dioWith(
-      () => 'abc123',
-      status: 401,
-      onUnauthorized: (t) => rejected = t,
-    );
+  test(
+    'UT-MOB-API-003 401 on a protected request reports the rejected token',
+    () async {
+      String? rejected;
+      final dio = _dioWith(
+        () => 'abc123',
+        status: 401,
+        onUnauthorized: (t) => rejected = t,
+      );
 
-    await expectLater(
-      dio.get<dynamic>('/orders'),
-      throwsA(isA<DioException>()),
-    );
-    expect(rejected, 'abc123');
-  });
+      await expectLater(
+        dio.get<dynamic>('/orders'),
+        throwsA(isA<DioException>()),
+      );
+      expect(rejected, 'abc123');
+    },
+  );
 
-  test('401 from the login endpoint does not sign out', () async {
-    var called = false;
-    final dio = _dioWith(
-      () => 'abc123',
-      status: 401,
-      onUnauthorized: (_) => called = true,
-    );
+  test(
+    'UT-MOB-API-004 401 from the login endpoint does not sign out',
+    () async {
+      var called = false;
+      final dio = _dioWith(
+        () => 'abc123',
+        status: 401,
+        onUnauthorized: (_) => called = true,
+      );
 
-    await expectLater(
-      dio.post<dynamic>('/auth/login'),
-      throwsA(isA<DioException>()),
-    );
-    expect(called, isFalse);
-  });
+      await expectLater(
+        dio.post<dynamic>('/auth/login'),
+        throwsA(isA<DioException>()),
+      );
+      expect(called, isFalse);
+    },
+  );
 
-  test('401 on a request that sent no token does not sign out', () async {
-    var called = false;
-    final dio = _dioWith(
-      () => null,
-      status: 401,
-      onUnauthorized: (_) => called = true,
-    );
+  test(
+    'UT-MOB-API-005 401 on a request that sent no token does not sign out',
+    () async {
+      var called = false;
+      final dio = _dioWith(
+        () => null,
+        status: 401,
+        onUnauthorized: (_) => called = true,
+      );
 
-    await expectLater(
-      dio.get<dynamic>('/orders'),
-      throwsA(isA<DioException>()),
-    );
-    expect(called, isFalse);
-  });
+      await expectLater(
+        dio.get<dynamic>('/orders'),
+        throwsA(isA<DioException>()),
+      );
+      expect(called, isFalse);
+    },
+  );
 }

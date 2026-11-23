@@ -1,16 +1,18 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mobile/core/api/api_client.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
-import 'package:mobile/features/new_order/presentation/widgets/channel_tabs.dart';
+import 'package:mobile/features/new_order/presentation/widgets/order_flow/confirmation_step_view.dart';
+import 'package:mobile/features/new_order/presentation/widgets/order_flow/order_details_step_view.dart';
+import 'package:mobile/features/new_order/presentation/widgets/order_flow/review_order_step_view.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 import 'package:mobile/features/order_entry/data/repositories/order_entry_repository.dart';
-import 'package:mobile/features/order_entry/presentation/pages/order_confirmed_screen.dart';
-import 'package:mobile/features/order_entry/presentation/pages/order_entry_screen.dart';
 
 import 'support/order_test_driver.dart';
+import 'support/kitchen_flow_driver.dart';
 
 const _payment = {'payment_method': 'CASH', 'payment_status': 'UNPAID'};
 String get _orders => '/brands/$orderBrandId/orders';
@@ -60,54 +62,52 @@ void main() {
   setUpAll(requireOrderFixtures);
 
   testWidgets(
-    'IT-MOB-ORD-001 UI review creates one draft; API verification and confirmation create one real ticket',
+    'IT-MOB-ORD-005 POS order continues through kitchen preparation QC rework approval handover and availability',
+    (tester) async {
+      final container = await loginForOrders(tester);
+      await addOrderMenuItem(tester, orderItemId);
+      await addOrderMenuItem(tester, orderItemId);
+      await fillOrderReference(
+        tester,
+        'Kitchen lifecycle pickup',
+        channel: MenuChannel.takeaway,
+      );
+      final capture = _observePosts(container.read(dioProvider), _orders);
+      final draft = await _reviewDraft(tester, capture);
+      final id = draft['order_id'] as String;
+      final confirmed = await _confirmFromReview(tester, container, id);
+      final ticket = confirmed['kitchen_tickets_order'] as Map;
+      await completeKitchenFlow(
+        tester,
+        container,
+        orderId: id,
+        ticketId: ticket['kitchen_ticket_id'] as String,
+        ticketNumber: ticket['ticket_number'] as String,
+        orderCode: confirmed['order_code'] as String,
+        persistedOrderItemId:
+            confirmed['order_items_order'].single['order_item_id'] as String,
+      );
+    },
+  );
+
+  testWidgets(
+    'IT-MOB-ORD-001 UI review creates one draft; UI confirmation creates one real ticket after API verification',
     (tester) async {
       final container = await loginForOrders(tester);
       final api = authenticatedOrderApi(container);
-      await orderTap(
+      await addOrderMenuItem(tester, orderItemId);
+      await addOrderMenuItem(tester, orderItemId);
+      await fillOrderReference(
         tester,
-        find.descendant(
-          of: find.byType(ChannelTabs),
-          matching: find.text('Takeaway'),
-        ),
+        'Integration pickup',
+        channel: MenuChannel.takeaway,
       );
-      await orderTap(tester, orderMenuItem(orderItemId));
-      await orderTap(tester, orderMenuItem(orderItemId));
       expect(container.read(cartTotalProvider), 25000);
-      await fillOrderReference(tester, 'Integration pickup');
-      await orderTap(tester, find.text('Check and send'));
-      expect(find.byType(OrderEntryScreen), findsOneWidget);
+      final capture = _observePosts(container.read(dioProvider), _orders);
+      final draft = await _reviewDraft(tester, capture);
       expect(find.text(formatPeso(25000)), findsWidgets);
-
-      final capture = _observeDrafts(container.read(dioProvider));
-      final send = find.text('Confirm & send');
-      await tester.ensureVisible(send);
-      await tester.tap(send);
-      if (send.evaluate().isNotEmpty) {
-        await tester.tap(send, warnIfMissed: false);
-      }
-      await waitForOrderUi(
-        tester,
-        () =>
-            capture.responses.isNotEmpty &&
-            find.byType(OrderConfirmedScreen).evaluate().isNotEmpty,
-        'UI create response',
-      );
-      expect(
-        capture.requests,
-        hasLength(1),
-        reason: 'Repeated taps must not create multiple requests.',
-      );
-      final draft = capture.responses.single.data as Map<String, dynamic>;
-      expect(
-        draft['status'],
-        'DRAFT',
-        reason: 'The current UI only calls create; this is not a confirmed kitchen order yet.',
-      );
-      expect(draft['kitchen_tickets_order'], isNull);
-      expect(container.read(cartProvider), isEmpty);
       _assertCode(draft, container.read(activeBrandProvider).code);
-      final id = draft['order_id'];
+      final id = draft['order_id'] as String;
       final verified = await _post(api, '$_orders/$id/verify', _payment, 200);
       expect(verified['valid'], true);
       expect(verified['lines'].single['quantity'], 2);
@@ -122,7 +122,7 @@ void main() {
         isNull,
         reason: 'Verification must not create a ticket.',
       );
-      final confirmed = await _post(api, '$_orders/$id/confirm', _payment, 200);
+      final confirmed = await _confirmFromReview(tester, container, id);
       expect(confirmed['status'], 'CONFIRMED');
       expect(confirmed['order_code'], draft['order_code']);
       final ticket = confirmed['kitchen_tickets_order'] as Map;
@@ -140,6 +140,8 @@ void main() {
       expect(replay['payment_method'], 'CASH');
       expect(replay['payment_status'], 'UNPAID');
       expect((await _post(api, _orders, payload, 201))['status'], 'CONFIRMED');
+      await orderTap(tester, find.text('New order'));
+      expect(container.read(cartProvider), isEmpty);
     },
   );
 
@@ -222,7 +224,7 @@ void main() {
     (tester) async {
       final container = await loginForOrders(tester);
       final api = authenticatedOrderApi(container);
-      await orderTap(tester, orderMenuItem(orderItemId));
+      await addOrderMenuItem(tester, orderItemId);
       final payload = _payload(quantity: 1);
       final draft = await _post(api, _orders, payload, 201);
       final manager = orderApi();
@@ -250,17 +252,16 @@ void main() {
         await _post(api, _orders, _payload(item: unavailableOrderItemId), 400);
 
         await fillOrderReference(tester, 'Availability test table');
-        await orderTap(tester, find.text('Check and send'));
-        final capture = _observeDrafts(container.read(dioProvider));
-        await orderTap(tester, find.text('Confirm & send'));
+        final capture = _observePosts(container.read(dioProvider), _orders);
+        await orderTap(tester, find.text('Review order'));
         await waitForOrderUi(
           tester,
           () => capture.responses.isNotEmpty,
           'server availability rejection',
         );
         expect(capture.responses.single.statusCode, 400);
-        expect(find.byType(OrderEntryScreen), findsOneWidget);
-        expect(find.byType(OrderConfirmedScreen), findsNothing);
+        expect(find.byType(OrderDetailsStepView), findsOneWidget);
+        expect(find.byType(ReviewOrderStepView), findsNothing);
         expect(container.read(cartProvider).single.quantity, 1);
         expect(
           container.read(orderReferenceProvider),
@@ -289,15 +290,70 @@ void main() {
   );
 }
 
-class _DraftCapture {
+Future<Map<String, dynamic>> _reviewDraft(
+  WidgetTester tester,
+  _OrderCapture capture,
+) async {
+  await orderTap(tester, find.text('Review order'));
+  await waitForOrderUi(
+    tester,
+    () =>
+        capture.responses.isNotEmpty &&
+        find.byType(ReviewOrderStepView).evaluate().isNotEmpty,
+    'UI order review and draft creation',
+  );
+  expect(capture.requests, hasLength(1));
+  expect(capture.responses.single.statusCode, 201);
+  final draft = capture.responses.single.data as Map<String, dynamic>;
+  expect(draft['status'], 'DRAFT');
+  expect(draft['kitchen_tickets_order'], isNull);
+  return draft;
+}
+
+Future<Map<String, dynamic>> _confirmFromReview(
+  WidgetTester tester,
+  ProviderContainer container,
+  String id,
+) async {
+  final capture = _observePosts(
+    container.read(dioProvider),
+    '$_orders/$id/confirm',
+  );
+  final send = find.text('Confirm and send');
+  await tester.ensureVisible(send);
+  await tester.tap(send);
+  await tester.tap(send, warnIfMissed: false);
+  await waitForOrderUi(
+    tester,
+    () =>
+        capture.responses.isNotEmpty &&
+        find.byType(ConfirmationStepView).evaluate().isNotEmpty,
+    'UI confirmation and kitchen ticket',
+  );
+  expect(
+    capture.requests,
+    hasLength(1),
+    reason: 'Repeated taps must not send multiple confirmation requests.',
+  );
+  expect(capture.responses.single.statusCode, 200);
+  final confirmed = capture.responses.single.data as Map<String, dynamic>;
+  expect(confirmed['status'], 'CONFIRMED');
+  expect(
+    find.text(confirmed['kitchen_tickets_order']['ticket_number'] as String),
+    findsWidgets,
+  );
+  return confirmed;
+}
+
+class _OrderCapture {
   final requests = <RequestOptions>[];
   final responses = <Response<dynamic>>[];
 }
 
 // Observe the production Dio traffic without replacing the transport or responses.
-_DraftCapture _observeDrafts(Dio dio) {
-  final capture = _DraftCapture();
-  bool matches(RequestOptions r) => r.method == 'POST' && r.path == _orders;
+_OrderCapture _observePosts(Dio dio, String path) {
+  final capture = _OrderCapture();
+  bool matches(RequestOptions r) => r.method == 'POST' && r.path == path;
   final observer = InterceptorsWrapper(
     onRequest: (r, handler) {
       if (matches(r)) capture.requests.add(r);

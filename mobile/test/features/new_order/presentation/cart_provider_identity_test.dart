@@ -26,7 +26,7 @@ ProviderContainer _container() => ProviderContainer(
 );
 
 void main() {
-  test('provider survives switching, quantity changes and customization', () {
+  test('UT-MOB-CART-005 provider survives switching, quantity changes and customization', () {
     final container = _container();
     addTearDown(container.dispose);
     final cart = container.read(cartProvider.notifier);
@@ -69,28 +69,29 @@ void main() {
     'review': () => ReviewOrderStepView(onConfirm: () {}),
   };
   for (final entry in views.entries) {
-    testWidgets('${entry.key} keeps original provider after switching menus', (
-      tester,
-    ) async {
-      final container = _container();
-      addTearDown(container.dispose);
-      container.read(activeBrandProvider.notifier).select(_cafe);
-      container.read(cartProvider.notifier).add(_matcha);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(home: Scaffold(body: entry.value())),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      for (final brand in [_gamcheon, _inasal]) {
-        container.read(activeBrandProvider.notifier).select(brand);
+    testWidgets(
+      'WT-MOB-CART-003 ${entry.key} keeps original provider after switching menus',
+      (tester) async {
+        final container = _container();
+        addTearDown(container.dispose);
+        container.read(activeBrandProvider.notifier).select(_cafe);
+        container.read(cartProvider.notifier).add(_matcha);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(home: Scaffold(body: entry.value())),
+          ),
+        );
         await tester.pumpAndSettle();
-        expect(find.text(_cafe.name), findsOneWidget);
-        expect(find.text(brand.name), findsNothing);
-        expect(find.text('Matcha Latte'), findsOneWidget);
-      }
-    });
+
+        for (final brand in [_gamcheon, _inasal]) {
+          container.read(activeBrandProvider.notifier).select(brand);
+          await tester.pumpAndSettle();
+          expect(find.text(_cafe.name), findsOneWidget);
+          expect(find.text(brand.name), findsNothing);
+          expect(find.text('Matcha Latte'), findsOneWidget);
+        }
+      },
+    );
   }
 }

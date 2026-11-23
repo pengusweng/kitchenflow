@@ -68,7 +68,7 @@ void main() {
   );
 
   testWidgets(
-    'ItemCustomizationDialog displays all options, calculates price, and adds to cart',
+    'WT-MOB-CUSTOMIZE-010 ItemCustomizationDialog displays all options, calculates price, and adds to cart',
     (tester) async {
       final container = ProviderContainer();
 
@@ -190,7 +190,7 @@ void main() {
   );
 
   testWidgets(
-    'ItemCustomizationDialog shows when item has no add-ons, hiding the add-on section while keeping quantity and notes',
+    'WT-MOB-CUSTOMIZE-011 ItemCustomizationDialog shows when item has no add-ons, hiding the add-on section while keeping quantity and notes',
     (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -283,7 +283,7 @@ void main() {
   );
 
   testWidgets(
-    'ItemCustomizationDialog allows user to type desired quantity directly into quantity field',
+    'WT-MOB-CUSTOMIZE-012 ItemCustomizationDialog allows user to type desired quantity directly into quantity field',
     (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -338,7 +338,7 @@ void main() {
   );
 
   testWidgets(
-    'ItemCustomizationDialog clamps quantity to minimum 1 when typing 0 upon submission',
+    'WT-MOB-CUSTOMIZE-013 ItemCustomizationDialog clamps quantity to minimum 1 when typing 0 upon submission',
     (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -385,7 +385,7 @@ void main() {
   );
 
   testWidgets(
-    'Holding stepper button continually increases and decreases quantity',
+    'WT-MOB-CUSTOMIZE-014 Holding stepper button continually increases and decreases quantity',
     (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);

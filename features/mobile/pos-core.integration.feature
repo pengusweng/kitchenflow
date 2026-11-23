@@ -2,11 +2,11 @@
 Feature: Mobile POS core flow through the real test API
 
   @IT-MOB-POS-001
-  Scenario: Login and build a cart using the assigned brand and channel
-    Given an isolated staff account with an assigned brand and priced menu
-    When the staff member logs in and selects Takeaway
+  Scenario: Select a provider and build a Dine-in cart
+    Given an isolated staff account and a fixture brand with a priced menu
+    When the staff member logs in and selects the fixture brand in the catalog
     And adds the available meal twice from the menu
-    Then one cart line contains two meals with a total of 250 pesos
+    Then one cart line contains two meals with a Dine-in total of 200 pesos
     When the staff member adds and removes one unit using the cart controls
     Then the quantities and totals update correctly
     When the staff member clears the cart
@@ -15,11 +15,9 @@ Feature: Mobile POS core flow through the real test API
   @IT-MOB-POS-002
   Scenario: Reprice an existing cart when changing channels
     Given a logged in staff member with two meals in the Dine-in cart
-    When the staff member selects Takeaway
-    Then the repricing notice shows without losing the cart lines
-    And the total changes from 200 to 250 pesos
-    When the staff member acknowledges the notice
-    Then the menu returns and the cart retains the Takeaway prices
+    When the staff member continues to Order details and selects Takeaway
+    Then the order details total changes from 200 to 250 pesos
+    And the cart retains its line identity and quantity
 
   @IT-MOB-POS-003
   Scenario: Unavailable menu items cannot enter the cart

@@ -27,7 +27,7 @@ void main() {
   ];
   for (final route in routes) {
     testWidgets(
-      'IT-MOB-ROUTE-001 Given no session When opening $route Then redirect to login',
+      'WT-MOB-ROUTE-001 Given no session When opening $route Then redirect to login',
       (tester) async {
         final container = ProviderContainer();
         addTearDown(container.dispose);
@@ -50,7 +50,7 @@ void main() {
     );
 
     testWidgets(
-      'IT-MOB-ROUTE-002 Given a session on $route When it expires Then redirect to login',
+      'WT-MOB-ROUTE-002 Given a session on $route When it expires Then redirect to login',
       (tester) async {
         tester.view.physicalSize = const Size(1068, 1000);
         tester.view.devicePixelRatio = 1;
@@ -96,7 +96,7 @@ void main() {
   }
 
   testWidgets(
-    'IT-MOB-CART-001 Given a draft cart When navigating across order screens Then preserve lines quantities and modifiers',
+    'WT-MOB-CART-001 Given a draft cart When navigating across order screens Then preserve lines quantities and modifiers',
     (tester) async {
       tester.view.physicalSize = const Size(1068, 1000);
       tester.view.devicePixelRatio = 1;

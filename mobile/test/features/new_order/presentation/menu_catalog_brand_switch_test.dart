@@ -63,7 +63,7 @@ Future<ProviderContainer> _pumpMenuScreen(
 
 void main() {
   testWidgets(
-    'Switching brand with empty cart switches immediately without confirmation',
+    'WT-MOB-BRAND-SWITCH-001 Switching brand with empty cart switches immediately without confirmation',
     (tester) async {
       final container = await _pumpMenuScreen(tester, withCartItem: false);
 
@@ -91,7 +91,7 @@ void main() {
   );
 
   testWidgets(
-    'Switching brand with populated cart shows confirmation; cancelling preserves cart and brand',
+    'WT-MOB-BRAND-SWITCH-002 Switching brand with populated cart shows confirmation; cancelling preserves cart and brand',
     (tester) async {
       final container = await _pumpMenuScreen(tester, withCartItem: true);
 
@@ -127,7 +127,7 @@ void main() {
   );
 
   testWidgets(
-    'Switching brand with populated cart shows confirmation; confirming clears cart and switches brand',
+    'WT-MOB-BRAND-SWITCH-003 Switching brand with populated cart shows confirmation; confirming clears cart and switches brand',
     (tester) async {
       final container = await _pumpMenuScreen(tester, withCartItem: true);
 

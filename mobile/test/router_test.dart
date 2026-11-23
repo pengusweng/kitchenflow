@@ -8,49 +8,49 @@ import 'package:mobile/features/kitchen/kitchen_board/presentation/pages/kitchen
 import 'package:mobile/features/new_order/presentation/pages/menu_screen.dart';
 
 void main() {
-  test(
-    'UserRole.isKitchen includes supervisor, kitchenHead, and kitchenStaff',
-    () {
-      expect(UserRole.supervisor.isKitchen, isTrue);
-      expect(UserRole.kitchenHead.isKitchen, isTrue);
-      expect(UserRole.kitchenStaff.isKitchen, isTrue);
+  test('UT-MOB-ROUTE-001 UserRole.isKitchen includes supervisor, kitchenHead, and kitchenStaff', () {
+    expect(UserRole.supervisor.isKitchen, isTrue);
+    expect(UserRole.kitchenHead.isKitchen, isTrue);
+    expect(UserRole.kitchenStaff.isKitchen, isTrue);
 
-      expect(UserRole.cashierStaff.isKitchen, isFalse);
-      expect(UserRole.manager.isKitchen, isFalse);
-      expect(UserRole.superadmin.isKitchen, isFalse);
-      expect(UserRole.recipeManager.isKitchen, isFalse);
-      expect(UserRole.inventoryStaff.isKitchen, isFalse);
-    },
-  );
+    expect(UserRole.cashierStaff.isKitchen, isFalse);
+    expect(UserRole.manager.isKitchen, isFalse);
+    expect(UserRole.superadmin.isKitchen, isFalse);
+    expect(UserRole.recipeManager.isKitchen, isFalse);
+    expect(UserRole.inventoryStaff.isKitchen, isFalse);
+  });
 
-  testWidgets('logged-out users start on the login screen', (tester) async {
+  testWidgets('WT-MOB-WIDG-003 logged-out users start on the login screen', (
+    tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: App()));
     await tester.pumpAndSettle();
     expect(find.byType(LoginScreen), findsOneWidget);
   });
 
-  testWidgets('supervisor login reroutes from login to the menu page', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          initialTokenProvider.overrideWithValue('mock-supervisor-token'),
-          initialRoleProvider.overrideWithValue(UserRole.supervisor),
-        ],
-        child: const App(),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'WT-MOB-ROUTE-003 supervisor login reroutes from login to the menu page',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            initialTokenProvider.overrideWithValue('mock-supervisor-token'),
+            initialRoleProvider.overrideWithValue(UserRole.supervisor),
+          ],
+          child: const App(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    // Supervisor defaults to the menu screen, but retains switcher in header
-    expect(find.byType(MenuScreen), findsOneWidget);
-    expect(find.byType(KitchenBoardScreen), findsNothing);
-    expect(find.text('Supervisor'), findsOneWidget);
-  });
+      // Supervisor defaults to the menu screen, but retains switcher in header
+      expect(find.byType(MenuScreen), findsOneWidget);
+      expect(find.byType(KitchenBoardScreen), findsNothing);
+      expect(find.text('Supervisor'), findsOneWidget);
+    },
+  );
 
   testWidgets(
-    'kitchen staff login reroutes from login to the kitchen tickets page',
+    'WT-MOB-ROUTE-004 kitchen staff login reroutes from login to the kitchen tickets page',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -68,7 +68,9 @@ void main() {
     },
   );
 
-  testWidgets('cashier staff login routes to the menu page', (tester) async {
+  testWidgets('WT-MOB-ROUTE-005 cashier staff login routes to the menu page', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [

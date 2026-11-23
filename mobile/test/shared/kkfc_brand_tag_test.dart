@@ -4,21 +4,24 @@ import 'package:mobile/app/theme/theme.dart';
 import 'package:mobile/shared/widgets/kkfc_brand_tag.dart';
 
 void main() {
-  testWidgets('shows the label and a placeholder when no logo is given', (
+  testWidgets(
+    'WT-MOB-BRAND-TAG-001 shows the label and a placeholder when no logo is given',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: counterTheme,
+          home: const Scaffold(body: KkfcBrandTag(label: 'Gamcheon')),
+        ),
+      );
+
+      expect(find.byType(KkfcBrandTag), findsOneWidget);
+      expect(find.byIcon(Icons.image_outlined), findsOneWidget);
+    },
+  );
+
+  testWidgets('WT-MOB-BRAND-TAG-002 does not overflow at large text scale', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: counterTheme,
-        home: const Scaffold(body: KkfcBrandTag(label: 'Gamcheon')),
-      ),
-    );
-
-    expect(find.byType(KkfcBrandTag), findsOneWidget);
-    expect(find.byIcon(Icons.image_outlined), findsOneWidget);
-  });
-
-  testWidgets('does not overflow at large text scale', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: counterTheme,
