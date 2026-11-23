@@ -12,19 +12,18 @@ class LoginNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     final duration = LoginLayout.motion(context, LoginLayout.base);
 
-    return AnimatedSize(
+    return AnimatedSwitcher(
       duration: duration,
-      curve: LoginLayout.curve,
-      alignment: Alignment.topCenter,
-      child: AnimatedSwitcher(
-        duration: duration,
-        switchInCurve: LoginLayout.curve,
-        transitionBuilder: (child, animation) =>
-            FadeTransition(opacity: animation, child: child),
-        child: status.hasNotice
-            ? _NoticeBox(key: ValueKey(status), status: status)
-            : const SizedBox(key: ValueKey('none'), width: double.infinity),
+      switchInCurve: LoginLayout.curve,
+      switchOutCurve: LoginLayout.curve,
+      transitionBuilder: (child, animation) => SizeTransition(
+        sizeFactor: animation,
+        alignment: Alignment.topCenter,
+        child: FadeTransition(opacity: animation, child: child),
       ),
+      child: status.hasNotice
+          ? _NoticeBox(key: ValueKey(status), status: status)
+          : const SizedBox.shrink(key: ValueKey('none')),
     );
   }
 }
