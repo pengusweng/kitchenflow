@@ -7,6 +7,8 @@ import {
   filterTickets,
   flagReason,
   formatElapsed,
+  formatGap,
+  ticketTimeline,
   type KitchenTicket,
   type TicketStage,
 } from "./tickets";
@@ -112,4 +114,25 @@ test("the mock spread covers every kind of flag", () => {
   const reasons = new Set(tickets.map((t) => flagReason(t, NOW)));
   expect(reasons).toEqual(new Set(["late", "rework", "recheck", null]));
   expect(new Set(tickets.map((t) => t.number)).size).toBe(tickets.length);
+});
+
+describe("ticketTimeline", () => {
+  test("lists every step, with the ones not reached yet left open", () => {
+    const steps = ticketTimeline(
+      ticket("T-5", 6 * MIN, "ACKNOWLEDGED", { acknowledgedAt: new Date(NOW).toISOString() }),
+    );
+    expect(steps.map((s) => s.label)).toEqual([
+      "Order sent",
+      "Ticket created",
+      "Acknowledged",
+      "Started cooking",
+      "Ready",
+    ]);
+    expect(steps.map((s) => s.at !== null)).toEqual([true, true, true, false, false]);
+  });
+
+  test("formatGap rounds to minutes and calls anything shorter right away", () => {
+    expect(formatGap(20_000)).toBe("Right away");
+    expect(formatGap(4 * MIN + 10_000)).toBe("4 min later");
+  });
 });

@@ -9,13 +9,13 @@ import {
   elapsedMs,
   flagReason,
   formatElapsed,
-  formatTicketTime,
   LATE_MIN,
   type FlagReason,
   type KitchenTicket,
 } from "../../utils/tickets";
 import StageBadge from "../atoms/stage-badge";
 import SinceSent from "../molecules/since-sent";
+import TicketTimeline from "../molecules/ticket-timeline";
 
 type TicketDetailModalProps = {
   ticket: KitchenTicket | null;
@@ -51,16 +51,6 @@ function flagMessage(reason: FlagReason, ticket: KitchenTicket, now: number) {
         body: `It has failed QC ${failures} and is back in line to be checked.`,
       };
   }
-}
-
-function Step({ at }: { at: string | null }) {
-  if (!at) return <span className="text-ink-muted">Not yet</span>;
-  const { date, time } = formatTicketTime(at);
-  return (
-    <time dateTime={at}>
-      {time} <span className="text-ink-muted">· {date}</span>
-    </time>
-  );
 }
 
 export default function TicketDetailModal({ ticket, now, open, onOpenChange }: TicketDetailModalProps) {
@@ -117,21 +107,6 @@ export default function TicketDetailModal({ ticket, now, open, onOpenChange }: T
               <DetailRow label="Since order sent">
                 <SinceSent ticket={ticket} now={now} className="max-w-72" />
               </DetailRow>
-              <DetailRow label="Order sent">
-                <Step at={ticket.orderSentAt} />
-              </DetailRow>
-              <DetailRow label="Ticket created">
-                <Step at={ticket.createdAt} />
-              </DetailRow>
-              <DetailRow label="Acknowledged">
-                <Step at={ticket.acknowledgedAt} />
-              </DetailRow>
-              <DetailRow label="Started cooking">
-                <Step at={ticket.preparationStartedAt} />
-              </DetailRow>
-              <DetailRow label="Ready">
-                <Step at={ticket.readyAt} />
-              </DetailRow>
               {ticket.qcFailures > 0 ? (
                 <DetailRow label="Failed QC">
                   <span className="tabular-nums">
@@ -140,6 +115,8 @@ export default function TicketDetailModal({ ticket, now, open, onOpenChange }: T
                 </DetailRow>
               ) : null}
             </dl>
+
+            <TicketTimeline ticket={ticket} flagged={reason !== null} />
 
             <section aria-labelledby="ticket-items-heading" className="mt-5">
               <h3 id="ticket-items-heading" className="border-b border-hairline pb-2 text-sm font-semibold text-ink">

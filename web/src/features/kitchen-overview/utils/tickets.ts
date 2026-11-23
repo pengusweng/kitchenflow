@@ -135,3 +135,28 @@ export function formatTicketTime(iso: string) {
   const date = new Date(iso);
   return { date: DATE.format(date), time: TIME.format(date) };
 }
+
+export type TimelineStep = {
+  key: "sent" | "created" | "acknowledged" | "cooking" | "ready";
+  label: string;
+  /** Null for a step the ticket hasn't reached yet. */
+  at: string | null;
+};
+
+/** The ticket's path from order to pass, reached steps with their times and the rest still to come. */
+export function ticketTimeline(ticket: KitchenTicket): TimelineStep[] {
+  return [
+    { key: "sent", label: "Order sent", at: ticket.orderSentAt },
+    { key: "created", label: "Ticket created", at: ticket.createdAt },
+    { key: "acknowledged", label: "Acknowledged", at: ticket.acknowledgedAt },
+    { key: "cooking", label: "Started cooking", at: ticket.preparationStartedAt },
+    { key: "ready", label: "Ready", at: ticket.readyAt },
+  ];
+}
+
+/** How long a step took after the one before it, said the way the line would say it. */
+export function formatGap(ms: number) {
+  const minutes = Math.round(ms / MINUTE);
+  if (minutes < 1) return "Right away";
+  return `${minutes} min later`;
+}
