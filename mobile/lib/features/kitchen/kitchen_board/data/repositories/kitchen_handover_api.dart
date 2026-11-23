@@ -18,10 +18,16 @@ class KitchenHandoverApi {
   final Dio dio;
   final String Function(String path) endpoint;
   final String Function(DioException error) errorMessage;
-  final Future<void> Function(String ticketId, {String? preparerId}) onAcknowledge;
+  final Future<void> Function(String ticketId, {String? preparerId})
+  onAcknowledge;
   final Future<void> Function(String ticketId, {String? preparerId}) onPrepare;
   final Future<void> Function(String ticketId, {String? preparerId}) onSendToQc;
-  final Future<void> Function({required String kitchenTicketId, String? attemptId, String? checkerId}) onPassQc;
+  final Future<void> Function({
+    required String kitchenTicketId,
+    String? attemptId,
+    String? checkerId,
+  })
+  onPassQc;
 
   Exception _wrap(DioException error) => Exception(errorMessage(error));
 
@@ -149,9 +155,7 @@ class KitchenHandoverApi {
   }) async {
     try {
       await dio.post<Object?>(
-        endpoint(
-          '/kitchen-fulfillment/brands/$brandId/orders/$orderId/cancel',
-        ),
+        endpoint('/kitchen-fulfillment/brands/$brandId/orders/$orderId/cancel'),
         data: {'cancellation_reason': reason.trim()},
       );
     } on DioException catch (error) {

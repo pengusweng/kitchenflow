@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:mobile/app/theme/theme_context.dart';
 import 'package:mobile/app/theme/tokens.dart';
@@ -38,10 +39,7 @@ class PinConfirmationDots extends StatelessWidget {
       builder: (context, child) {
         // Sinusoidal lateral oscillation (double-shake)
         final offset = math.sin(shakeAnimation.value * math.pi * 4) * 10.0;
-        return Transform.translate(
-          offset: Offset(offset, 0),
-          child: child,
-        );
+        return Transform.translate(offset: Offset(offset, 0), child: child);
       },
       child: Semantics(
         label: '$filledCount of $length digits entered',
@@ -80,7 +78,9 @@ class PinConfirmationDots extends StatelessWidget {
                   color: dotColor,
                   border: Border.all(
                     color: borderColor,
-                    width: isActive ? KkfcBorderWidth.focus : KkfcBorderWidth.thick,
+                    width: isActive
+                        ? KkfcBorderWidth.focus
+                        : KkfcBorderWidth.thick,
                   ),
                   boxShadow: isActive
                       ? [

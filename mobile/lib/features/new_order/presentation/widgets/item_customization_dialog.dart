@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -274,8 +275,7 @@ class _ItemCustomizationDialogState
             math.sin(flightVal * math.pi) * (isWide ? 52.0 : 28.0);
         final currentDx = targetDx * flightVal;
         final currentDy = (targetDy * flightVal) - arcOffset;
-        final rotation =
-            isWide ? (0.28 * math.sin(flightVal * math.pi)) : 0.0;
+        final rotation = isWide ? (0.28 * math.sin(flightVal * math.pi)) : 0.0;
 
         return Stack(
           children: [
@@ -288,9 +288,7 @@ class _ItemCustomizationDialogState
                 },
                 child: FadeTransition(
                   opacity: _scrimFade,
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.5),
-                  ),
+                  child: Container(color: Colors.black.withValues(alpha: 0.5)),
                 ),
               ),
             ),
@@ -334,404 +332,516 @@ class _ItemCustomizationDialogState
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Container(
-                color: KkfcColors.surface,
-                padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _item.name,
-                            style: const TextStyle(
-                              fontFamily: KkfcFonts.ibmPlexSans,
-                              fontSize: 18.0,
-                              fontWeight: FontWeight.w700,
-                              color: KkfcColors.ink,
-                              height: 1.25,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${widget.brandName} · ${widget.channel.label} price · ${formatPeso(_basePriceCentavos)}',
-                            style: const TextStyle(
-                              fontFamily: KkfcFonts.text,
-                              fontSize: 13.0,
-                              color: KkfcColors.ink3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: KkfcColors.surface,
-                        borderRadius: BorderRadius.circular(8.0),
-                        border: Border.all(color: KkfcColors.border),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8.0),
-                          onTap: () => Navigator.of(context).pop(false),
-                          child: const Center(
-                            child: Icon(
-                              Icons.close,
-                              size: 18,
-                              color: KkfcColors.ink,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const Divider(height: 1, thickness: 1, color: KkfcColors.divider),
-
-              // Scrollable Body
-              Flexible(
-                child: Container(
-                  color: KkfcColors.canvas, // Warm Sand canvas ground
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Description
-                        if (_item.description.isNotEmpty) ...[
-                          Text(
-                            _item.description,
-                            style: const TextStyle(
-                              fontFamily: KkfcFonts.text,
-                              fontSize: 13.5,
-                              height: 1.4,
-                              color: KkfcColors.ink2,
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                        ],
-
-                        // Radio modifier groups (single-choice)
-                        for (final group in singleChoiceGroups) ...[
-                          Row(
-                            children: [
-                              Text(
-                                group.title,
-                                style: const TextStyle(
-                                  fontFamily: KkfcFonts.ibmPlexSans,
-                                  fontSize: 16.0,
-                                  fontWeight: FontWeight.w700,
-                                  color: KkfcColors.ink,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: KkfcColors.successBg,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: KkfcColors.successBorder,
-                                    width: 1.0,
-                                  ),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.check,
-                                      size: 12,
-                                      color: KkfcColors.success,
-                                    ),
-                                    SizedBox(width: 3),
-                                    Text(
-                                      'Chosen',
-                                      style: TextStyle(
-                                        fontFamily: KkfcFonts.ibmPlexSans,
-                                        fontSize: 11.0,
-                                        fontWeight: FontWeight.w700,
-                                        color: KkfcColors.success,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          for (final option in group.options) ...[
-                            _RadioOptionTile(
-                              label: option.label,
-                              priceDeltaCentavos: option.priceDeltaCentavos,
-                              isSelected: _selections[group.id] == option.id,
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() {
-                                  _selections[group.id] = option.id;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                          ],
-                          const SizedBox(height: 10),
-                        ],
-
-                        // Add-Ons group (checkboxes)
-                        if (addOnGroups.isNotEmpty) ...[
-                          Row(
-                            children: [
-                              const Text(
-                                'Add-Ons',
-                                style: TextStyle(
-                                  fontFamily: KkfcFonts.ibmPlexSans,
-                                  fontSize: 16.0,
-                                  fontWeight: FontWeight.w700,
-                                  color: KkfcColors.ink,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: KkfcColors.neutralBg,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: KkfcColors.neutralBorder,
-                                    width: 1.0,
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Optional',
-                                  style: TextStyle(
-                                    fontFamily: KkfcFonts.text,
-                                    fontSize: 11.0,
-                                    fontWeight: FontWeight.w600,
-                                    color: KkfcColors.neutralSolid,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          for (final addOn in addOnGroups) ...[
-                            Builder(
-                              builder: (context) {
-                                final isChecked =
-                                    _selections[addOn.id] ==
-                                    ModifierGroup.addOnOn;
-                                final onOption = addOn.options.firstWhere(
-                                  (o) => o.id == ModifierGroup.addOnOn,
-                                  orElse: () => addOn.options.last,
-                                );
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8.0),
-                                  child: _CheckboxOptionTile(
-                                    label: addOn.title,
-                                    priceDeltaCentavos:
-                                        onOption.priceDeltaCentavos,
-                                    isChecked: isChecked,
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setState(() {
-                                        _selections[addOn.id] = isChecked
-                                            ? ModifierGroup.addOnOff
-                                            : ModifierGroup.addOnOn;
-                                      });
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                          const SizedBox(height: 10),
-                        ],
-
-                        // Quantity Stepper
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Quantity',
-                              style: TextStyle(
-                                fontFamily: KkfcFonts.ibmPlexSans,
-                                fontSize: 15.0,
-                                fontWeight: FontWeight.w700,
-                                color: KkfcColors.ink,
-                              ),
-                            ),
-                            CustomizationQuantityStepper(
-                              quantity: _quantity,
-                              onChanged: (newQuantity) {
-                                setState(() => _quantity = newQuantity);
-                              },
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        // Kitchen note
-                        const Row(
-                          children: [
-                            Text(
-                              'Kitchen note ',
-                              style: TextStyle(
-                                fontFamily: KkfcFonts.ibmPlexSans,
-                                fontSize: 14.0,
-                                fontWeight: FontWeight.w700,
-                                color: KkfcColors.ink,
-                              ),
-                            ),
-                            Text(
-                              '(optional)',
-                              style: TextStyle(
-                                fontFamily: KkfcFonts.text,
-                                fontSize: 13.0,
-                                color: KkfcColors.ink3,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          key: const ValueKey('customize-kitchen-note-field'),
-                          controller: _kitchenNoteController,
-                          maxLines: 2,
-                          maxLength: 100,
-                          style: const TextStyle(
-                            fontFamily: KkfcFonts.text,
-                            fontSize: 14.0,
-                            color: KkfcColors.ink,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'For example: no onions',
-                            hintStyle: const TextStyle(
-                              fontFamily: KkfcFonts.text,
-                              fontSize: 14.0,
-                              color: KkfcColors.borderStrong,
-                            ),
-                            filled: true,
-                            fillColor: KkfcColors.surface,
-                            isDense: true,
-                            counterText: '',
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                              borderSide: const BorderSide(
-                                color: KkfcColors.borderStrong,
-                                width: 1.0,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                              borderSide: const BorderSide(
-                                color: KkfcColors.borderStrong,
-                                width: 1.0,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                              borderSide: const BorderSide(
-                                color: KkfcColors.ink,
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Up to 100 characters.',
-                          style: TextStyle(
-                            fontFamily: KkfcFonts.text,
-                            fontSize: 12.0,
-                            color: KkfcColors.ink3,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              const Divider(height: 1, thickness: 1, color: KkfcColors.divider),
-
-              // Footer: Action Button
-              Container(
-                color: KkfcColors.surface,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: SafeArea(
-                  top: false,
-                  child: SizedBox(
-                    height: 52,
-                    width: double.infinity,
-                    child: Material(
-                      color: KkfcColors.action, // Burnished Copper
-                      borderRadius: BorderRadius.circular(10.0),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(10.0),
-                        onTap: _submit,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                isEditing ? 'Update item' : 'Add to order',
-                                style: const TextStyle(
-                                  fontFamily: KkfcFonts.ibmPlexSans,
-                                  fontSize: 16.0,
-                                  fontWeight: FontWeight.w700,
+                              children: [
+                                // Header
+                                Container(
                                   color: KkfcColors.surface,
-                                ),
-                              ),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 180),
-                                transitionBuilder: (child, animation) =>
-                                    FadeTransition(
-                                      opacity: animation,
-                                      child: child,
-                                    ),
-                                child: Text(
-                                  formatPeso(_totalPriceCentavos),
-                                  key: ValueKey(
-                                    'dialog-total-$_totalPriceCentavos',
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    18,
+                                    16,
+                                    16,
                                   ),
-                                  style: const TextStyle(
-                                    fontFamily: KkfcFonts.ibmPlexSans,
-                                    fontSize: 16.0,
-                                    fontWeight: FontWeight.w700,
-                                    color: KkfcColors.surface,
-                                    fontFeatures: [
-                                      FontFeature.tabularFigures(),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _item.name,
+                                              style: const TextStyle(
+                                                fontFamily:
+                                                    KkfcFonts.ibmPlexSans,
+                                                fontSize: 18.0,
+                                                fontWeight: FontWeight.w700,
+                                                color: KkfcColors.ink,
+                                                height: 1.25,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${widget.brandName} · ${widget.channel.label} price · ${formatPeso(_basePriceCentavos)}',
+                                              style: const TextStyle(
+                                                fontFamily: KkfcFonts.text,
+                                                fontSize: 13.0,
+                                                color: KkfcColors.ink3,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        width: 38,
+                                        height: 38,
+                                        decoration: BoxDecoration(
+                                          color: KkfcColors.surface,
+                                          borderRadius: BorderRadius.circular(
+                                            8.0,
+                                          ),
+                                          border: Border.all(
+                                            color: KkfcColors.border,
+                                          ),
+                                        ),
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(
+                                              8.0,
+                                            ),
+                                            onTap: () =>
+                                                Navigator.of(context)
+                                                    .pop(false),
+                                            child: const Center(
+                                              child: Icon(
+                                                Icons.close,
+                                                size: 18,
+                                                color: KkfcColors.ink,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
-                              ),
-                            ],
+
+                                const Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: KkfcColors.divider,
+                                ),
+
+                                // Scrollable Body
+                                Flexible(
+                                  child: Container(
+                                    color: KkfcColors
+                                        .canvas, // Warm Sand canvas ground
+                                    child: SingleChildScrollView(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 16,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Description
+                                          if (_item.description.isNotEmpty) ...[
+                                            Text(
+                                              _item.description,
+                                              style: const TextStyle(
+                                                fontFamily: KkfcFonts.text,
+                                                fontSize: 13.5,
+                                                height: 1.4,
+                                                color: KkfcColors.ink2,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 18),
+                                          ],
+
+                                          // Radio modifier groups (single-choice)
+                                          for (final group
+                                              in singleChoiceGroups) ...[
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  group.title,
+                                                  style: const TextStyle(
+                                                    fontFamily:
+                                                        KkfcFonts.ibmPlexSans,
+                                                    fontSize: 16.0,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: KkfcColors.ink,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: KkfcColors.successBg,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: KkfcColors
+                                                          .successBorder,
+                                                      width: 1.0,
+                                                    ),
+                                                  ),
+                                                  child: const Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.check,
+                                                        size: 12,
+                                                        color:
+                                                            KkfcColors.success,
+                                                      ),
+                                                      SizedBox(width: 3),
+                                                      Text(
+                                                        'Chosen',
+                                                        style: TextStyle(
+                                                          fontFamily: KkfcFonts
+                                                              .ibmPlexSans,
+                                                          fontSize: 11.0,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          color: KkfcColors
+                                                              .success,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            for (final option
+                                                in group.options) ...[
+                                              _RadioOptionTile(
+                                                label: option.label,
+                                                priceDeltaCentavos:
+                                                    option.priceDeltaCentavos,
+                                                isSelected:
+                                                    _selections[group.id] ==
+                                                    option.id,
+                                                onTap: () {
+                                                  HapticFeedback.selectionClick();
+                                                  setState(() {
+                                                    _selections[group.id] =
+                                                        option.id;
+                                                  });
+                                                },
+                                              ),
+                                              const SizedBox(height: 8),
+                                            ],
+                                            const SizedBox(height: 10),
+                                          ],
+
+                                          // Add-Ons group (checkboxes)
+                                          if (addOnGroups.isNotEmpty) ...[
+                                            Row(
+                                              children: [
+                                                const Text(
+                                                  'Add-Ons',
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        KkfcFonts.ibmPlexSans,
+                                                    fontSize: 16.0,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: KkfcColors.ink,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: KkfcColors.neutralBg,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: KkfcColors
+                                                          .neutralBorder,
+                                                      width: 1.0,
+                                                    ),
+                                                  ),
+                                                  child: const Text(
+                                                    'Optional',
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          KkfcFonts.text,
+                                                      fontSize: 11.0,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: KkfcColors
+                                                          .neutralSolid,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            for (final addOn
+                                                in addOnGroups) ...[
+                                              Builder(
+                                                builder: (context) {
+                                                  final isChecked =
+                                                      _selections[addOn.id] ==
+                                                      ModifierGroup.addOnOn;
+                                                  final onOption = addOn.options
+                                                      .firstWhere(
+                                                        (o) =>
+                                                            o.id ==
+                                                            ModifierGroup
+                                                                .addOnOn,
+                                                        orElse: () =>
+                                                            addOn.options.last,
+                                                      );
+
+                                                  return Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          bottom: 8.0,
+                                                        ),
+                                                    child: _CheckboxOptionTile(
+                                                      label: addOn.title,
+                                                      priceDeltaCentavos: onOption
+                                                          .priceDeltaCentavos,
+                                                      isChecked: isChecked,
+                                                      onTap: () {
+                                                        HapticFeedback.selectionClick();
+                                                        setState(() {
+                                                          _selections[addOn
+                                                              .id] = isChecked
+                                                              ? ModifierGroup
+                                                                    .addOnOff
+                                                              : ModifierGroup
+                                                                    .addOnOn;
+                                                        });
+                                                      },
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                            const SizedBox(height: 10),
+                                          ],
+
+                                          // Quantity Stepper
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Text(
+                                                'Quantity',
+                                                style: TextStyle(
+                                                  fontFamily:
+                                                      KkfcFonts.ibmPlexSans,
+                                                  fontSize: 15.0,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: KkfcColors.ink,
+                                                ),
+                                              ),
+                                              CustomizationQuantityStepper(
+                                                quantity: _quantity,
+                                                onChanged: (newQuantity) {
+                                                  setState(
+                                                    () =>
+                                                        _quantity = newQuantity,
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+
+                                          const SizedBox(height: 18),
+
+                                          // Kitchen note
+                                          const Row(
+                                            children: [
+                                              Text(
+                                                'Kitchen note ',
+                                                style: TextStyle(
+                                                  fontFamily:
+                                                      KkfcFonts.ibmPlexSans,
+                                                  fontSize: 14.0,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: KkfcColors.ink,
+                                                ),
+                                              ),
+                                              Text(
+                                                '(optional)',
+                                                style: TextStyle(
+                                                  fontFamily: KkfcFonts.text,
+                                                  fontSize: 13.0,
+                                                  color: KkfcColors.ink3,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          TextField(
+                                            key: const ValueKey(
+                                              'customize-kitchen-note-field',
+                                            ),
+                                            controller: _kitchenNoteController,
+                                            maxLines: 2,
+                                            maxLength: 100,
+                                            style: const TextStyle(
+                                              fontFamily: KkfcFonts.text,
+                                              fontSize: 14.0,
+                                              color: KkfcColors.ink,
+                                            ),
+                                            decoration: InputDecoration(
+                                              hintText:
+                                                  'For example: no onions',
+                                              hintStyle: const TextStyle(
+                                                fontFamily: KkfcFonts.text,
+                                                fontSize: 14.0,
+                                                color: KkfcColors.borderStrong,
+                                              ),
+                                              filled: true,
+                                              fillColor: KkfcColors.surface,
+                                              isDense: true,
+                                              counterText: '',
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 10,
+                                                  ),
+                                              border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8.0),
+                                                borderSide: const BorderSide(
+                                                  color:
+                                                      KkfcColors.borderStrong,
+                                                  width: 1.0,
+                                                ),
+                                              ),
+                                              enabledBorder: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8.0),
+                                                borderSide: const BorderSide(
+                                                  color:
+                                                      KkfcColors.borderStrong,
+                                                  width: 1.0,
+                                                ),
+                                              ),
+                                              focusedBorder: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8.0),
+                                                borderSide: const BorderSide(
+                                                  color: KkfcColors.ink,
+                                                  width: 1.5,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          const Text(
+                                            'Up to 100 characters.',
+                                            style: TextStyle(
+                                              fontFamily: KkfcFonts.text,
+                                              fontSize: 12.0,
+                                              color: KkfcColors.ink3,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: KkfcColors.divider,
+                                ),
+
+                                // Footer: Action Button
+                                Container(
+                                  color: KkfcColors.surface,
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    12,
+                                    16,
+                                    16,
+                                  ),
+                                  child: SafeArea(
+                                    top: false,
+                                    child: SizedBox(
+                                      height: 52,
+                                      width: double.infinity,
+                                      child: Material(
+                                        color: KkfcColors
+                                            .action, // Burnished Copper
+                                        borderRadius: BorderRadius.circular(
+                                          10.0,
+                                        ),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                            10.0,
+                                          ),
+                                          onTap: _submit,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  isEditing
+                                                      ? 'Update item'
+                                                      : 'Add to order',
+                                                  style: const TextStyle(
+                                                    fontFamily:
+                                                        KkfcFonts.ibmPlexSans,
+                                                    fontSize: 16.0,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: KkfcColors.surface,
+                                                  ),
+                                                ),
+                                                AnimatedSwitcher(
+                                                  duration: const Duration(
+                                                    milliseconds: 180,
+                                                  ),
+                                                  transitionBuilder:
+                                                      (child, animation) =>
+                                                          FadeTransition(
+                                                            opacity: animation,
+                                                            child: child,
+                                                          ),
+                                                  child: Text(
+                                                    formatPeso(
+                                                      _totalPriceCentavos,
+                                                    ),
+                                                    key: ValueKey(
+                                                      'dialog-total-$_totalPriceCentavos',
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontFamily:
+                                                          KkfcFonts.ibmPlexSans,
+                                                      fontSize: 16.0,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: KkfcColors.surface,
+                                                      fontFeatures: [
+                                                        FontFeature.tabularFigures(),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -739,15 +849,6 @@ class _ItemCustomizationDialogState
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  ),
-),
-),
-),
 
             // The small circle token that emerges from center and flies over to the cart
             if (_circlePop.value > 0.001 && _circleFade.value > 0.001)
@@ -774,8 +875,9 @@ class _ItemCustomizationDialogState
                                   offset: const Offset(0, 2),
                                 ),
                                 BoxShadow(
-                                  color:
-                                      KkfcColors.action.withValues(alpha: 0.40),
+                                  color: KkfcColors.action.withValues(
+                                    alpha: 0.40,
+                                  ),
                                   blurRadius: 6,
                                   offset: const Offset(0, 1),
                                 ),
@@ -927,16 +1029,18 @@ class _CheckboxOptionTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4.0),
                   border: Border.all(
-                    color: isChecked
-                        ? KkfcColors.ink
-                        : KkfcColors.borderStrong,
+                    color: isChecked ? KkfcColors.ink : KkfcColors.borderStrong,
                     width: isChecked ? 2.0 : 1.5,
                   ),
                   color: isChecked ? KkfcColors.ink : KkfcColors.surface,
                 ),
                 child: isChecked
                     ? const Center(
-                        child: Icon(Icons.check, size: 14, color: KkfcColors.surface),
+                        child: Icon(
+                          Icons.check,
+                          size: 14,
+                          color: KkfcColors.surface,
+                        ),
                       )
                     : null,
               ),

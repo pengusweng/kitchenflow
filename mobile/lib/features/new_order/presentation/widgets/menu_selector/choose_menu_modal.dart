@@ -57,10 +57,14 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final maxHeight = mediaQuery.size.height * 0.88;
-    final selectedBrandColor =
-        KkfcBrand.colorFor(_selectedBrand.code, _selectedBrand.name);
-    final selectedBrandTint =
-        KkfcBrand.tintFor(_selectedBrand.code, _selectedBrand.name);
+    final selectedBrandColor = KkfcBrand.colorFor(
+      _selectedBrand.code,
+      _selectedBrand.name,
+    );
+    final selectedBrandTint = KkfcBrand.tintFor(
+      _selectedBrand.code,
+      _selectedBrand.name,
+    );
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
@@ -329,8 +333,8 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                         decoration: BoxDecoration(
                           color: isAuthorized
                               ? (selected
-                                  ? brandColor
-                                  : brandColor.withValues(alpha: 0.4))
+                                    ? brandColor
+                                    : brandColor.withValues(alpha: 0.4))
                               : const Color(0xFFCBD5E1),
                           borderRadius: BorderRadius.circular(2.0),
                         ),
@@ -377,7 +381,10 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                   )
                                 : Padding(
                                     padding: const EdgeInsets.all(4.0),
-                                    child: BrandLogo(brand: brand, height: 24.0),
+                                    child: BrandLogo(
+                                      brand: brand,
+                                      height: 24.0,
+                                    ),
                                   ),
                           ),
                         ),

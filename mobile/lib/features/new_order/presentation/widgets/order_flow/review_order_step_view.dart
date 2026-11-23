@@ -596,7 +596,9 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
                           height: 4.0,
                           width: double.infinity,
                           child: LinearProgressIndicator(
-                            key: const ValueKey('confirm-cooldown-progress-bar'),
+                            key: const ValueKey(
+                              'confirm-cooldown-progress-bar',
+                            ),
                             value: _cooldownController.value,
                             backgroundColor: KkfcColors.border,
                             valueColor: const AlwaysStoppedAnimation<Color>(
@@ -614,8 +616,8 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
                         color: _isSubmitting
                             ? const Color(0xFF8B4722)
                             : (isCoolingDown
-                                ? const Color(0xFFC5A28D)
-                                : const Color(0xFFA8562A)),
+                                  ? const Color(0xFFC5A28D)
+                                  : const Color(0xFFA8562A)),
                         borderRadius: BorderRadius.circular(10.0),
                         child: InkWell(
                           key: const ValueKey('confirm-and-send-button'),
@@ -630,15 +632,13 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
                                     height: 22,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
-                                      valueColor:
-                                          AlwaysStoppedAnimation<Color>(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
                                         Colors.white,
                                       ),
                                     ),
                                   )
                                 : Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
                                         Icons.restaurant,

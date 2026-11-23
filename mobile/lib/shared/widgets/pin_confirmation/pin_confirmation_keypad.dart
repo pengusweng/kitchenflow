@@ -168,11 +168,7 @@ class _KeypadButton extends StatelessWidget {
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: icon != null
-                    ? Icon(
-                        icon,
-                        size: KkfcSizing.iconMd,
-                        color: effectiveColor,
-                      )
+                    ? Icon(icon, size: KkfcSizing.iconMd, color: effectiveColor)
                     : Text(
                         label ?? '',
                         style: TextStyle(

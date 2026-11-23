@@ -48,7 +48,10 @@ class _BrandPickerContentState extends State<_BrandPickerContent> {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final codes = widget.brands.map((b) => b.code).join('/');
-    final selectedBrandColor = KkfcBrand.colorFor(_selected.code, _selected.name);
+    final selectedBrandColor = KkfcBrand.colorFor(
+      _selected.code,
+      _selected.name,
+    );
     final selectedBrandTint = KkfcBrand.tintFor(_selected.code, _selected.name);
 
     return Column(
@@ -220,7 +223,9 @@ class _BrandTile extends StatelessWidget {
                       width: 4.0,
                       height: 44.0,
                       decoration: BoxDecoration(
-                        color: selected ? brandColor : brandColor.withValues(alpha: 0.4),
+                        color: selected
+                            ? brandColor
+                            : brandColor.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(2.0),
                       ),
                     ),
@@ -340,7 +345,9 @@ class _BrandTile extends StatelessWidget {
                                   style: text.bodySmall?.copyWith(
                                     fontFamily: KkfcFonts.ibmPlexSans,
                                     fontSize: 12.5,
-                                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                    fontWeight: selected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
                                     color: selected
                                         ? const Color(0xFF334155)
                                         : scheme.onSurfaceVariant,
@@ -363,7 +370,9 @@ class _BrandTile extends StatelessWidget {
                         shape: BoxShape.circle,
                         color: selected ? brandColor : Colors.transparent,
                         border: Border.all(
-                          color: selected ? brandColor : const Color(0xFFCBD5E1),
+                          color: selected
+                              ? brandColor
+                              : const Color(0xFFCBD5E1),
                           width: selected ? 2.0 : 1.5,
                         ),
                       ),

@@ -338,8 +338,7 @@ class BrandCartGroup {
       lines.fold(0, (sum, line) => sum + line.totalCentavos(channel));
 
   /// Total count of individual items for this brand.
-  int get totalQuantity =>
-      lines.fold(0, (sum, line) => sum + line.quantity);
+  int get totalQuantity => lines.fold(0, (sum, line) => sum + line.quantity);
 }
 
 /// Splits and groups cart lines by their originating brand, preserving insertion order.

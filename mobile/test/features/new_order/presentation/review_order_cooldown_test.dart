@@ -145,12 +145,18 @@ void main() {
         expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
         // 2. Button is rendered with muted color and tapping is disabled
-        final buttonFinder = find.byKey(const ValueKey('confirm-and-send-button'));
+        final buttonFinder = find.byKey(
+          const ValueKey('confirm-and-send-button'),
+        );
         expect(buttonFinder, findsOneWidget);
 
         await tester.tap(buttonFinder);
         await tester.pump();
-        expect(confirmed, isFalse, reason: 'Confirm should not fire during cooldown');
+        expect(
+          confirmed,
+          isFalse,
+          reason: 'Confirm should not fire during cooldown',
+        );
 
         // Advance 1.5 seconds: still cooling down
         await tester.pump(const Duration(milliseconds: 1500));
@@ -175,7 +181,11 @@ void main() {
         // 4. Button is now enabled: tapping confirms the order
         await tester.tap(buttonFinder);
         await tester.pump();
-        expect(confirmed, isTrue, reason: 'Confirm should fire after 3-second cooldown');
+        expect(
+          confirmed,
+          isTrue,
+          reason: 'Confirm should fire after 3-second cooldown',
+        );
       },
     );
 
@@ -213,7 +223,9 @@ void main() {
 
         await tester.tap(find.text('Review order'));
         await tester.pump(); // Start navigation to Step 4
-        await tester.pump(const Duration(milliseconds: 300)); // Finish slide transition
+        await tester.pump(
+          const Duration(milliseconds: 300),
+        ); // Finish slide transition
 
         // We are now in Step 4 Review Order
         expect(find.text('Review order'), findsWidgets);

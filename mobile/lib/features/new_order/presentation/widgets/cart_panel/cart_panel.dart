@@ -54,13 +54,17 @@ class _CartPanelState extends ConsumerState<CartPanel>
     );
     _bumpAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.25)
-            .chain(CurveTween(curve: Curves.easeOutBack)),
+        tween: Tween<double>(
+          begin: 1.0,
+          end: 1.25,
+        ).chain(CurveTween(curve: Curves.easeOutBack)),
         weight: 40,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.25, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeInOut)),
+        tween: Tween<double>(
+          begin: 1.25,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
         weight: 60,
       ),
     ]).animate(_bumpController);
@@ -300,7 +304,9 @@ class _CartPanelState extends ConsumerState<CartPanel>
                             },
                             style: OutlinedButton.styleFrom(
                               foregroundColor: KkfcColors.ink,
-                              side: const BorderSide(color: KkfcColors.ticketDisabledBg),
+                              side: const BorderSide(
+                                color: KkfcColors.ticketDisabledBg,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
@@ -444,7 +450,8 @@ class _CartPanelState extends ConsumerState<CartPanel>
                                 height: 50.0,
                                 child: FilledButton(
                                   style: FilledButton.styleFrom(
-                                    backgroundColor: KkfcColors.action, // Burnished copper
+                                    backgroundColor:
+                                        KkfcColors.action, // Burnished copper
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10.0),
                                     ),
@@ -521,7 +528,10 @@ class _CartPanelState extends ConsumerState<CartPanel>
         children: [
           // Brand Header Banner
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14.0,
+              vertical: 10.0,
+            ),
             decoration: const BoxDecoration(
               color: KkfcColors.canvas, // Warm Sand ground
               border: Border(
@@ -663,10 +673,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
                       begin: const Offset(0, 0.2),
                       end: Offset.zero,
                     ).animate(animation),
-                    child: FadeTransition(
-                      opacity: animation,
-                      child: child,
-                    ),
+                    child: FadeTransition(opacity: animation, child: child),
                   );
                 },
                 child: Text(
@@ -679,9 +686,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
                     fontSize: 15.0,
                     fontWeight: FontWeight.w700,
                     color: KkfcColors.ink,
-                    fontFeatures: [
-                      FontFeature.tabularFigures(),
-                    ],
+                    fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
               ),
@@ -695,9 +700,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
             style: const TextStyle(
               fontSize: 12.0,
               color: KkfcColors.ink3,
-              fontFeatures: [
-                FontFeature.tabularFigures(),
-              ],
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
 
@@ -706,10 +709,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
             const SizedBox(height: 4.0),
             Text(
               modifiers.join(' · '),
-              style: const TextStyle(
-                fontSize: 12.0,
-                color: KkfcColors.ink3,
-              ),
+              style: const TextStyle(fontSize: 12.0, color: KkfcColors.ink3),
             ),
           ],
 
@@ -724,9 +724,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
               decoration: BoxDecoration(
                 color: KkfcColors.ticketNoteBg,
                 borderRadius: BorderRadius.circular(4.0),
-                border: Border.all(
-                  color: KkfcColors.ticketNoteBorder,
-                ),
+                border: Border.all(color: KkfcColors.ticketNoteBorder),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -767,9 +765,8 @@ class _CartPanelState extends ConsumerState<CartPanel>
                   // Stepper: -
                   _QtyButton(
                     icon: Icons.remove,
-                    onTap: () => ref
-                        .read(cartProvider.notifier)
-                        .decrementLine(line.id),
+                    onTap: () =>
+                        ref.read(cartProvider.notifier).decrementLine(line.id),
                   ),
                   SizedBox(
                     width: 32.0,
@@ -793,9 +790,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
                             fontSize: 15.0,
                             fontWeight: FontWeight.w700,
                             color: KkfcColors.ink,
-                            fontFeatures: [
-                              FontFeature.tabularFigures(),
-                            ],
+                            fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
                       ),
@@ -804,9 +799,8 @@ class _CartPanelState extends ConsumerState<CartPanel>
                   // Stepper: +
                   _QtyButton(
                     icon: Icons.add,
-                    onTap: () => ref
-                        .read(cartProvider.notifier)
-                        .incrementLine(line.id),
+                    onTap: () =>
+                        ref.read(cartProvider.notifier).incrementLine(line.id),
                   ),
                   const SizedBox(width: 8.0),
 
@@ -824,9 +818,8 @@ class _CartPanelState extends ConsumerState<CartPanel>
 
               // Remove button
               TextButton(
-                onPressed: () => ref
-                    .read(cartProvider.notifier)
-                    .removeLine(line.id),
+                onPressed: () =>
+                    ref.read(cartProvider.notifier).removeLine(line.id),
                 style: TextButton.styleFrom(
                   foregroundColor: KkfcColors.danger,
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -958,9 +951,7 @@ class _EditButtonState extends State<_EditButton> {
               color: _pressed ? KkfcColors.canvasSunken : KkfcColors.surface,
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(
-                color: _pressed
-                    ? KkfcColors.ink
-                    : KkfcColors.borderStrong,
+                color: _pressed ? KkfcColors.ink : KkfcColors.borderStrong,
                 width: 1.0,
               ),
             ),
@@ -1014,9 +1005,7 @@ class _QtyButtonState extends State<_QtyButton> {
               color: _pressed ? KkfcColors.canvasSunken : KkfcColors.surface,
               borderRadius: BorderRadius.circular(6.0),
               border: Border.all(
-                color: _pressed
-                    ? KkfcColors.ink
-                    : KkfcColors.borderStrong,
+                color: _pressed ? KkfcColors.ink : KkfcColors.borderStrong,
                 width: 1.0,
               ),
             ),

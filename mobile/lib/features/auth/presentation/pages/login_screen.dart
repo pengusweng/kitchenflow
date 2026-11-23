@@ -84,7 +84,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           context,
           userRole: role,
           title: 'Superadmin Security PIN',
-          subtitle: 'Enter your 4-digit security PIN to complete superadmin sign-in.',
+          subtitle:
+              'Enter your 4-digit security PIN to complete superadmin sign-in.',
           actionLabel: 'Sign in',
         );
 
@@ -111,15 +112,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           context,
           userRole: UserRole.superadmin,
           title: 'Superadmin Security PIN',
-          subtitle: 'Enter your 4-digit security PIN to complete superadmin sign-in.',
+          subtitle:
+              'Enter your 4-digit security PIN to complete superadmin sign-in.',
           actionLabel: 'Sign in',
           onVerifyPin: (pin) async {
             try {
-              final verifiedToken = await ref.read(authRepositoryProvider).login(
-                username: _username.text.trim(),
-                password: _password.text,
-                pin: pin,
-              );
+              final verifiedToken = await ref
+                  .read(authRepositoryProvider)
+                  .login(
+                    username: _username.text.trim(),
+                    password: _password.text,
+                    pin: pin,
+                  );
               superadminToken = verifiedToken;
               return true;
             } on AuthException catch (err) {
@@ -133,7 +137,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         if (!mounted) return;
         if (confirmed && superadminToken != null) {
-          final role = ref.read(authRepositoryProvider).cachedRole ?? UserRole.superadmin;
+          final role =
+              ref.read(authRepositoryProvider).cachedRole ??
+              UserRole.superadmin;
           ref.read(userRoleProvider.notifier).setRole(role);
           ref.read(sessionTokenProvider.notifier).setToken(superadminToken);
           return;

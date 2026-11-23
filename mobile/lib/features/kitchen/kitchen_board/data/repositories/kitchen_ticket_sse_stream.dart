@@ -117,9 +117,7 @@ class KitchenTicketSseStream {
             if (!controller.isClosed) await controller.close();
             return;
           }
-          controller.addError(
-            FormatException(errorMessage(error)),
-          );
+          controller.addError(FormatException(errorMessage(error)));
           await controller.close();
           return;
         } catch (error, stackTrace) {
@@ -149,7 +147,9 @@ class KitchenTicketSseStream {
         final statusCode = response.statusCode ?? responseBody.statusCode;
         if (statusCode < 200 || statusCode >= 300) {
           controller.addError(
-            FormatException('Failed to load kitchen tickets. Status: $statusCode'),
+            FormatException(
+              'Failed to load kitchen tickets. Status: $statusCode',
+            ),
           );
           await controller.close();
           return;

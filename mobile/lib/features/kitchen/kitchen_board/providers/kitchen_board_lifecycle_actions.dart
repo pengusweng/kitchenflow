@@ -16,10 +16,7 @@ mixin KitchenBoardLifecycleActions on Notifier<KitchenBoardState> {
   Future<bool> acknowledgeTicket(String kitchenTicketId);
   Future<bool> prepareTicket(String kitchenTicketId);
   Future<bool> sendToQc(String kitchenTicketId, {String? reworkNotes});
-  Future<bool> passQc({
-    required String kitchenTicketId,
-    String? attemptId,
-  });
+  Future<bool> passQc({required String kitchenTicketId, String? attemptId});
 
   Future<bool> handOverTicket(
     String kitchenTicketId, {

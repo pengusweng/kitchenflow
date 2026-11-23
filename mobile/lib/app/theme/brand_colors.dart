@@ -43,7 +43,8 @@ enum KkfcBrand {
     for (final b in values) {
       if (b.code == cleanCode) return b;
     }
-    final combined = '${(code ?? '').toLowerCase()} ${(name ?? '').toLowerCase()}';
+    final combined =
+        '${(code ?? '').toLowerCase()} ${(name ?? '').toLowerCase()}';
     if (combined.contains('gamcheon') || combined.contains('gc')) {
       return gamcheon;
     }

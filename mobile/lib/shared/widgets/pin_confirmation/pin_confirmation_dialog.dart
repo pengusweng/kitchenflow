@@ -246,7 +246,9 @@ Future<bool> showPinConfirmationDialog(
     context: context,
     barrierDismissible: barrierDismissible,
     barrierLabel: 'Dismiss PIN dialog',
-    barrierColor: KkfcElevation.shadowColor.withValues(alpha: KkfcOpacity.scrim),
+    barrierColor: KkfcElevation.shadowColor.withValues(
+      alpha: KkfcOpacity.scrim,
+    ),
     transitionDuration: KkfcMotion.durOverlay,
     pageBuilder: (context, animation, secondaryAnimation) =>
         PinConfirmationDialog(

@@ -52,39 +52,36 @@ void main() {
       },
     );
 
-    testWidgets(
-      'shows dialog when user role IS superadmin',
-      (tester) async {
-        tester.view.physicalSize = _phone;
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
+    testWidgets('shows dialog when user role IS superadmin', (tester) async {
+      tester.view.physicalSize = _phone;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
 
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: counterTheme,
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: ElevatedButton(
-                  onPressed: () => showSuperadminPinConfirmationDialog(
-                    context,
-                    userRole: UserRole.superadmin,
-                    expectedPin: '1234',
-                  ),
-                  child: const Text('Trigger Action'),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: counterTheme,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () => showSuperadminPinConfirmationDialog(
+                  context,
+                  userRole: UserRole.superadmin,
+                  expectedPin: '1234',
                 ),
+                child: const Text('Trigger Action'),
               ),
             ),
           ),
-        );
+        ),
+      );
 
-        await tester.tap(find.text('Trigger Action'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Trigger Action'));
+      await tester.pumpAndSettle();
 
-        expect(find.byType(PinConfirmationDialog), findsOneWidget);
-        expect(find.text('Superadmin Authorization'), findsOneWidget);
-        expect(find.text('SUPERADMIN PRIVILEGE'), findsOneWidget);
-      },
-    );
+      expect(find.byType(PinConfirmationDialog), findsOneWidget);
+      expect(find.text('Superadmin Authorization'), findsOneWidget);
+      expect(find.text('SUPERADMIN PRIVILEGE'), findsOneWidget);
+    });
   });
 
   group('requireSuperadminPinConfirmation with Riverpod', () {
@@ -131,111 +128,107 @@ void main() {
       },
     );
 
-    testWidgets(
-      'opens dialog when userRoleProvider is superadmin',
-      (tester) async {
-        final container = ProviderContainer(
-          overrides: [
-            initialRoleProvider.overrideWithValue(UserRole.superadmin),
-          ],
-        );
-        addTearDown(container.dispose);
+    testWidgets('opens dialog when userRoleProvider is superadmin', (
+      tester,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [initialRoleProvider.overrideWithValue(UserRole.superadmin)],
+      );
+      addTearDown(container.dispose);
 
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(
-              theme: counterTheme,
-              home: Consumer(
-                builder: (context, ref, _) => Scaffold(
-                  body: ElevatedButton(
-                    onPressed: () => requireSuperadminPinConfirmation(
-                      context,
-                      ref: ref,
-                      expectedPin: '9999',
-                    ),
-                    child: const Text('Authorize Override'),
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: counterTheme,
+            home: Consumer(
+              builder: (context, ref, _) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => requireSuperadminPinConfirmation(
+                    context,
+                    ref: ref,
+                    expectedPin: '9999',
                   ),
+                  child: const Text('Authorize Override'),
                 ),
               ),
             ),
           ),
-        );
+        ),
+      );
 
-        await tester.tap(find.text('Authorize Override'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Authorize Override'));
+      await tester.pumpAndSettle();
 
-        expect(find.byType(PinConfirmationDialog), findsOneWidget);
-      },
-    );
+      expect(find.byType(PinConfirmationDialog), findsOneWidget);
+    });
   });
 
   group('PinConfirmationDialog UI & Interactivity', () {
-    testWidgets(
-      'numpad entry, backspace, clear, and successful validation',
-      (tester) async {
-        tester.view.physicalSize = _phone;
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
+    testWidgets('numpad entry, backspace, clear, and successful validation', (
+      tester,
+    ) async {
+      tester.view.physicalSize = _phone;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
 
-        bool? result;
+      bool? result;
 
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: counterTheme,
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: ElevatedButton(
-                  onPressed: () async {
-                    result = await showSuperadminPinConfirmationDialog(
-                      context,
-                      userRole: UserRole.superadmin,
-                      expectedPin: '1234',
-                    );
-                  },
-                  child: const Text('Open'),
-                ),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: counterTheme,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () async {
+                  result = await showSuperadminPinConfirmationDialog(
+                    context,
+                    userRole: UserRole.superadmin,
+                    expectedPin: '1234',
+                  );
+                },
+                child: const Text('Open'),
               ),
             ),
           ),
-        );
+        ),
+      );
 
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
 
-        expect(find.byType(PinConfirmationDots), findsOneWidget);
+      expect(find.byType(PinConfirmationDots), findsOneWidget);
 
-        // Tap digits '1', '2', '5'
-        await tester.tap(find.text('1'));
-        await tester.pump();
-        await tester.tap(find.text('2'));
-        await tester.pump();
-        await tester.tap(find.text('5'));
-        await tester.pump();
+      // Tap digits '1', '2', '5'
+      await tester.tap(find.text('1'));
+      await tester.pump();
+      await tester.tap(find.text('2'));
+      await tester.pump();
+      await tester.tap(find.text('5'));
+      await tester.pump();
 
-        // Tap backspace to delete '5'
-        await tester.tap(find.byIcon(Icons.backspace_outlined));
-        await tester.pump();
+      // Tap backspace to delete '5'
+      await tester.tap(find.byIcon(Icons.backspace_outlined));
+      await tester.pump();
 
-        // Tap clear to reset
-        await tester.tap(find.text('C'));
-        await tester.pump();
+      // Tap clear to reset
+      await tester.tap(find.text('C'));
+      await tester.pump();
 
-        // Now enter the correct PIN '1', '2', '3', '4'
-        await tester.tap(find.text('1'));
-        await tester.pump();
-        await tester.tap(find.text('2'));
-        await tester.pump();
-        await tester.tap(find.text('3'));
-        await tester.pump();
-        await tester.tap(find.text('4'));
-        await tester.pumpAndSettle();
+      // Now enter the correct PIN '1', '2', '3', '4'
+      await tester.tap(find.text('1'));
+      await tester.pump();
+      await tester.tap(find.text('2'));
+      await tester.pump();
+      await tester.tap(find.text('3'));
+      await tester.pump();
+      await tester.tap(find.text('4'));
+      await tester.pumpAndSettle();
 
-        // Dialog should auto-submit and pop with true
-        expect(find.byType(PinConfirmationDialog), findsNothing);
-        expect(result, isTrue);
-      },
-    );
+      // Dialog should auto-submit and pop with true
+      expect(find.byType(PinConfirmationDialog), findsNothing);
+      expect(result, isTrue);
+    });
 
     testWidgets(
       'incorrect PIN displays error notice and shakes without popping',
@@ -277,99 +270,90 @@ void main() {
 
         // Dialog stays open, displays error message
         expect(find.byType(PinConfirmationDialog), findsOneWidget);
-        expect(
-          find.text('Incorrect PIN. Please try again.'),
-          findsOneWidget,
-        );
+        expect(find.text('Incorrect PIN. Please try again.'), findsOneWidget);
       },
     );
 
-    testWidgets(
-      'tapping Cancel dismisses dialog with false',
-      (tester) async {
-        tester.view.physicalSize = _phone;
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
+    testWidgets('tapping Cancel dismisses dialog with false', (tester) async {
+      tester.view.physicalSize = _phone;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
 
-        bool? result;
+      bool? result;
 
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: counterTheme,
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: ElevatedButton(
-                  onPressed: () async {
-                    result = await showSuperadminPinConfirmationDialog(
-                      context,
-                      userRole: UserRole.superadmin,
-                      expectedPin: '1234',
-                    );
-                  },
-                  child: const Text('Open'),
-                ),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: counterTheme,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () async {
+                  result = await showSuperadminPinConfirmationDialog(
+                    context,
+                    userRole: UserRole.superadmin,
+                    expectedPin: '1234',
+                  );
+                },
+                child: const Text('Open'),
               ),
             ),
           ),
-        );
+        ),
+      );
 
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.widgetWithText(KkfcOutlinedButton, 'Cancel'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(KkfcOutlinedButton, 'Cancel'));
+      await tester.pumpAndSettle();
 
-        expect(find.byType(PinConfirmationDialog), findsNothing);
-        expect(result, isFalse);
-      },
-    );
+      expect(find.byType(PinConfirmationDialog), findsNothing);
+      expect(result, isFalse);
+    });
 
-    testWidgets(
-      'hardware keyboard entries work seamlessly',
-      (tester) async {
-        tester.view.physicalSize = _phone;
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
+    testWidgets('hardware keyboard entries work seamlessly', (tester) async {
+      tester.view.physicalSize = _phone;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
 
-        bool? result;
+      bool? result;
 
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: counterTheme,
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: ElevatedButton(
-                  onPressed: () async {
-                    result = await showSuperadminPinConfirmationDialog(
-                      context,
-                      userRole: UserRole.superadmin,
-                      expectedPin: '5678',
-                    );
-                  },
-                  child: const Text('Open'),
-                ),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: counterTheme,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () async {
+                  result = await showSuperadminPinConfirmationDialog(
+                    context,
+                    userRole: UserRole.superadmin,
+                    expectedPin: '5678',
+                  );
+                },
+                child: const Text('Open'),
               ),
             ),
           ),
-        );
+        ),
+      );
 
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
 
-        // Simulate typing hardware keys '5', '6', '7', '8'
-        await tester.sendKeyEvent(LogicalKeyboardKey.digit5);
-        await tester.pump();
-        await tester.sendKeyEvent(LogicalKeyboardKey.digit6);
-        await tester.pump();
-        await tester.sendKeyEvent(LogicalKeyboardKey.digit7);
-        await tester.pump();
-        await tester.sendKeyEvent(LogicalKeyboardKey.digit8);
-        await tester.pumpAndSettle();
+      // Simulate typing hardware keys '5', '6', '7', '8'
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit5);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit6);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit7);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit8);
+      await tester.pumpAndSettle();
 
-        expect(find.byType(PinConfirmationDialog), findsNothing);
-        expect(result, isTrue);
-      },
-    );
+      expect(find.byType(PinConfirmationDialog), findsNothing);
+      expect(result, isTrue);
+    });
 
     testWidgets('does not overflow at 2x text scale', (tester) async {
       tester.view.physicalSize = _phone;

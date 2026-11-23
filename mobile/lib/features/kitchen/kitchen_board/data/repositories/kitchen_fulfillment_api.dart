@@ -252,8 +252,8 @@ class KitchenFulfillmentApi {
         rejections ??
         (effectiveItemIds != null && effectiveItemIds.isNotEmpty
             ? effectiveItemIds
-                .map((id) => {'order_item_id': id, 'reason': reason})
-                .toList()
+                  .map((id) => {'order_item_id': id, 'reason': reason})
+                  .toList()
             : [
                 {'order_item_id': kitchenTicketId, 'reason': reason},
               ]);

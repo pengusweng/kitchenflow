@@ -94,10 +94,7 @@ class PinConfirmationCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Security Accent line at top
-          Container(
-            height: KkfcBorderWidth.focus,
-            color: semantic.action,
-          ),
+          Container(height: KkfcBorderWidth.focus, color: semantic.action),
 
           Padding(
             padding: const EdgeInsets.all(KkfcSpace.s24),
@@ -202,7 +199,8 @@ class PinConfirmationCard extends StatelessWidget {
                             color: semantic.danger.bg,
                             borderRadius: BorderRadius.circular(KkfcRadius.sm),
                             border: Border.all(
-                              color: semantic.danger.border ?? semantic.danger.fg,
+                              color:
+                                  semantic.danger.border ?? semantic.danger.fg,
                               width: KkfcBorderWidth.thin,
                             ),
                           ),

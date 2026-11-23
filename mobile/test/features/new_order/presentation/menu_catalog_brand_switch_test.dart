@@ -9,11 +9,7 @@ import 'package:mobile/features/new_order/presentation/widgets/menu_selector/cur
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 
-const _brandGc = AssignedBrand(
-  id: 'gc-uuid',
-  code: 'GC',
-  name: 'Gamcheon',
-);
+const _brandGc = AssignedBrand(id: 'gc-uuid', code: 'GC', name: 'Gamcheon');
 
 const _brandKk = AssignedBrand(
   id: 'kk-uuid',

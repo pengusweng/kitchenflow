@@ -186,18 +186,16 @@ class KitchenBoardRepository {
     required String kitchenTicketId,
     String? attemptId,
     String? checkerId,
-  }) =>
-      _fulfillment.passQcForTicket(
-        kitchenTicketId: kitchenTicketId,
-        attemptId: attemptId,
-        checkerId: checkerId,
-      );
+  }) => _fulfillment.passQcForTicket(
+    kitchenTicketId: kitchenTicketId,
+    attemptId: attemptId,
+    checkerId: checkerId,
+  );
 
   Future<void> rejectQcAttempt(
     String attemptId, {
     required List<Map<String, dynamic>> rejections,
-  }) =>
-      _fulfillment.rejectQcAttempt(attemptId, rejections: rejections);
+  }) => _fulfillment.rejectQcAttempt(attemptId, rejections: rejections);
 
   Future<void> rejectQcForTicket({
     required String kitchenTicketId,
@@ -206,49 +204,48 @@ class KitchenBoardRepository {
     String? checkerId,
     List<String>? orderItemIds,
     List<Map<String, dynamic>>? rejections,
-  }) =>
-      _fulfillment.rejectQcForTicket(
-        kitchenTicketId: kitchenTicketId,
-        reason: reason,
-        attemptId: attemptId,
-        checkerId: checkerId,
-        orderItemIds: orderItemIds,
-        rejections: rejections,
-      );
+  }) => _fulfillment.rejectQcForTicket(
+    kitchenTicketId: kitchenTicketId,
+    reason: reason,
+    attemptId: attemptId,
+    checkerId: checkerId,
+    orderItemIds: orderItemIds,
+    rejections: rejections,
+  );
 
   // Delegation to KitchenHandoverApi
   Future<void> handOverTicket(
     String ticketId, {
     List<HandoverPhotoEvidence>? photos,
     List<String>? imgKeys,
-  }) =>
-      _handover.handOverTicket(ticketId, photos: photos, imgKeys: imgKeys);
+  }) => _handover.handOverTicket(ticketId, photos: photos, imgKeys: imgKeys);
 
   Future<void> advanceTicket(
     KitchenBoardTicket ticket, {
     String? preparerId,
     List<HandoverPhotoEvidence>? photos,
     List<String>? imgKeys,
-  }) =>
-      _handover.advanceTicket(
-        ticket,
-        preparerId: preparerId,
-        photos: photos,
-        imgKeys: imgKeys,
-      );
+  }) => _handover.advanceTicket(
+    ticket,
+    preparerId: preparerId,
+    photos: photos,
+    imgKeys: imgKeys,
+  );
 
   Future<void> cancelTicket({
     required String brandId,
     required String orderId,
     required String reason,
-  }) =>
-      _handover.cancelTicket(brandId: brandId, orderId: orderId, reason: reason);
+  }) => _handover.cancelTicket(
+    brandId: brandId,
+    orderId: orderId,
+    reason: reason,
+  );
 
   Future<Map<String, dynamic>?> fetchOrder({
     required String brandId,
     required String orderId,
-  }) =>
-      _handover.fetchOrder(brandId: brandId, orderId: orderId);
+  }) => _handover.fetchOrder(brandId: brandId, orderId: orderId);
 }
 
 final kitchenBoardRepositoryProvider = Provider<KitchenBoardRepository>((ref) {

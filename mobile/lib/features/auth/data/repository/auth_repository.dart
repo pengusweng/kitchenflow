@@ -176,9 +176,7 @@ class AuthRepository {
     if (e.response?.statusCode == 401) {
       final data = e.response?.data;
       final code = data is Map ? data['code'] as String? : null;
-      final message = data is Map
-          ? (data['message'] as String?)?.trim()
-          : null;
+      final message = data is Map ? (data['message'] as String?)?.trim() : null;
 
       if (code == 'PIN_REQUIRED') {
         return AuthException(
