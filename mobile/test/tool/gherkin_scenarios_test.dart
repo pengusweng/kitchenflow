@@ -13,21 +13,30 @@ void main() {
         '../features/mobile/order-lifecycle.integration.feature',
       ).readAsStringSync();
       final scenarios = readAuthScenarios(source);
-      expect(scenarios, hasLength(4));
+      expect(scenarios, hasLength(5));
       expect(scenarios.map((s) => s['id']), [
+        'IT-MOB-ORD-005',
         'IT-MOB-ORD-001',
         'IT-MOB-ORD-002',
         'IT-MOB-ORD-003',
         'IT-MOB-ORD-004',
       ]);
       expect(
-        scenarios.first['gherkin'],
-        contains('test calls the real confirmation endpoint'),
+        scenarios.singleWhere(
+          (scenario) => scenario['id'] == 'IT-MOB-ORD-001',
+        )['gherkin'],
+        allOf(
+          contains('test calls the real verification endpoint'),
+          contains('taps Confirm and send through the UI'),
+        ),
       );
+      expect(scenarios.first['gherkin'], contains('production repository'));
       final results = scenarioResults(scenarios, [
         {'name': 'IT-MOB-ORD-001 review and API lifecycle', 'status': 'Passed'},
+        {'name': 'IT-MOB-ORD-005 kitchen flow', 'status': 'Passed'},
       ]);
       expect(results.map((s) => s['status']), [
+        'Passed',
         'Passed',
         'Not run',
         'Not run',

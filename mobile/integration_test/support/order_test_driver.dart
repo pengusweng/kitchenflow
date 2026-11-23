@@ -10,9 +10,12 @@ import 'package:mobile/features/auth/presentation/pages/login_screen.dart';
 import 'package:mobile/features/auth/presentation/widgets/login_notice.dart';
 import 'package:mobile/features/auth/providers/session_provider.dart';
 import 'package:mobile/features/new_order/presentation/pages/menu_screen.dart';
-import 'package:mobile/features/new_order/presentation/widgets/brands/brand_logo.dart';
+import 'package:mobile/features/new_order/data/models/menu_models.dart';
+import 'package:mobile/features/new_order/presentation/widgets/cart_bar.dart';
+import 'package:mobile/features/new_order/presentation/widgets/item_customization_dialog.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_item_card.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_panel.dart';
+import 'package:mobile/features/new_order/presentation/widgets/order_flow/order_details_step_view.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 import 'package:mobile/main.dart' as app;
@@ -27,17 +30,27 @@ const unavailableOrderItemId = String.fromEnvironment(
 );
 
 void requireOrderFixtures() {
-  if (AppConfig.env != 'test' ||
-      !const bool.hasEnvironment('API_URL') ||
-      [
-        orderUsername,
-        orderPassword,
-        orderBrandId,
-        orderItemId,
-        const String.fromEnvironment('POS_MANAGER_USERNAME'),
-      ].any((s) => s.isEmpty)) {
+  const fixture = {
+    'API_URL': String.fromEnvironment('API_URL'),
+    'TEST_USERNAME': orderUsername,
+    'TEST_PASSWORD': orderPassword,
+    'POS_BRAND_ID': orderBrandId,
+    'POS_MENU_ITEM_ID': orderItemId,
+    'POS_UNAVAILABLE_ITEM_ID': unavailableOrderItemId,
+    'POS_MANAGER_USERNAME': String.fromEnvironment('POS_MANAGER_USERNAME'),
+    'POS_MANAGER_PASSWORD': String.fromEnvironment('POS_MANAGER_PASSWORD'),
+    'POS_KITCHEN_ID': String.fromEnvironment('POS_KITCHEN_ID'),
+    'POS_KITCHEN_USERNAME': String.fromEnvironment('POS_KITCHEN_USERNAME'),
+    'POS_KITCHEN_PASSWORD': String.fromEnvironment('POS_KITCHEN_PASSWORD'),
+  };
+  final missing = [
+    if (AppConfig.env != 'test') 'ENV=test',
+    for (final entry in fixture.entries)
+      if (entry.value.trim().isEmpty) entry.key,
+  ];
+  if (missing.isNotEmpty) {
     throw StateError(
-      'Prepare mobile-pos-fixtures.ts prepare --orders and use .fixtures/order-flow.json with ENV=test.',
+      'Missing or invalid order test config: ${missing.join(', ')}. Run mobile-pos-fixtures.ts prepare --orders and pass .fixtures/order-flow.json.',
     );
   }
 }
@@ -55,6 +68,17 @@ Dio orderApi([String? token]) => Dio(
 
 Finder orderMenuItem(String id) =>
     find.byWidgetPredicate((w) => w is MenuItemCard && w.item.id == id);
+
+Future<void> addOrderMenuItem(WidgetTester tester, String itemId) async {
+  await orderTap(tester, orderMenuItem(itemId));
+  final dialog = find.byType(ItemCustomizationDialog);
+  expect(dialog, findsOneWidget);
+  await orderTap(
+    tester,
+    find.descendant(of: dialog, matching: find.text('Add to order')),
+  );
+  expect(dialog, findsNothing);
+}
 
 Future<void> waitForOrderUi(
   WidgetTester tester,
@@ -118,16 +142,10 @@ Future<ProviderContainer> loginForOrders(WidgetTester tester) async {
   );
   expect(find.byType(MenuScreen), findsOneWidget);
   final container = ProviderScope.containerOf(tester.element(find.byType(App)));
+  await selectFixtureBrand(tester, container, orderBrandId);
   await waitForOrderUi(
     tester,
-    () =>
-        orderMenuItem(orderItemId).evaluate().isNotEmpty &&
-        find
-            .byWidgetPredicate(
-              (w) => w is BrandLogo && w.brand.id == orderBrandId,
-            )
-            .evaluate()
-            .isNotEmpty,
+    () => orderMenuItem(orderItemId).evaluate().isNotEmpty,
     'real API brand and menu',
   );
   expect(container.read(activeBrandProvider).id, orderBrandId);
@@ -169,15 +187,51 @@ Dio authenticatedOrderApi(ProviderContainer container) {
 
 Future<void> openOrderCart(WidgetTester tester) async {
   if (find.byType(CartPanel).evaluate().isEmpty) {
-    await orderTap(tester, find.text('View cart'));
+    await orderTap(
+      tester,
+      find.descendant(of: find.byType(CartBar), matching: find.byType(InkWell)),
+    );
   }
   expect(find.byType(CartPanel), findsOneWidget);
 }
 
-Future<void> fillOrderReference(WidgetTester tester, String reference) async {
+Future<void> selectFixtureBrand(
+  WidgetTester tester,
+  ProviderContainer container,
+  String brandId,
+) async {
+  await waitForOrderUi(
+    tester,
+    () => container
+        .read(assignedBrandsProvider)
+        .any((brand) => brand.id == brandId),
+    'fixture brand in the API catalog',
+  );
+  if (container.read(activeBrandProvider).id == brandId) return;
+  await orderTap(
+    tester,
+    find.byKey(const ValueKey('current-menu-selector-card')),
+  );
+  await orderTap(tester, find.byKey(ValueKey('select-provider-$brandId')));
+  await orderTap(tester, find.byKey(const ValueKey('switch-menu-button')));
+  expect(container.read(activeBrandProvider).id, brandId);
+}
+
+Future<void> openOrderDetails(WidgetTester tester) async {
   await openOrderCart(tester);
+  await orderTap(tester, find.text('Continue to order details'));
+  expect(find.byType(OrderDetailsStepView), findsOneWidget);
+}
+
+Future<void> fillOrderReference(
+  WidgetTester tester,
+  String reference, {
+  MenuChannel channel = MenuChannel.dineIn,
+}) async {
+  await openOrderDetails(tester);
+  await orderTap(tester, find.byKey(ValueKey('channel-${channel.name}')));
   final field = find.descendant(
-    of: find.byType(CartPanel),
+    of: find.byType(OrderDetailsStepView),
     matching: find.byType(TextField),
   );
   await tester.ensureVisible(field);

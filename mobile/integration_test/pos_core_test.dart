@@ -11,19 +11,17 @@ import 'package:mobile/features/auth/data/models/login_status.dart';
 import 'package:mobile/features/auth/presentation/widgets/login_notice.dart';
 import 'package:mobile/features/auth/providers/session_provider.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
-import 'package:mobile/features/new_order/presentation/pages/channel_repricing_screen.dart';
 import 'package:mobile/features/new_order/presentation/pages/menu_screen.dart';
-import 'package:mobile/features/new_order/presentation/widgets/brands/brand_logo.dart';
-import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_line_tile.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_panel.dart';
-import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_panel_footer.dart';
-import 'package:mobile/features/new_order/presentation/widgets/channel_tabs.dart';
+import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_search_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_item_card.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 import 'package:mobile/main.dart' as app;
 import 'package:mobile/shared/widgets/kkfc_loading_button.dart';
-import 'package:mobile/shared/widgets/app_header.dart';
+
+import 'support/order_test_driver.dart'
+    show addOrderMenuItem, openOrderCart, openOrderDetails, selectFixtureBrand;
 
 const _username = String.fromEnvironment('TEST_USERNAME');
 const _password = String.fromEnvironment('TEST_PASSWORD');
@@ -51,28 +49,34 @@ void main() {
   });
 
   testWidgets(
-    'IT-MOB-POS-001 Login to assigned brand and build, edit, and clear a Takeaway cart',
+    'IT-MOB-POS-001 Select the fixture brand and build, edit, and clear a Dine-in cart',
     (tester) async {
       final container = await _login(tester);
-      await _selectTakeaway(tester);
       final card = _item(_itemId);
       expect(
-        find.descendant(of: card, matching: find.text(formatPeso(12500))),
+        find.descendant(of: card, matching: find.text(formatPeso(10000))),
         findsOneWidget,
       );
-      await _tap(tester, card);
-      await _tap(tester, card);
+      await addOrderMenuItem(tester, _itemId);
+      await addOrderMenuItem(tester, _itemId);
       expect(container.read(cartProvider), hasLength(1));
-      _expectCart(container, quantity: 2, total: 25000);
-      await _openCart(tester);
-      _expectCartUi(tester, quantity: 2, total: 25000);
+      _expectCart(container, quantity: 2, total: 20000);
+      await openOrderCart(tester);
+      _expectCartUi(container, quantity: 2, total: 20000);
 
-      await _tap(tester, find.byTooltip('Add one'));
-      _expectCart(container, quantity: 3, total: 37500);
-      _expectCartUi(tester, quantity: 3, total: 37500);
-      await _tap(tester, find.byTooltip('Remove one'));
-      _expectCart(container, quantity: 2, total: 25000);
-      _expectCartUi(tester, quantity: 2, total: 25000);
+      final cart = find.byType(CartPanel);
+      await _tap(
+        tester,
+        find.descendant(of: cart, matching: find.byIcon(Icons.add)),
+      );
+      _expectCart(container, quantity: 3, total: 30000);
+      _expectCartUi(container, quantity: 3, total: 30000);
+      await _tap(
+        tester,
+        find.descendant(of: cart, matching: find.byIcon(Icons.remove)),
+      );
+      _expectCart(container, quantity: 2, total: 20000);
+      _expectCartUi(container, quantity: 2, total: 20000);
       await _tap(
         tester,
         find.descendant(
@@ -81,10 +85,7 @@ void main() {
         ),
       );
       expect(container.read(cartProvider), isEmpty);
-      expect(
-        find.text('No items yet. Tap a menu item to add it.'),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('empty-cart')), findsOneWidget);
     },
   );
 
@@ -92,20 +93,16 @@ void main() {
     'IT-MOB-POS-002 Changing channel reprices the existing cart without losing quantities',
     (tester) async {
       final container = await _login(tester);
-      await _tap(tester, _item(_itemId));
-      await _tap(tester, _item(_itemId));
+      await addOrderMenuItem(tester, _itemId);
+      await addOrderMenuItem(tester, _itemId);
       _expectCart(container, quantity: 2, total: 20000);
       final lineId = container.read(cartProvider).single.id;
-      await _selectTakeaway(tester);
-      expect(find.byType(ChannelRepricingScreen), findsOneWidget);
+      await openOrderDetails(tester);
+      await _tap(tester, find.byKey(const ValueKey('channel-takeaway')));
       _expectCart(container, quantity: 2, total: 25000);
       expect(container.read(cartProvider).single.id, lineId);
       expect(find.text(formatPeso(25000)), findsWidgets);
-      await _tap(tester, find.text('Got it'));
-      expect(find.byType(MenuScreen), findsOneWidget);
       expect(container.read(menuChannelProvider), MenuChannel.takeaway);
-      await _openCart(tester);
-      _expectCartUi(tester, quantity: 2, total: 25000);
     },
   );
 
@@ -124,18 +121,22 @@ void main() {
       await _tap(tester, unavailable);
       _expectCart(container, quantity: 0, total: 0);
       final search = find.descendant(
-        of: find.byType(SearchBar),
+        of: find.byType(CatalogSearchBar),
         matching: find.byType(TextField),
       );
       await tester.enterText(search, 'POS flow meal');
       FocusManager.instance.primaryFocus?.unfocus();
-      await tester.pumpAndSettle();
+      await _wait(
+        tester,
+        () => container.read(menuSearchProvider) == 'POS flow meal',
+        'debounced menu search',
+      );
       expect(_item(_unavailableId), findsNothing);
       expect(_item(_itemId), findsOneWidget);
-      await _tap(tester, _item(_itemId));
+      await addOrderMenuItem(tester, _itemId);
       _expectCart(container, quantity: 1, total: 10000);
-      await _openCart(tester);
-      _expectCartUi(tester, quantity: 1, total: 10000);
+      await openOrderCart(tester);
+      _expectCartUi(container, quantity: 1, total: 10000);
     },
   );
 }
@@ -195,42 +196,16 @@ Future<ProviderContainer> _login(WidgetTester tester) async {
   expect(find.byType(MenuScreen), findsOneWidget);
   final container = ProviderScope.containerOf(tester.element(find.byType(App)));
   expect(container.read(sessionTokenProvider), isNotNull);
+  await selectFixtureBrand(tester, container, _brandId);
   await _wait(
     tester,
-    () =>
-        _item(_itemId).evaluate().isNotEmpty &&
-        find
-            .descendant(
-              of: find.byType(MenuHeader),
-              matching: find.byWidgetPredicate(
-                (w) => w is BrandLogo && w.brand.id == _brandId,
-              ),
-            )
-            .evaluate()
-            .isNotEmpty,
-    'assigned brand and fixture menu from the real API',
+    () => _item(_itemId).evaluate().isNotEmpty,
+    'fixture menu from the real API',
   );
   expect(container.read(activeBrandProvider).id, _brandId);
   expect(container.read(menuChannelProvider), MenuChannel.dineIn);
   expect(container.read(cartProvider), isEmpty);
   return container;
-}
-
-Future<void> _selectTakeaway(WidgetTester tester) async {
-  await _tap(
-    tester,
-    find.descendant(
-      of: find.byType(ChannelTabs),
-      matching: find.text('Takeaway'),
-    ),
-  );
-}
-
-Future<void> _openCart(WidgetTester tester) async {
-  if (find.byType(CartPanel).evaluate().isEmpty) {
-    await _tap(tester, find.text('View cart'));
-  }
-  expect(find.byType(CartPanel), findsOneWidget);
 }
 
 void _expectCart(
@@ -247,21 +222,16 @@ void _expectCart(
 }
 
 void _expectCartUi(
-  WidgetTester tester, {
+  ProviderContainer container, {
   required int quantity,
   required int total,
 }) {
-  final footer = tester.widget<CartPanelFooter>(find.byType(CartPanelFooter));
-  expect(footer.count, quantity);
-  expect(footer.total, total);
-  expect(
-    tester.widget<CartLineTile>(find.byType(CartLineTile)).line.quantity,
-    quantity,
-  );
+  final line = container.read(cartProvider).single;
+  expect(find.byKey(ValueKey('qty-${line.id}-$quantity')), findsOneWidget);
   expect(
     find.descendant(
-      of: find.byType(CartPanelFooter),
-      matching: find.text(formatPeso(total)),
+      of: find.byType(CartPanel),
+      matching: find.byKey(ValueKey('cart-total-$total')),
     ),
     findsOneWidget,
   );

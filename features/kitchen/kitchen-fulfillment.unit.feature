@@ -1,6 +1,20 @@
 @backend @unit @kitchen
 Feature: Kitchen fulfillment handover responses
 
+  @UT-KFUL-009
+  Scenario Outline: Suppress board notifications when commit fails
+    Given <operation> completes its service writes inside a transaction
+    When the transaction owner reports a commit failure
+    Then the error propagates and no kitchen board notification is published
+
+    Examples:
+      | operation |
+      | prepare   |
+      | check     |
+      | pass      |
+      | reject    |
+      | handOver  |
+
   @UT-KFUL-001
   Scenario Outline: Return the final ticket state after handover
     Given a ready ticket belonging to a preparing <channel> order

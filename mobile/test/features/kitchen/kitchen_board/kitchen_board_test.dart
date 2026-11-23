@@ -360,6 +360,68 @@ void main() {
       expect(tickets.first.data.ticketNumber, 'T-016');
     });
 
+    test('fragmented CRLF SSE preserves ticket identity across QC rework and ready snapshots including the final unterminated event', () async {
+      const id = '00000000-0000-4000-8000-000000000016';
+      String event(String status, int sequence) =>
+          'id: $sequence\r\nevent: tickets\r\nretry: 1000\r\ndata: ${jsonEncode([
+            {'kitchen_ticket_id': id, 'order_id': '00000000-0000-4000-8000-000000000116', 'order_code': 'KK-00016', 'ticket_number': 'T-016', 'status': status, 'created_at': '2026-11-10T09:39:00.000Z'},
+          ])}';
+      final wire =
+          ': ping\r\n\r\n${event('CHECKING', 1)}\r\n\r\n${event('REWORKING', 2)}\r\n\r\n${event('READY', 3)}';
+      final bytes = utf8.encode(wire);
+      final chunks = <Uint8List>[];
+      for (var offset = 0; offset < bytes.length; offset += 7) {
+        chunks.add(
+          Uint8List.fromList(
+            bytes.sublist(offset, (offset + 7).clamp(0, bytes.length)),
+          ),
+        );
+      }
+      final adapter = _RecordingAdapter(
+        (_) async => ResponseBody(
+          Stream.fromIterable(chunks),
+          200,
+          headers: {
+            Headers.contentTypeHeader: ['text/event-stream'],
+          },
+        ),
+      );
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000/api'))
+        ..httpClientAdapter = adapter;
+      addTearDown(() => dio.close(force: true));
+      final snapshots = await KitchenBoardRepository(dio)
+          .streamTodaysTickets()
+          .toList();
+      expect(snapshots, hasLength(3));
+      expect(snapshots.map((s) => s.single.kitchenTicketId), everyElement(id));
+      expect(snapshots.map((s) => s.single.rawStatus), [
+        'CHECKING',
+        'REWORKING',
+        'READY',
+      ]);
+      expect(snapshots.map((s) => s.single.lane), [
+        KitchenBoardLane.qcCheck,
+        KitchenBoardLane.rework,
+        KitchenBoardLane.ready,
+      ]);
+      expect(adapter.requests, hasLength(1));
+    });
+
+    test('a stream cancelled before listening does not open a request or use the REST fallback', () async {
+      final adapter = _RecordingAdapter(
+        (_) async => throw StateError('No request should start'),
+      );
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000/api'))
+        ..httpClientAdapter = adapter;
+      addTearDown(() => dio.close(force: true));
+      final cancellation = CancelToken()..cancel('Left the kitchen workspace');
+      final snapshots = await KitchenBoardRepository(dio)
+          .watchTodaysTickets(cancelToken: cancellation)
+          .toList();
+      expect(snapshots, isEmpty);
+      expect(adapter.requests, isEmpty);
+    });
+
     test('streamTodaysTickets emits multiple SSE updates in real time and ignores : ping heartbeats', () async {
       final streamController = StreamController<Uint8List>();
       final adapter = _RecordingAdapter((options) async {
@@ -376,10 +438,16 @@ void main() {
         ..httpClientAdapter = adapter;
       final repo = KitchenBoardRepository(dio);
 
-      final emissions = <List<KitchenBoardTicket>>[];
-      final sub = repo
-          .streamTodaysTickets(now: DateTime.parse('2026-11-10T09:41:00.000Z'))
-          .listen(emissions.add);
+      final updates = StreamIterator(
+        repo.streamTodaysTickets(
+          now: DateTime.parse('2026-11-10T09:41:00.000Z'),
+        ),
+      );
+      addTearDown(() async {
+        await updates.cancel();
+        dio.close(force: true);
+        await streamController.close();
+      });
 
       // 1. Emit initial snapshot
       streamController.add(
@@ -391,14 +459,14 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(emissions, hasLength(1));
-      expect(emissions.first.first.lane, KitchenBoardLane.queued);
+      expect(
+        await updates.moveNext().timeout(const Duration(seconds: 5)),
+        true,
+      );
+      expect(updates.current.single.lane, KitchenBoardLane.queued);
 
       // 2. Emit heartbeat comment (: ping) — should be ignored
       streamController.add(Uint8List.fromList(utf8.encode(': ping\n\n')));
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(emissions, hasLength(1));
 
       // 3. Emit updated snapshot where ticket moved to PREPARING
       streamController.add(
@@ -410,12 +478,17 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(emissions, hasLength(2));
-      expect(emissions.last.first.lane, KitchenBoardLane.preparing);
-
-      unawaited(sub.cancel());
+      expect(
+        await updates.moveNext().timeout(const Duration(seconds: 5)),
+        true,
+      );
+      expect(updates.current.single.lane, KitchenBoardLane.preparing);
+      // Drain to completion: any extra event emitted for a heartbeat fails.
       unawaited(streamController.close());
+      expect(
+        await updates.moveNext().timeout(const Duration(seconds: 5)),
+        false,
+      );
     });
 
     test('watchTodaysTickets falls back to GET /api/kitchen-ticket/today when stream fails', () async {

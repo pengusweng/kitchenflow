@@ -1,17 +1,31 @@
 @mobile @integration @real_api @orders
 Feature: Current mobile order review and real API order lifecycle
 
+  @IT-MOB-ORD-005
+  Scenario: Follow one POS order through kitchen fulfillment and availability
+    Given a cashier reviews and confirms a two-meal Takeaway order through the real app
+    And the confirmation displays the ticket number returned by the API
+    When the cashier logs out and a kitchen head logs in through the app
+    Then the same order and ticket advance through acknowledgement preparation and QC submission in the UI
+    When an external production repository call rejects a portion during the first QC attempt
+    Then the board receives the rework state through its live API stream
+    When the kitchen head returns rework to QC approves every item and completes the handover checklist in the UI
+    Then the persisted order is completed with the same handed-over ticket and two QC attempts
+    And the completed ticket disappears from the active board
+    And the kitchen head can visit availability and return to the board
+
   @IT-MOB-ORD-001
-  Scenario: Review in the UI and verify and confirm the resulting draft through the API
+  Scenario: Create and confirm an order through the current UI
     Given a staff member logs in and builds a Takeaway cart with two meals
-    When the staff member reviews the cart and repeatedly taps Confirm and send
-    Then the current mobile flow creates one draft request and clears the cart
+    When the staff member taps Review order from Order details
+    Then the mobile flow creates one draft request
     And the API draft has an order code and no kitchen ticket
     When the test calls the real verification endpoint
     Then verification returns current prices without creating a ticket
-    When the test calls the real confirmation endpoint and retries confirmation
+    When the staff member repeatedly taps Confirm and send through the UI
     Then the API returns one confirmed order with the same code and one queued ticket
-    And repeated confirmation preserves the original payment state
+    And an API retry preserves the original payment state
+    And New order clears the cart
 
   @IT-MOB-ORD-002
   Scenario: Safe create retries and daily order codes
@@ -40,6 +54,6 @@ Feature: Current mobile order review and real API order lifecycle
     When the fixture supervisor marks that meal unavailable through the real API
     Then verification and confirmation reject the stale API draft without a ticket
     And a new API order containing an unavailable meal is rejected
-    When the staff member attempts to send the stale mobile cart
-    Then the mobile review remains open with the cart and reference preserved
+    When the staff member attempts to review the stale mobile cart
+    Then Order details remains open with the cart and reference preserved
     And the test restores the fixture availability afterward

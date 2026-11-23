@@ -98,6 +98,55 @@ Widget _sheet(List<Widget> cards) {
 void main() {
   for (final viewport in goldenViewports) {
     for (final textScale in goldenTextScales) {
+      if (viewport.name == '720dp') {
+        goldenTest(
+          'board rework and role restrictions @ ${viewport.name}, text $textScale',
+          fileName: goldenFileName(
+            _component,
+            'board_rework_roles',
+            viewport,
+            textScale,
+          ),
+          textScaleFactor: textScale,
+          constraints: goldenSheetConstraints(viewport),
+          pumpBeforeTest: pumpOnce,
+          builder: () => withDisabledAnimations(
+            _sheet([
+              KitchenTicketCard.board(
+                ticket:
+                    _ticket(
+                      age: KitchenTicketAge.late,
+                      elapsed: const Duration(minutes: 12),
+                      status: KkfcStatus.reworking,
+                    ).copyWith(
+                      qcReturnedReason:
+                          'Portion incomplete; prepare the missing rice.',
+                      reworkNotes: 'Replated and ready for another check.',
+                      items: const [
+                        KitchenTicketItem(
+                          quantity: 2,
+                          name: 'Paa Inasal',
+                          failReason: 'Rice portion incomplete',
+                        ),
+                      ],
+                    ),
+                actionLabel: 'Open rework',
+                onAction: () {},
+              ),
+              KitchenTicketCard.board(
+                ticket: _ticket(
+                  age: KitchenTicketAge.onTime,
+                  elapsed: const Duration(seconds: 45),
+                  status: KkfcStatus.checking,
+                ),
+                actionLabel: 'QC check',
+                isActionEnabled: false,
+                onAction: () {},
+              ),
+            ]),
+          ),
+        );
+      }
       // One sheet per age state, all six kitchen statuses on each.
       for (final c in _ageCases) {
         goldenTest(
