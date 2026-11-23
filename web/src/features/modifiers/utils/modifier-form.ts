@@ -6,7 +6,16 @@ export type ModifierFormValues = {
   description: string;
 };
 
-export type ModifierFormErrors = Partial<Record<keyof ModifierFormValues, string>>;
+export type ModifierFormErrors = Partial<
+  Record<keyof ModifierFormValues, string>
+>;
+
+/** The body of POST and PATCH /modifiers. */
+export type ModifierPayload = {
+  code: string;
+  name: string;
+  description: string | null;
+};
 
 /** Field ids in form order, so a failed save can move focus to the first problem. */
 export const FIELD_ORDER = ["name", "code", "description"] as const;
@@ -19,21 +28,28 @@ export function emptyFormValues(): ModifierFormValues {
 }
 
 export function toFormValues(modifier: Modifier): ModifierFormValues {
-  return { name: modifier.name, code: modifier.code, description: modifier.description ?? "" };
+  return {
+    name: modifier.name,
+    code: modifier.code,
+    description: modifier.description ?? "",
+  };
 }
 
-/** Problems to fix before saving; empty when the form can be saved. `takenCodes` are other modifiers' codes. */
-export function validateModifierForm(values: ModifierFormValues, takenCodes: Set<string>): ModifierFormErrors {
+/** Problems to fix before saving; empty when the form can be saved. The API checks that the code is unused. */
+export function validateModifierForm(
+  values: ModifierFormValues,
+): ModifierFormErrors {
   const errors: ModifierFormErrors = {};
   const name = values.name.trim();
   const code = values.code.trim();
 
   if (!name) errors.name = "Enter the modifier's name.";
-  else if (name.length > LIMITS.name) errors.name = `Keep the name to ${LIMITS.name} characters.`;
+  else if (name.length > LIMITS.name)
+    errors.name = `Keep the name to ${LIMITS.name} characters.`;
 
   if (!code) errors.code = "Enter a code.";
-  else if (code.length > LIMITS.code) errors.code = `Keep the code to ${LIMITS.code} characters.`;
-  else if (takenCodes.has(code.toUpperCase())) errors.code = "Another modifier already uses this code.";
+  else if (code.length > LIMITS.code)
+    errors.code = `Keep the code to ${LIMITS.code} characters.`;
 
   if (values.description.trim().length > LIMITS.description)
     errors.description = `Keep the description to ${LIMITS.description} characters.`;
@@ -53,28 +69,11 @@ export function hasFormChanges(modifier: Modifier, values: ModifierFormValues) {
   );
 }
 
-/** The modifier as it reads after saving a valid form. */
-export function applyModifierEdit(modifier: Modifier, values: ModifierFormValues, now: string): Modifier {
+/** Trimmed, the code uppercased, and a blank description cleared. */
+export function toPayload(values: ModifierFormValues): ModifierPayload {
   return {
-    ...modifier,
-    name: values.name.trim(),
     code: values.code.trim().toUpperCase(),
+    name: values.name.trim(),
     description: values.description.trim() || null,
-    modifiedAt: now,
   };
-}
-
-/** A new modifier from a valid form. It starts active and on no menu items. */
-export function newModifier(id: string, values: ModifierFormValues, now: string): Modifier {
-  const blank: Modifier = {
-    id,
-    code: "",
-    name: "",
-    description: null,
-    active: true,
-    createdAt: now,
-    modifiedAt: now,
-    uses: [],
-  };
-  return applyModifierEdit(blank, values, now);
 }

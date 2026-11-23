@@ -1,4 +1,9 @@
 import { formatPeso, type MenuBrand } from "@/src/features/menu/utils/menu";
+import type {
+  ModifierDetailRecord,
+  ModifierListRecord,
+  ModifierRecord,
+} from "../schemas/modifierSchema";
 
 /** One menu item that offers the modifier, with the price and stock that item sets for it. */
 export type ModifierUse = {
@@ -25,81 +30,67 @@ export type Modifier = {
   active: boolean;
   createdAt: string;
   modifiedAt: string;
-  uses: ModifierUse[];
+  /** How many menu items offer it. */
+  useCount: number;
 };
 
 export type StatusFilter = "active" | "inactive";
-
-export type ModifierFilters = {
-  search: string;
-  /** Brand code; undefined means every brand. */
-  brand: string | undefined;
-  /** Undefined means active and inactive. */
-  status: StatusFilter | undefined;
-};
-
-/** Counts per brand code plus "all", in the shape the brand chips take. */
-export type ModifierBrandCounts = Record<string, { total: number; unavailable: number }>;
+export type ModifierSortField = "name" | "code" | "created_at" | "modified_at";
 
 export const MODIFIER_PAGE_SIZE = 10;
 
-// Same rule as the menu: every space-separated term must match the name or the code.
-function matchesSearch(modifier: Modifier, search: string) {
-  const terms = search.toLowerCase().split(/\s+/).filter(Boolean);
-  const haystack = [modifier.name.toLowerCase(), modifier.code.toLowerCase()];
-  return terms.every((term) => haystack.some((field) => field.includes(term)));
+/** A list row, or a record from a write, which comes back without its usage. */
+export function toModifier(
+  record: ModifierListRecord | ModifierRecord,
+  useCount?: number,
+): Modifier {
+  return {
+    id: record.modifier_id,
+    code: record.code,
+    name: record.name,
+    description: record.description,
+    active: record.is_active,
+    createdAt: record.created_at,
+    modifiedAt: record.modified_at,
+    useCount:
+      useCount ??
+      ("_count" in record ? record._count.menu_item_modifiers_modifier : 0),
+  };
 }
 
-function matchesStatus(modifier: Modifier, status: StatusFilter | undefined) {
-  if (!status) return true;
-  return status === "active" ? modifier.active : !modifier.active;
-}
-
-function offeredBy(modifier: Modifier, brandCode: string) {
-  return modifier.uses.some((use) => use.brand.code === brandCode);
-}
-
-/** The rows the table shows, in name order. */
-export function filterModifiers(modifiers: Modifier[], filters: ModifierFilters) {
-  return modifiers
-    .filter(
-      (modifier) =>
-        matchesSearch(modifier, filters.search) &&
-        matchesStatus(modifier, filters.status) &&
-        (!filters.brand || offeredBy(modifier, filters.brand)),
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-/**
- * What each brand chip would show if picked. Ignores the brand filter itself.
- * A modifier offered by two brands counts once under each.
- */
-export function countModifiers(modifiers: Modifier[], filters: ModifierFilters): ModifierBrandCounts {
-  const counts: ModifierBrandCounts = { all: { total: 0, unavailable: 0 } };
-  for (const modifier of modifiers) {
-    if (!matchesSearch(modifier, filters.search) || !matchesStatus(modifier, filters.status)) continue;
-    counts.all.total += 1;
-    for (const code of new Set(modifier.uses.map((use) => use.brand.code))) {
-      (counts[code] ??= { total: 0, unavailable: 0 }).total += 1;
-    }
-  }
-  return counts;
-}
-
-/** The brands whose items offer the modifier, in the page's brand order. */
-export function brandsOf(modifier: Modifier, brands: MenuBrand[]): MenuBrand[] {
-  return brands.filter((brand) => offeredBy(modifier, brand.code));
-}
-
-/** Uses grouped by brand in the page's brand order, items by name within each. */
-export function usesByBrand(modifier: Modifier, brands: MenuBrand[]) {
-  return brandsOf(modifier, brands).map((brand) => ({
-    brand,
-    uses: modifier.uses
-      .filter((use) => use.brand.code === brand.code)
-      .sort((a, b) => a.itemName.localeCompare(b.itemName)),
+export function toModifierUses(
+  record: ModifierDetailRecord,
+  brandFor: (id: string) => MenuBrand,
+): ModifierUse[] {
+  return record.menu_item_modifiers_modifier.map((use) => ({
+    id: use.menu_item_modifier_id,
+    itemName: use.menu_item.name,
+    itemCode: use.menu_item.code,
+    brand: brandFor(use.menu_item.brand_id),
+    price: use.additional_price,
+    available: use.is_available,
+    itemActive: use.menu_item.is_active,
   }));
+}
+
+/** Uses grouped by brand in the page's brand order (unknown brands last), items by name within each. */
+export function usesByBrand(uses: ModifierUse[], brands: MenuBrand[]) {
+  const order = (brand: MenuBrand) => {
+    const index = brands.findIndex((b) => b.id === brand.id);
+    return index === -1 ? brands.length : index;
+  };
+  const groups = new Map<string, { brand: MenuBrand; uses: ModifierUse[] }>();
+  for (const use of uses) {
+    const group = groups.get(use.brand.id) ?? { brand: use.brand, uses: [] };
+    group.uses.push(use);
+    groups.set(use.brand.id, group);
+  }
+  return [...groups.values()]
+    .sort((a, b) => order(a.brand) - order(b.brand))
+    .map((group) => ({
+      ...group,
+      uses: group.uses.sort((a, b) => a.itemName.localeCompare(b.itemName)),
+    }));
 }
 
 /** Free add-ons say so instead of "+₱0.00". */
@@ -111,7 +102,10 @@ export function itemCount(count: number) {
   return `${count} ${count === 1 ? "item" : "items"}`;
 }
 
-const DATE = new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium" });
+const DATE = new Intl.DateTimeFormat("en-PH", {
+  timeZone: "Asia/Manila",
+  dateStyle: "medium",
+});
 
 export function formatDate(iso: string) {
   return DATE.format(new Date(iso));
