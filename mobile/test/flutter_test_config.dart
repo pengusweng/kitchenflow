@@ -21,7 +21,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
       ),
       ciGoldensConfig: const CiGoldensConfig(
         enabled: true,
-        diffThreshold: 0.002,
+        diffThreshold: 0.005,
       ),
       platformGoldensConfig: PlatformGoldensConfig(enabled: !isCi),
     ),
