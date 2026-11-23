@@ -33,7 +33,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Orders", href: "/dashboard/orders", icon: ShoppingBag },
       { label: "Menu & Availability", href: "/dashboard/menu", icon: Soup },
-      { label: "Kitchen Exceptions", href: "/dashboard/kitchen-exceptions", icon: Clock },
+      { label: "Kitchen Overview", href: "/dashboard/kitchen-overview", icon: Clock },
     ],
   },
   {

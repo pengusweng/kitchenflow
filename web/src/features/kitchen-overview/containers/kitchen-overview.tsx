@@ -1,9 +1,9 @@
 import PageTitle from "@/src/features/dashboard/components/atoms/page-title";
 
-export default function KitchenExceptionsPage() {
+export default function KitchenOverviewPage() {
   return (
     <section className="motion-safe:animate-page-in">
-      <PageTitle>Kitchen exceptions</PageTitle>
+      <PageTitle>Kitchen overview</PageTitle>
     </section>
   );
 }
