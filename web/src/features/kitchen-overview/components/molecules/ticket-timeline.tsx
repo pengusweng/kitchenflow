@@ -21,7 +21,7 @@ export default function TicketTimeline({ ticket, flagged }: TicketTimelineProps)
   const latest = steps.findLastIndex((step) => step.at !== null);
   const currentDot = flagged
     ? "bg-[#c2372e] dark:bg-[oklch(0.68_0.17_27)]"
-    : ticket.stage === "READY"
+    : ticket.stage === "READY" || ticket.stage === "HANDED_OVER"
       ? "bg-[#2e8a52] dark:bg-[oklch(0.72_0.13_150)]"
       : "bg-[#1b5a96] dark:bg-[oklch(0.74_0.11_250)]";
 

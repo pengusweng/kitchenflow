@@ -26,6 +26,8 @@ const STAGE: Record<TicketStage, { pill: string; dot: string; live?: boolean }> 
     live: true,
   },
   READY: { pill: OUTLINE, dot: "bg-[#2e8a52] dark:bg-[oklch(0.72_0.13_150)]" },
+  // Off the line: the quietest pill on the page.
+  HANDED_OVER: { pill: "border-ink-muted/20 text-ink-muted", dot: "bg-ink-muted/50" },
 };
 
 export default function StageBadge({ ticket }: { ticket: KitchenTicket }) {

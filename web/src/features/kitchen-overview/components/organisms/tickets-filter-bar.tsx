@@ -51,7 +51,7 @@ export default function TicketsFilterBar({
         />
         <FilterSelect
           label="Filter by stage"
-          allLabel="All stages"
+          allLabel="All open tickets"
           options={STAGE_OPTIONS}
           value={stage}
           onChange={onStageChange}
@@ -68,7 +68,9 @@ export default function TicketsFilterBar({
             </button>
           ) : null}
           <p aria-live="polite" className="text-sm whitespace-nowrap text-ink-muted tabular-nums">
-            {resultCount} open {resultCount === 1 ? "ticket" : "tickets"}
+            {stage === "HANDED_OVER"
+              ? `${resultCount} handed over`
+              : `${resultCount} open ${resultCount === 1 ? "ticket" : "tickets"}`}
             {flaggedCount > 0 ? (
               <>
                 {" · "}

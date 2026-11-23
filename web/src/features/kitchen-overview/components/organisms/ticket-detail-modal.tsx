@@ -104,7 +104,7 @@ export default function TicketDetailModal({ ticket, now, open, onOpenChange }: T
               <DetailRow label="Stage">
                 <StageBadge ticket={ticket} />
               </DetailRow>
-              <DetailRow label="Since order sent">
+              <DetailRow label={ticket.handedOverAt ? "Order to handover" : "Since order sent"}>
                 <SinceSent ticket={ticket} now={now} className="max-w-72" />
               </DetailRow>
               {ticket.qcFailures > 0 ? (

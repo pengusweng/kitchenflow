@@ -3,6 +3,7 @@ import type { MenuBrand } from "@/src/features/menu/utils/menu";
 import { mockTickets } from "./mock-tickets";
 import {
   ageTone,
+  elapsedMs,
   countFlagged,
   filterTickets,
   flagReason,
@@ -136,5 +137,27 @@ describe("ticketTimeline", () => {
   test("formatGap rounds to minutes and calls anything shorter right away", () => {
     expect(formatGap(20_000)).toBe("Right away");
     expect(formatGap(4 * MIN + 10_000)).toBe("4 min later");
+  });
+});
+
+describe("handed over", () => {
+  const handed = (sentMsAgo: number, tookMs: number) =>
+    ticket("T-9", sentMsAgo, "HANDED_OVER", { handedOverAt: new Date(NOW - sentMsAgo + tookMs).toISOString() });
+
+  test("the clock stops at the handover and it's never flagged", () => {
+    const slow = handed(60 * MIN, 22 * MIN);
+    expect(formatElapsed(elapsedMs(slow, NOW))).toBe("22:00");
+    expect(flagReason(slow, NOW)).toBeNull();
+  });
+
+  test("only shows when its stage is asked for, latest handover first", () => {
+    const tickets = [ticket("T-1", MIN), handed(50 * MIN, 10 * MIN), handed(40 * MIN, 12 * MIN)];
+    const none = { search: "", brand: undefined, stage: undefined };
+    expect(filterTickets(tickets, none, NOW).map((t) => t.number)).toEqual(["T-1"]);
+    const done = filterTickets(tickets, { ...none, stage: "HANDED_OVER" }, NOW);
+    expect(done.map((t) => t.handedOverAt)).toEqual([
+      new Date(NOW - 28 * MIN).toISOString(),
+      new Date(NOW - 40 * MIN).toISOString(),
+    ]);
   });
 });

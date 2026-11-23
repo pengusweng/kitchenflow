@@ -6,6 +6,8 @@ type Seed = {
   stage: TicketStage;
   /** Minutes since the order was sent, at the moment the page opened. */
   sent: number;
+  /** Handed over only: minutes from the order to the handover. */
+  took?: number;
   qcFailures?: number;
   items: [name: string, quantity: number, modifiers?: string[], notes?: string][];
 };
@@ -13,6 +15,35 @@ type Seed = {
 // Placeholder tickets until the page is wired to GET /kitchen-ticket. Times are
 // relative to when the page opened, so the spread always looks like a real service.
 const SEEDS: Seed[] = [
+  {
+    brand: "AI",
+    stage: "HANDED_OVER",
+    sent: 68,
+    took: 12.5,
+    items: [
+      ["Chicken Inasal Paa", 2],
+      ["Halo-halo", 2],
+    ],
+  },
+  { brand: "GC", stage: "HANDED_OVER", sent: 61, took: 22.3, qcFailures: 1, items: [["Samgyeopsal Set", 1]] },
+  {
+    brand: "KK",
+    stage: "HANDED_OVER",
+    sent: 54,
+    took: 6.8,
+    items: [
+      ["Americano", 1],
+      ["Ensaymada", 1],
+    ],
+  },
+  { brand: "GC", stage: "HANDED_OVER", sent: 47, took: 14.1, items: [["Bibimbap", 1, ["Fried egg"]]] },
+  {
+    brand: "AI",
+    stage: "HANDED_OVER",
+    sent: 39,
+    took: 9.4,
+    items: [["Pork BBQ Skewers", 3, [], "Extra sauce on the side."]],
+  },
   {
     brand: "GC",
     stage: "PREPARING",
@@ -116,8 +147,8 @@ const SEEDS: Seed[] = [
   { brand: "GC", stage: "QUEUED", sent: 0.4, items: [["Japchae", 1, [], "No sesame, allergy."]] },
 ];
 
-const ORDER_START = 214;
-const TICKET_START = 87;
+const ORDER_START = 209;
+const TICKET_START = 82;
 
 /** Builds the mock tickets around the given moment. Oldest orders got the lowest numbers. */
 export function mockTickets(anchor: number): KitchenTicket[] {
@@ -145,12 +176,22 @@ export function mockTickets(anchor: number): KitchenTicket[] {
       acknowledgedAt: reached("ACKNOWLEDGED") ? at(seed.sent * 0.85) : null,
       preparationStartedAt: reached("PREPARING") ? at(seed.sent * 0.7) : null,
       readyAt: reached("READY") ? at(seed.sent * 0.1) : null,
-      // Handed-over tickets are closed and leave the overview.
       handedOverAt: null,
+      ...(seed.took === undefined ? {} : handedOver(seed.sent, seed.took, at)),
       qcFailures: seed.qcFailures ?? 0,
       items,
     };
   });
+}
+
+// A finished ticket's steps, spread across the time it took from order to handover.
+function handedOver(sent: number, took: number, at: (minutesAgo: number) => string) {
+  return {
+    acknowledgedAt: at(sent - took * 0.12),
+    preparationStartedAt: at(sent - took * 0.3),
+    readyAt: at(sent - took * 0.9),
+    handedOverAt: at(sent - took),
+  };
 }
 
 // Rework sits with preparing: it goes back to the cook before QC again.
@@ -162,4 +203,5 @@ const STAGE_ORDER: TicketStage[] = [
   "FOR_CHECKING",
   "CHECKING",
   "READY",
+  "HANDED_OVER",
 ];

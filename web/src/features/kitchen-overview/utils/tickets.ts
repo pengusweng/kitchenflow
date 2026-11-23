@@ -1,7 +1,8 @@
 import type { MenuBrand } from "@/src/features/menu/utils/menu";
 
-/** A ticket still on the line; mirrors the server's KitchenTicketStatus minus HANDED_OVER and CANCELLED. */
-export type TicketStage = "QUEUED" | "ACKNOWLEDGED" | "PREPARING" | "REWORKING" | "FOR_CHECKING" | "CHECKING" | "READY";
+/** Mirrors the server's KitchenTicketStatus, minus CANCELLED. Everything before HANDED_OVER is still open. */
+export type TicketStage =
+  "QUEUED" | "ACKNOWLEDGED" | "PREPARING" | "REWORKING" | "FOR_CHECKING" | "CHECKING" | "READY" | "HANDED_OVER";
 
 export const TICKET_STAGES: TicketStage[] = [
   "QUEUED",
@@ -11,6 +12,7 @@ export const TICKET_STAGES: TicketStage[] = [
   "FOR_CHECKING",
   "CHECKING",
   "READY",
+  "HANDED_OVER",
 ];
 
 export const STAGE_LABEL: Record<TicketStage, string> = {
@@ -21,7 +23,11 @@ export const STAGE_LABEL: Record<TicketStage, string> = {
   FOR_CHECKING: "Waiting for QC",
   CHECKING: "In QC",
   READY: "Ready",
+  HANDED_OVER: "Handed over",
 };
+
+/** Handed over: off the line, so its clock has stopped and it never needs attention. */
+export const isHandedOver = (ticket: KitchenTicket) => ticket.stage === "HANDED_OVER";
 
 export type TicketItem = {
   id: string;
@@ -61,8 +67,10 @@ export const TICKETS_PAGE_SIZE = 15;
 
 const MINUTE = 60_000;
 
+/** Time since the order was sent, stopped at the handover once there is one. */
 export function elapsedMs(ticket: KitchenTicket, now: number) {
-  return Math.max(0, now - Date.parse(ticket.orderSentAt));
+  const end = ticket.handedOverAt ? Date.parse(ticket.handedOverAt) : now;
+  return Math.max(0, end - Date.parse(ticket.orderSentAt));
 }
 
 export type AgeTone = "normal" | "caution" | "late";
@@ -77,6 +85,7 @@ export type FlagReason = "late" | "rework" | "recheck";
 
 /** Why a ticket needs someone's attention, or null when it's on track. Lateness wins: it's the one that keeps growing. */
 export function flagReason(ticket: KitchenTicket, now: number): FlagReason | null {
+  if (isHandedOver(ticket)) return null;
   if (ageTone(elapsedMs(ticket, now)) === "late") return "late";
   if (ticket.stage === "REWORKING") return "rework";
   if (isRecheck(ticket)) return "recheck";
@@ -106,20 +115,25 @@ export type TicketFilters = {
   search: string;
   /** Brand code. */
   brand: string | undefined;
+  /** Undefined means every open stage; handed-over tickets only show when asked for. */
   stage: TicketStage | undefined;
 };
 
-/** The tickets that match, flagged ones first, then whoever has waited longest. */
+/**
+ * The tickets that match: open ones flagged first, then whoever has waited
+ * longest; handed-over ones most recently handed over first.
+ */
 export function filterTickets(tickets: KitchenTicket[], filters: TicketFilters, now: number) {
   const terms = filters.search.toLowerCase().split(/\s+/).filter(Boolean);
   return tickets
     .filter((ticket) => !filters.brand || ticket.brand.code === filters.brand)
-    .filter((ticket) => !filters.stage || ticket.stage === filters.stage)
+    .filter((ticket) => (filters.stage ? ticket.stage === filters.stage : !isHandedOver(ticket)))
     .filter((ticket) => {
       const haystack = `${ticket.number} ${ticket.orderCode}`.toLowerCase();
       return terms.every((term) => haystack.includes(term));
     })
     .sort((a, b) => {
+      if (a.handedOverAt && b.handedOverAt) return Date.parse(b.handedOverAt) - Date.parse(a.handedOverAt);
       const flagged = Number(flagReason(b, now) !== null) - Number(flagReason(a, now) !== null);
       return flagged || Date.parse(a.orderSentAt) - Date.parse(b.orderSentAt);
     });

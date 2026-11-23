@@ -1,7 +1,8 @@
+import { cn } from "cn";
 import { TableCell, TableRow } from "@/components/ui/table";
 import BrandLabel from "@/src/components/ui/atoms/brand-label";
 import ViewButton from "@/src/components/ui/atoms/view-button";
-import { formatTicketTime, type KitchenTicket } from "../../utils/tickets";
+import { formatTicketTime, isHandedOver, type KitchenTicket } from "../../utils/tickets";
 import StageBadge from "../atoms/stage-badge";
 import SinceSent from "./since-sent";
 
@@ -14,7 +15,9 @@ type TicketRowProps = {
 export default function TicketRow({ ticket, now, onView }: TicketRowProps) {
   const created = formatTicketTime(ticket.createdAt);
   return (
-    <TableRow className="border-hairline hover:bg-surface-hover/50">
+    <TableRow
+      className={cn("border-hairline hover:bg-surface-hover/50", isHandedOver(ticket) && "bg-surface-hover/35")}
+    >
       <TableCell className="px-3 py-2.5 whitespace-normal md:px-4">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="font-semibold text-ink tabular-nums slashed-zero">{ticket.number}</span>
