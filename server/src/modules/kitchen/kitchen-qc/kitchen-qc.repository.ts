@@ -66,9 +66,24 @@ export class KitchenQcRepository {
     kitchenTicketId: string,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
+    // The ticket's QC history: who checked each attempt and what they rejected.
     return tx.kitchenTicketQcAttempt.findMany({
       where: { kitchen_ticket_id: kitchenTicketId },
       orderBy: { attempt_number: 'desc' },
+      include: {
+        checker: { select: { first_name: true, last_name: true } },
+        rejections: {
+          select: {
+            rejection_id: true,
+            order_item_id: true,
+            portion_number: true,
+            rejection_reason: true,
+            description: true,
+            rejected_at: true,
+          },
+          orderBy: [{ rejected_at: 'asc' }, { rejection_id: 'asc' }],
+        },
+      },
     });
   }
 
