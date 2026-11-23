@@ -4,6 +4,7 @@ import {
   House,
   ShieldCheck,
   ShoppingBag,
+  SlidersHorizontal,
   Soup,
   Store,
   Users,
@@ -39,6 +40,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Administration",
     items: [
       { label: "Recipes", href: "/dashboard/recipes", icon: BookOpen },
+      { label: "Modifiers", href: "/dashboard/modifiers", icon: SlidersHorizontal },
       { label: "Audit History", href: "/dashboard/audit-history", icon: ShieldCheck },
       { label: "Brands", href: "/dashboard/brands", icon: Store, roles: BRAND_ROLES },
       { label: "Staff Accounts", href: "/dashboard/staff", icon: Users, roles: STAFF_ACCOUNT_ROLES },
