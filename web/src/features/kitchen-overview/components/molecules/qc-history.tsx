@@ -9,6 +9,8 @@ import QcStatusBadge from "../atoms/qc-status-badge";
 
 type QcHistoryProps = {
   ticket: KitchenTicket;
+  /** First check first. */
+  attempts: QcAttempt[];
   now: number;
 };
 
@@ -31,8 +33,7 @@ const AFTER_FAIL: Partial<Record<KitchenTicket["stage"], string>> = {
 // Every QC check on the ticket, first one first. A failed check lists each
 // rejected portion with the checker's note, and the rework that followed sits
 // between it and the next check.
-export default function QcHistory({ ticket, now }: QcHistoryProps) {
-  const attempts = ticket.qcAttempts;
+export default function QcHistory({ ticket, attempts, now }: QcHistoryProps) {
   const itemOf = (id: string) => ticket.items.find((item) => item.id === id);
 
   return (

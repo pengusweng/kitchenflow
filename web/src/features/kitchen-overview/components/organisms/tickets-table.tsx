@@ -9,6 +9,8 @@ type TicketsTableProps = {
   tickets: KitchenTicket[];
   /** Undefined until the page has a clock: skeleton rows. */
   now: number | undefined;
+  /** Skeleton rows while the tickets (or anything they need) are still loading. */
+  loading?: boolean;
   onView?: (ticket: KitchenTicket) => void;
   emptyMessage?: ReactNode;
   footer?: ReactNode;
@@ -17,6 +19,7 @@ type TicketsTableProps = {
 export default function TicketsTable({
   tickets,
   now,
+  loading = false,
   onView,
   emptyMessage = "No open tickets.",
   footer,
@@ -24,7 +27,7 @@ export default function TicketsTable({
   return (
     <DataTable
       columnCount={COLUMN_COUNT}
-      loading={now === undefined}
+      loading={loading || now === undefined}
       loadingLabel="Loading tickets…"
       skeletonRow={(i) => <TicketSkeletonRow index={i} />}
       emptyMessage={emptyMessage}

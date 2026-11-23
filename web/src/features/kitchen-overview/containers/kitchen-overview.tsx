@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Pagination from "@/src/components/ui/molecules/pagination";
 import PageTitle from "@/src/features/dashboard/components/atoms/page-title";
-import { MOCK_BRANDS } from "@/src/features/menu/utils/mock-menu";
+import { useRecipeBrands } from "@/src/features/recipes/hooks/useRecipeBrands";
 import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
 import TicketDetailModal from "../components/organisms/ticket-detail-modal";
 import TicketsFilterBar from "../components/organisms/tickets-filter-bar";
 import TicketsTable from "../components/organisms/tickets-table";
 import { useNow } from "../hooks/useNow";
-import { mockTickets } from "../utils/mock-tickets";
+import { useHandoffPhotos, useQcHistory } from "../hooks/useTicketDetail";
+import { useTodayTickets } from "../hooks/useTodayTickets";
+import { toKitchenTickets } from "../utils/ticket-records";
 import { countFlagged, filterTickets, TICKETS_PAGE_SIZE, type TicketStage } from "../utils/tickets";
 
 // Every ticket still on the line, across brands, with the ones that need
@@ -17,10 +19,10 @@ import { countFlagged, filterTickets, TICKETS_PAGE_SIZE, type TicketStage } from
 // rework, or waiting for QC again after failing.
 export default function KitchenOverviewPage() {
   const now = useNow();
-  // Placeholder tickets until the kitchen ticket API is wired up, placed around the moment the page opened.
-  const [anchor, setAnchor] = useState<number | null>(null);
-  if (now !== undefined && anchor === null) setAnchor(now);
-  const tickets = useMemo(() => (anchor === null ? [] : mockTickets(anchor)), [anchor]);
+  // Today's tickets, live from the server's stream.
+  const today = useTodayTickets();
+  const brands = useRecipeBrands();
+  const tickets = toKitchenTickets(today.data ?? [], brands.brandFor);
 
   const [query, setQuery] = useState("");
   const [brand, setBrand] = useState<string | undefined>();
@@ -30,6 +32,8 @@ export default function KitchenOverviewPage() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const viewing = tickets.find((ticket) => ticket.id === viewingId) ?? null;
+  const qc = useQcHistory(modalOpen ? viewing : null);
+  const photos = useHandoffPhotos(modalOpen ? viewing : null);
 
   // Any filter change returns to page 1.
   const filterKey = `${brand ?? ""}|${stage ?? ""}|${search}`;
@@ -45,7 +49,13 @@ export default function KitchenOverviewPage() {
   const pageRows = rows.slice((currentPage - 1) * TICKETS_PAGE_SIZE, currentPage * TICKETS_PAGE_SIZE);
 
   const filtered = Boolean(query.trim() || brand || stage);
-  const emptyMessage = filtered ? "No open tickets match these filters." : "No open tickets. The line is clear.";
+  const handedOverView = stage === "HANDED_OVER";
+  let emptyMessage = filtered
+    ? handedOverView && !query.trim() && !brand
+      ? "Nothing handed over yet today."
+      : "No tickets match these filters."
+    : "No open tickets. The line is clear.";
+  if (today.error) emptyMessage = today.error.message;
 
   return (
     <section className="motion-safe:animate-page-in">
@@ -54,7 +64,7 @@ export default function KitchenOverviewPage() {
       <TicketsFilterBar
         query={query}
         onQueryChange={setQuery}
-        brands={MOCK_BRANDS}
+        brands={brands.brands}
         brand={brand}
         onBrandChange={setBrand}
         stage={stage}
@@ -75,6 +85,8 @@ export default function KitchenOverviewPage() {
       <TicketsTable
         tickets={pageRows}
         now={now}
+        // Brands too, so no row flashes "Unknown brand" before they arrive.
+        loading={now === undefined || today.isPending || brands.isPending}
         onView={(ticket) => {
           setViewingId(ticket.id);
           setModalOpen(true);
@@ -93,7 +105,14 @@ export default function KitchenOverviewPage() {
         }
       />
 
-      <TicketDetailModal ticket={viewing} now={now} open={modalOpen} onOpenChange={setModalOpen} />
+      <TicketDetailModal
+        ticket={viewing}
+        now={now}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        qc={{ data: qc.data, loading: qc.isPending, error: qc.error?.message }}
+        photos={{ data: photos.data, loading: photos.isPending, error: photos.error?.message }}
+      />
     </section>
   );
 }

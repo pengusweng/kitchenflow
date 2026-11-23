@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Dialog, DialogClose, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import HandoffImage from "../atoms/handoff-image";
 
 type PhotoViewerProps = {
   photos: string[];
@@ -89,15 +90,15 @@ export default function PhotoViewer({ photos, index, onIndexChange, subject }: P
             </div>
           </div>
 
-          <div className="relative flex min-h-0 flex-1 items-center justify-center bg-black">
+          {/* Holds its size while a photo loads, so the viewer doesn't collapse to its header. */}
+          <div className="relative flex min-h-[min(60dvh,32rem)] flex-1 items-center justify-center bg-black">
             {src ? (
-              // Signed storage URLs from the API, not build-time assets, so next/image adds nothing here.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <HandoffImage
                 key={src}
                 src={src}
+                variant="stage"
                 alt={`${subject} handoff photo ${current + 1} of ${photos.length}`}
-                className="max-h-[calc(100dvh-8rem)] w-full object-contain motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+                className="max-h-[calc(100dvh-8rem)] w-full object-contain"
               />
             ) : null}
             {photos.length > 1 ? (

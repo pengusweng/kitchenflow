@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
 import type { MenuBrand } from "@/src/features/menu/utils/menu";
-import { mockTickets } from "./mock-tickets";
 import {
   ageTone,
   elapsedMs,
@@ -9,7 +8,7 @@ import {
   flagReason,
   formatElapsed,
   formatGap,
-  qcFailures,
+  hasQcHistory,
   qcSummary,
   type QcAttempt,
   type QcStatus,
@@ -57,8 +56,7 @@ function ticket(
     readyAt: null,
     handedOverAt: null,
     channel: "DINE_IN",
-    handoffPhotos: [],
-    qcAttempts: [],
+    qcFailureCount: 0,
     items: [],
     ...extra,
   } satisfies KitchenTicket;
@@ -76,7 +74,7 @@ describe("flagReason", () => {
 
   test("waiting for QC is only a recheck after a failed attempt", () => {
     expect(flagReason(ticket("T-3", MIN, "FOR_CHECKING"), NOW)).toBeNull();
-    expect(flagReason(ticket("T-3", MIN, "FOR_CHECKING", { qcAttempts: [attempt(1, "FAILED")] }), NOW)).toBe("recheck");
+    expect(flagReason(ticket("T-3", MIN, "FOR_CHECKING", { qcFailureCount: 1 }), NOW)).toBe("recheck");
   });
 
   test("lateness wins over rework", () => {
@@ -129,13 +127,6 @@ describe("filterTickets", () => {
   test("counts the tickets that need attention", () => {
     expect(countFlagged(tickets, NOW)).toBe(2);
   });
-});
-
-test("the mock spread covers every kind of flag", () => {
-  const tickets = mockTickets(NOW);
-  const reasons = new Set(tickets.map((t) => flagReason(t, NOW)));
-  expect(reasons).toEqual(new Set(["late", "rework", "recheck", null]));
-  expect(new Set(tickets.map((t) => t.number)).size).toBe(tickets.length);
 });
 
 describe("ticketTimeline", () => {
@@ -191,11 +182,14 @@ test("only handed-over delivery tickets show handoff photos", () => {
 });
 
 describe("QC history", () => {
-  const withChecks = (...statuses: QcStatus[]) =>
-    ticket("T-1", MIN, "READY", { qcAttempts: statuses.map((status, i) => attempt(i + 1, status)) });
+  const withChecks = (...statuses: QcStatus[]) => statuses.map((status, i) => attempt(i + 1, status));
 
-  test("counts failures from the attempts", () => {
-    expect(qcFailures(withChecks("FAILED", "FAILED", "PASSED"))).toBe(2);
+  test("only tickets that have been through QC have a history to show", () => {
+    expect(hasQcHistory(ticket("T-1", MIN, "PREPARING"))).toBe(false);
+    expect(hasQcHistory(ticket("T-1", MIN, "FOR_CHECKING"))).toBe(false);
+    expect(hasQcHistory(ticket("T-1", MIN, "FOR_CHECKING", { qcFailureCount: 1 }))).toBe(true);
+    expect(hasQcHistory(ticket("T-1", MIN, "CHECKING"))).toBe(true);
+    expect(hasQcHistory(ticket("T-1", MIN, "HANDED_OVER"))).toBe(true);
   });
 
   test("sums the checks up in one line", () => {
@@ -205,21 +199,5 @@ describe("QC history", () => {
     expect(qcSummary(withChecks("FAILED", "PASSED"))).toBe("Passed on check 2 · failed once");
     expect(qcSummary(withChecks("FAILED", "FAILED"))).toBe("2 checks · failed twice");
     expect(qcSummary(withChecks("FAILED", "IN_PROGRESS"))).toBe("Being rechecked · failed once");
-  });
-
-  test("mock checks run in order and rejections point at the ticket's own items", () => {
-    for (const t of mockTickets(NOW)) {
-      t.qcAttempts.forEach((a, i) => {
-        expect(a.number).toBe(i + 1);
-        if (a.completedAt) expect(Date.parse(a.completedAt)).toBeGreaterThanOrEqual(Date.parse(a.startedAt));
-        if (i > 0) expect(Date.parse(a.startedAt)).toBeGreaterThan(Date.parse(t.qcAttempts[i - 1].completedAt!));
-        expect(a.rejections.length > 0).toBe(a.status === "FAILED");
-        for (const r of a.rejections) {
-          const item = t.items.find((it) => it.id === r.itemId);
-          expect(item).toBeDefined();
-          expect(r.portion).toBeLessThanOrEqual(item!.quantity);
-        }
-      });
-    }
   });
 });

@@ -90,12 +90,13 @@ export type KitchenTicket = {
   preparationStartedAt: string | null;
   readyAt: string | null;
   handedOverAt: string | null;
-  /** Signed URLs of the photos taken at handoff, as the handoff API returns them (img_urls). */
-  handoffPhotos: string[];
-  /** Every QC check so far, first one first. */
-  qcAttempts: QcAttempt[];
+  /** Failed QC checks so far; a ticket back at Waiting for QC after one is a recheck. */
+  qcFailureCount: number;
   items: TicketItem[];
 };
+
+/** Data the modal loads on its own once a ticket is open. */
+export type Loadable<T> = { data?: T; loading: boolean; error?: string };
 
 /** GrabFood and foodpanda orders leave with a rider, so their handoff is photographed. */
 export function isDelivery(channel: OrderChannel) {
@@ -142,13 +143,15 @@ export function flagReason(ticket: KitchenTicket, now: number): FlagReason | nul
   return null;
 }
 
-/** Failed QC checks so far; a ticket back at Waiting for QC after one is a recheck. */
-export function qcFailures(ticket: KitchenTicket) {
-  return ticket.qcAttempts.filter((attempt) => attempt.status === "FAILED").length;
+export function isRecheck(ticket: KitchenTicket) {
+  return ticket.stage === "FOR_CHECKING" && ticket.qcFailureCount > 0;
 }
 
-export function isRecheck(ticket: KitchenTicket) {
-  return ticket.stage === "FOR_CHECKING" && qcFailures(ticket) > 0;
+/** Stages a ticket only reaches by going through QC, so it has a QC history to show. */
+const PAST_QC: TicketStage[] = ["CHECKING", "REWORKING", "READY", "HANDED_OVER"];
+
+export function hasQcHistory(ticket: KitchenTicket) {
+  return ticket.qcFailureCount > 0 || PAST_QC.includes(ticket.stage);
 }
 
 const TIMES = ["once", "twice"];
@@ -157,10 +160,9 @@ export function timesWord(n: number) {
   return TIMES[n - 1] ?? `${n} times`;
 }
 
-/** One line on how QC has gone, for the button that opens the full history. */
-export function qcSummary(ticket: KitchenTicket) {
-  const attempts = ticket.qcAttempts;
-  const failed = qcFailures(ticket);
+/** One line on how QC has gone, for the button that opens the full history. Attempts first one first. */
+export function qcSummary(attempts: QcAttempt[]) {
+  const failed = attempts.filter((attempt) => attempt.status === "FAILED").length;
   const last = attempts.at(-1);
   const checks = `${attempts.length} ${attempts.length === 1 ? "check" : "checks"}`;
   if (!last) return "Not checked yet";

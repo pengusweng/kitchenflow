@@ -13,13 +13,15 @@ import {
   elapsedMs,
   flagReason,
   formatElapsed,
+  hasQcHistory,
   LATE_MIN,
-  qcFailures,
   qcSummary,
   timesWord,
   showsHandoffPhotos,
   type FlagReason,
   type KitchenTicket,
+  type Loadable,
+  type QcAttempt,
 } from "../../utils/tickets";
 import StageBadge from "../atoms/stage-badge";
 import HandoffPhotos from "../molecules/handoff-photos";
@@ -33,6 +35,10 @@ type TicketDetailModalProps = {
   now: number | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The open ticket's QC checks, first one first. */
+  qc: Loadable<QcAttempt[]>;
+  /** Signed URLs of its handoff photos. */
+  photos: Loadable<string[]>;
 };
 
 // DESIGN.md › Elevation: dialogs get Shadow 3. Shadows vanish on the dark
@@ -58,12 +64,12 @@ function flagMessage(reason: FlagReason, ticket: KitchenTicket, now: number) {
     case "recheck":
       return {
         title: "Waiting for a QC recheck.",
-        body: `It has failed QC ${timesWord(qcFailures(ticket))} and is back in line to be checked.`,
+        body: `It has failed QC ${timesWord(ticket.qcFailureCount)} and is back in line to be checked.`,
       };
   }
 }
 
-export default function TicketDetailModal({ ticket, now, open, onOpenChange }: TicketDetailModalProps) {
+export default function TicketDetailModal({ ticket, now, open, onOpenChange, qc, photos }: TicketDetailModalProps) {
   const reason = ticket && now !== undefined ? flagReason(ticket, now) : null;
   const flag = reason && ticket && now !== undefined ? flagMessage(reason, ticket, now) : null;
   // Which handoff photo is open full size, tied to the ticket so another ticket starts with it closed.
@@ -146,9 +152,15 @@ export default function TicketDetailModal({ ticket, now, open, onOpenChange }: T
               <h3 id="qc-history-heading" className="text-base font-semibold text-ink">
                 QC history
               </h3>
-              <p className="mt-0.5 text-sm text-ink-muted">{qcSummary(ticket)}</p>
+              {qc.data ? <p className="mt-0.5 text-sm text-ink-muted">{qcSummary(qc.data)}</p> : null}
               <div className="mt-3 border-t border-hairline pt-3">
-                <QcHistory ticket={ticket} now={now} />
+                {qc.data ? (
+                  <QcHistory ticket={ticket} attempts={qc.data} now={now} />
+                ) : (
+                  <p className={`text-sm ${qc.error ? "text-danger-ink" : "text-ink-muted"}`}>
+                    {qc.error ?? "Loading the QC history…"}
+                  </p>
+                )}
               </div>
             </section>
           </div>
@@ -171,13 +183,21 @@ export default function TicketDetailModal({ ticket, now, open, onOpenChange }: T
               <DetailRow label={ticket.handedOverAt ? "Order to handover" : "Since order sent"}>
                 <SinceSent ticket={ticket} now={now} className="max-w-72" />
               </DetailRow>
-              {ticket.qcAttempts.length > 0 ? (
+              {hasQcHistory(ticket) ? (
                 <DetailRow label="QC">
                   <span ref={qcRowRef} className="flex items-center justify-between gap-3">
-                    <span className={qcFailures(ticket) > 0 ? "text-danger-ink" : undefined}>{qcSummary(ticket)}</span>
-                    <span className="-my-1.5 -mr-1.5 shrink-0">
-                      <ViewButton label="View QC history" text="History" onClick={() => openQc(ticket.id)} />
-                    </span>
+                    {qc.data ? (
+                      <span className={ticket.qcFailureCount > 0 ? "text-danger-ink" : undefined}>
+                        {qcSummary(qc.data)}
+                      </span>
+                    ) : (
+                      <span className={qc.error ? "text-danger-ink" : "text-ink-muted"}>{qc.error ?? "Loading…"}</span>
+                    )}
+                    {qc.data && qc.data.length > 0 ? (
+                      <span className="-my-1.5 -mr-1.5 shrink-0">
+                        <ViewButton label="View QC history" text="History" onClick={() => openQc(ticket.id)} />
+                      </span>
+                    ) : null}
                   </span>
                 </DetailRow>
               ) : null}
@@ -186,7 +206,11 @@ export default function TicketDetailModal({ ticket, now, open, onOpenChange }: T
             <TicketTimeline ticket={ticket} flagged={reason !== null} />
 
             {showsHandoffPhotos(ticket) ? (
-              <HandoffPhotos ticket={ticket} onOpen={(index) => setViewing({ ticketId: ticket.id, index })} />
+              <HandoffPhotos
+                ticket={ticket}
+                photos={photos}
+                onOpen={(index) => setViewing({ ticketId: ticket.id, index })}
+              />
             ) : null}
 
             <section aria-labelledby="ticket-items-heading" className="mt-5">
@@ -216,7 +240,7 @@ export default function TicketDetailModal({ ticket, now, open, onOpenChange }: T
 
         {ticket ? (
           <PhotoViewer
-            photos={ticket.handoffPhotos}
+            photos={photos.data ?? []}
             index={photoIndex}
             onIndexChange={(index) => setViewing(index === null ? null : { ticketId: ticket.id, index })}
             subject={`Ticket ${ticket.number}`}
