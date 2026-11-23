@@ -117,7 +117,7 @@ Finder get _dialogSignIn => find.descendant(
 
 void main() {
   testWidgets(
-    'WT-MOB-LOGIN-017 shows and clears the login notice with animations disabled',
+    'WT-MOB-LOGIN-019 shows and clears the login notice with animations disabled',
     (tester) async {
       Future<void> show(LoginStatus status) => tester.pumpWidget(
         MaterialApp(
