@@ -5,6 +5,7 @@ import Pagination from "@/src/components/ui/molecules/pagination";
 import PageTitle from "@/src/features/dashboard/components/atoms/page-title";
 import { MOCK_BRANDS } from "@/src/features/menu/utils/mock-menu";
 import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
+import TicketDetailModal from "../components/organisms/ticket-detail-modal";
 import TicketsFilterBar from "../components/organisms/tickets-filter-bar";
 import TicketsTable from "../components/organisms/tickets-table";
 import { useNow } from "../hooks/useNow";
@@ -25,6 +26,10 @@ export default function KitchenOverviewPage() {
   const [brand, setBrand] = useState<string | undefined>();
   const [stage, setStage] = useState<TicketStage | undefined>();
   const search = useDebouncedValue(query.trim());
+
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const viewing = tickets.find((ticket) => ticket.id === viewingId) ?? null;
 
   // Any filter change returns to page 1.
   const filterKey = `${brand ?? ""}|${stage ?? ""}|${search}`;
@@ -70,6 +75,10 @@ export default function KitchenOverviewPage() {
       <TicketsTable
         tickets={pageRows}
         now={now}
+        onView={(ticket) => {
+          setViewingId(ticket.id);
+          setModalOpen(true);
+        }}
         emptyMessage={emptyMessage}
         footer={
           total > 0 ? (
@@ -83,6 +92,8 @@ export default function KitchenOverviewPage() {
           ) : null
         }
       />
+
+      <TicketDetailModal ticket={viewing} now={now} open={modalOpen} onOpenChange={setModalOpen} />
     </section>
   );
 }
