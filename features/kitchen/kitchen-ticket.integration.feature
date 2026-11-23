@@ -122,3 +122,9 @@ Feature: Kitchen ticket HTTP access and validation
     Then exactly one response succeeds
     And the losing request returns 404 or 409
     And the saved preparer matches the successful response
+
+  @IT-KT-018
+  Scenario: Validate the day path parameter
+    Given an authenticated permitted user
+    When a day's tickets are requested with a date that is not a real YYYY-MM-DD calendar day
+    Then the response is 400 before persistence

@@ -193,6 +193,31 @@ export function FindTodaysKitchenTicketsDocs() {
   );
 }
 
+export function FindKitchenTicketsByDateDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary: "List one day's kitchen tickets.",
+      description:
+        'Allowed roles: SUPERADMIN, KITCHEN_HEAD, and SUPERVISOR. Same shape and day rules as GET /kitchen-ticket/today, for any Asia/Manila date: created_at from that midnight inclusive to the next midnight exclusive, every status included. Returns an empty array when no tickets match.',
+    }),
+    ApiParam({
+      name: 'date',
+      type: String,
+      format: 'date',
+      example: '2026-11-22',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Tickets created on that day in Asia/Manila.',
+      schema: { ...ticketArraySchema, example: [ticketWithItemsExample] },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'The date is not a valid YYYY-MM-DD calendar date.',
+    }),
+  );
+}
+
 export function StreamTodaysKitchenTicketsDocs() {
   return applyDecorators(
     ApiOperation({

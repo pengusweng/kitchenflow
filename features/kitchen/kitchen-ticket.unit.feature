@@ -187,3 +187,9 @@ Feature: Kitchen ticket lifecycle and repository rules
     Given a client subscribed to the kitchen ticket stream
     When 15 seconds pass without ticket changes
     Then a ping comment is sent without querying tickets again
+
+  @UT-KT-023
+  Scenario: List a past Manila day's tickets
+    Given the date 2026-10-20
+    When that day is queried
+    Then the created_at range includes 2026-10-19T16:00:00Z and excludes 2026-10-20T16:00:00Z

@@ -94,6 +94,16 @@ export class KitchenTicketService {
     return tickets;
   }
 
+  async findManyByDate(date: string) {
+    this.logger.debug(`Listing kitchen tickets for ${date}`);
+    const tickets = await this.kitchenTicketRepository.findManyByDate(date);
+
+    this.logger.log(
+      `Listed kitchen tickets for ${date}: returned=${tickets.length}`,
+    );
+    return tickets;
+  }
+
   stream(): Observable<MessageEvent> {
     const tickets$ = merge(of(null), this.changes.changes$).pipe(
       switchMap(() =>

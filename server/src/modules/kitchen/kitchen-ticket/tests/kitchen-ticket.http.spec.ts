@@ -37,6 +37,7 @@ describe('Kitchen ticket HTTP endpoints', () => {
   const repository = {
     findAll: jest.fn(),
     findMany: jest.fn(),
+    findManyByDate: jest.fn(),
     findManyByPreparer: jest.fn(),
     findManyByChecker: jest.fn(),
     findOne: jest.fn(),
@@ -60,6 +61,14 @@ describe('Kitchen ticket HTTP endpoints', () => {
       args: [],
       result: [ticket],
       roles: kitchenRoles,
+    },
+    {
+      method: 'GET',
+      path: '/date/2026-11-22',
+      handler: 'findManyByDate',
+      args: ['2026-11-22'],
+      result: [ticket],
+      roles: [UserRole.SUPERADMIN, UserRole.KITCHEN_HEAD, UserRole.SUPERVISOR],
     },
     {
       method: 'GET',
@@ -300,6 +309,7 @@ describe('Kitchen ticket HTTP endpoints', () => {
 
   it.each([
     ['/today', 'findMany'],
+    ['/date/2026-11-22', 'findManyByDate'],
     [`/preparer/${assigneeId}`, 'findManyByPreparer'],
     [`/checker/${assigneeId}`, 'findManyByChecker'],
   ] as const)(
@@ -311,6 +321,14 @@ describe('Kitchen ticket HTTP endpoints', () => {
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual([]);
+    },
+  );
+
+  it.each(['2026-11-31', '2026-02-29', '2026-1-05', '20261122', 'yesterday'])(
+    'IT-KT-018: Given the date %s is not a real YYYY-MM-DD day, When that day is listed, Then return 400 before persistence',
+    async (date) => {
+      expect((await request(`/date/${date}`)).status).toBe(400);
+      expect(repository.findManyByDate).not.toHaveBeenCalled();
     },
   );
 

@@ -134,6 +134,20 @@ describe('Kitchen ticket repository rules', () => {
     },
   );
 
+  it('UT-KT-023: Given a past Manila date, When that day is queried, Then use its half-open Manila day whatever the clock says', async () => {
+    client.kitchenTicket.findMany.mockResolvedValue([]);
+    await expect(repository.findManyByDate('2026-10-20')).resolves.toEqual([]);
+    expect(client.kitchenTicket.findMany).toHaveBeenCalledWith({
+      where: {
+        created_at: {
+          gte: new Date('2026-10-19T16:00:00Z'),
+          lt: new Date('2026-10-20T16:00:00Z'),
+        },
+      },
+      include: includeOrderItems,
+    });
+  });
+
   it('UT-KT-015: Given a root client, When tickets are paginated, Then rows and total share a repeatable-read transaction', async () => {
     client.kitchenTicket.findMany.mockResolvedValue([
       {

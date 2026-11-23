@@ -20,6 +20,7 @@ import {
   AssignKitchenTicketPreparerDocs,
   FindAllKitchenTicketsDocs,
   FindKitchenTicketsByCheckerDocs,
+  FindKitchenTicketsByDateDocs,
   FindKitchenTicketsByPreparerDocs,
   FindOneKitchenTicketDocs,
   FindTodaysKitchenTicketsDocs,
@@ -27,6 +28,7 @@ import {
   StreamTodaysKitchenTicketsDocs,
 } from './docs/kitchen-ticket.docs';
 import { FindKitchenTicketsDTO } from './dto/find-kitchen-tickets.dto';
+import { KitchenTicketDateParamsDTO } from './dto/kitchen-ticket-date-params.dto';
 import { KitchenTicketService } from './kitchen-ticket.service';
 import { Audit, fromParam } from '../../../shared/audit/audit.decorator';
 import { Observable } from 'rxjs';
@@ -63,6 +65,13 @@ export class KitchenTicketController {
   @StreamTodaysKitchenTicketsDocs()
   stream(): Observable<MessageEvent> {
     return this.kitchenTicketService.stream();
+  }
+
+  @Get('date/:date')
+  @FindKitchenTicketsByDateDocs()
+  @Roles(UserRole.SUPERADMIN, UserRole.KITCHEN_HEAD, UserRole.SUPERVISOR)
+  async findManyByDate(@Param() params: KitchenTicketDateParamsDTO) {
+    return this.kitchenTicketService.findManyByDate(params.date);
   }
 
   @Get('preparer/:preparerId')

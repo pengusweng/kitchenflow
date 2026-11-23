@@ -124,7 +124,15 @@ export class KitchenTicketRepository {
     const today = new Date().toLocaleDateString('en-CA', {
       timeZone: 'Asia/Manila',
     });
-    const startOfDay = new Date(`${today}T00:00:00+08:00`);
+    return this.findManyByDate(today, tx);
+  }
+
+  /** Tickets created on one Asia/Manila calendar day, given as YYYY-MM-DD. */
+  async findManyByDate(
+    date: string,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const startOfDay = new Date(`${date}T00:00:00+08:00`);
     const startOfTomorrow = new Date(startOfDay);
     startOfTomorrow.setUTCDate(startOfTomorrow.getUTCDate() + 1);
 
