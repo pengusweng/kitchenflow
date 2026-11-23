@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getHandoffPhotos, getQcHistory } from "../services/kitchen-tickets.service";
 import { toQcAttempts } from "../utils/ticket-records";
 import { hasQcHistory, showsHandoffPhotos, type KitchenTicket } from "../utils/tickets";
-import { kitchenTicketKeys } from "./useTodayTickets";
+import { kitchenTicketKeys } from "./useDayTickets";
 
 /** The open ticket's QC history; off when no ticket is open or it hasn't been through QC. */
 export function useQcHistory(ticket: KitchenTicket | null) {

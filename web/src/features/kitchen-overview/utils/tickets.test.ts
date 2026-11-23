@@ -171,6 +171,16 @@ describe("handed over", () => {
       new Date(NOW - 40 * MIN).toISOString(),
     ]);
   });
+
+  test("a past day lists every ticket, open ones before handed-over ones", () => {
+    const tickets = [handed(50 * MIN, 10 * MIN), ticket("T-1", MIN), handed(40 * MIN, 12 * MIN)];
+    const all = filterTickets(tickets, { search: "", brand: undefined, stage: undefined, withHandedOver: true }, NOW);
+    expect(all.map((t) => t.handedOverAt)).toEqual([
+      null,
+      new Date(NOW - 28 * MIN).toISOString(),
+      new Date(NOW - 40 * MIN).toISOString(),
+    ]);
+  });
 });
 
 test("only handed-over delivery tickets show handoff photos", () => {

@@ -42,6 +42,16 @@ export function getTodayTickets(signal?: AbortSignal) {
   return request("/kitchen-ticket/today", kitchenTicketListSchema, "Unable to load kitchen tickets.", signal);
 }
 
+/** Every ticket created on one Asia/Manila day (YYYY-MM-DD), open or not. */
+export function getTicketsForDay(day: string, signal?: AbortSignal) {
+  return request(
+    `/kitchen-ticket/date/${encodeURIComponent(day)}`,
+    kitchenTicketListSchema,
+    "Unable to load that day's kitchen tickets.",
+    signal,
+  );
+}
+
 /** Every QC attempt on a ticket, newest first, with its checker and rejected portions. */
 export function getQcHistory(ticketId: string, signal?: AbortSignal) {
   return request(

@@ -197,24 +197,30 @@ export type TicketFilters = {
   search: string;
   /** Brand code. */
   brand: string | undefined;
-  /** Undefined means every open stage; handed-over tickets only show when asked for. */
+  /** Undefined means every open stage; handed-over tickets only show when asked for, or with `withHandedOver`. */
   stage: TicketStage | undefined;
+  /** With no stage picked, list handed-over tickets too (after the open ones), as for a past day. */
+  withHandedOver?: boolean;
 };
 
 /**
  * The tickets that match: open ones flagged first, then whoever has waited
- * longest; handed-over ones most recently handed over first.
+ * longest; then handed-over ones, most recently handed over first.
  */
 export function filterTickets(tickets: KitchenTicket[], filters: TicketFilters, now: number) {
   const terms = filters.search.toLowerCase().split(/\s+/).filter(Boolean);
   return tickets
     .filter((ticket) => !filters.brand || ticket.brand.code === filters.brand)
-    .filter((ticket) => (filters.stage ? ticket.stage === filters.stage : !isHandedOver(ticket)))
+    .filter((ticket) =>
+      filters.stage ? ticket.stage === filters.stage : filters.withHandedOver || !isHandedOver(ticket),
+    )
     .filter((ticket) => {
       const haystack = `${ticket.number} ${ticket.orderCode}`.toLowerCase();
       return terms.every((term) => haystack.includes(term));
     })
     .sort((a, b) => {
+      const closed = Number(isHandedOver(a)) - Number(isHandedOver(b));
+      if (closed) return closed;
       if (a.handedOverAt && b.handedOverAt) return Date.parse(b.handedOverAt) - Date.parse(a.handedOverAt);
       const flagged = Number(flagReason(b, now) !== null) - Number(flagReason(a, now) !== null);
       return flagged || Date.parse(a.orderSentAt) - Date.parse(b.orderSentAt);
