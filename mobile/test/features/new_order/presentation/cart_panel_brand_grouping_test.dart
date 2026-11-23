@@ -32,7 +32,7 @@ const _itemLatte = MenuItem(
 
 void main() {
   testWidgets(
-    'CartPanel splits and arranges items by brand into distinct sections',
+    'WT-MOB-CART-GROUP-001 CartPanel splits and arranges items by brand into distinct sections',
     (tester) async {
       final container = ProviderContainer(
         overrides: [

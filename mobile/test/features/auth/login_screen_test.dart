@@ -440,50 +440,53 @@ void main() {
   });
 
   group('LoginScreen superadmin PIN confirmation', () {
-    testWidgets('shows PIN confirmation dialog when PIN_REQUIRED is returned', (
+    testWidgets(
+      'WT-MOB-LOGIN-017 shows PIN confirmation dialog when PIN_REQUIRED is returned',
+      (tester) async {
+        var callIndex = 0;
+        final repo = _FakeAuthRepository((username, password) async {
+          callIndex++;
+          if (callIndex == 1) {
+            throw const AuthException(
+              'Enter your PIN to sign in.',
+              kind: AuthFailure.pinRequired,
+            );
+          }
+          return 'superadmin-token';
+        });
+
+        final container = await _pumpLogin(tester, authRepository: repo);
+
+        await tester.enterText(_username, 'admin');
+        await tester.enterText(_password, 'correct-password');
+        await _tapSignIn(tester);
+        await tester.pumpAndSettle();
+
+        // PIN dialog should now be displayed
+        expect(find.byType(PinConfirmationDialog), findsOneWidget);
+        expect(find.text('Superadmin Security PIN'), findsOneWidget);
+
+        // Enter 4 digits on numpad
+        await tester.tap(find.text('1'));
+        await tester.pump();
+        await tester.tap(find.text('2'));
+        await tester.pump();
+        await tester.tap(find.text('3'));
+        await tester.pump();
+        await tester.tap(find.text('4'));
+        await tester.pumpAndSettle();
+
+        // Dialog closed and token stored
+        expect(find.byType(PinConfirmationDialog), findsNothing);
+        expect(container.read(sessionTokenProvider), 'superadmin-token');
+        expect(container.read(userRoleProvider), UserRole.superadmin);
+        expect(repo.callCount, 2);
+      },
+    );
+
+    testWidgets('WT-MOB-LOGIN-018 cancelling PIN dialog does not log in', (
       tester,
     ) async {
-      var callIndex = 0;
-      final repo = _FakeAuthRepository((username, password) async {
-        callIndex++;
-        if (callIndex == 1) {
-          throw const AuthException(
-            'Enter your PIN to sign in.',
-            kind: AuthFailure.pinRequired,
-          );
-        }
-        return 'superadmin-token';
-      });
-
-      final container = await _pumpLogin(tester, authRepository: repo);
-
-      await tester.enterText(_username, 'admin');
-      await tester.enterText(_password, 'correct-password');
-      await _tapSignIn(tester);
-      await tester.pumpAndSettle();
-
-      // PIN dialog should now be displayed
-      expect(find.byType(PinConfirmationDialog), findsOneWidget);
-      expect(find.text('Superadmin Security PIN'), findsOneWidget);
-
-      // Enter 4 digits on numpad
-      await tester.tap(find.text('1'));
-      await tester.pump();
-      await tester.tap(find.text('2'));
-      await tester.pump();
-      await tester.tap(find.text('3'));
-      await tester.pump();
-      await tester.tap(find.text('4'));
-      await tester.pumpAndSettle();
-
-      // Dialog closed and token stored
-      expect(find.byType(PinConfirmationDialog), findsNothing);
-      expect(container.read(sessionTokenProvider), 'superadmin-token');
-      expect(container.read(userRoleProvider), UserRole.superadmin);
-      expect(repo.callCount, 2);
-    });
-
-    testWidgets('cancelling PIN dialog does not log in', (tester) async {
       final repo = _FakeAuthRepository((_, _) async {
         throw const AuthException(
           'Enter your PIN to sign in.',

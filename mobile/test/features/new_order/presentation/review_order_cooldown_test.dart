@@ -102,7 +102,7 @@ void main() {
 
   group('ReviewOrderStepView 3-second cooldown and loading bar', () {
     testWidgets(
-      'confirm button is muted and disabled with loading bar for 3s before becoming enabled',
+      'WT-MOB-REVIEW-COOLDOWN-001 confirm button is muted and disabled with loading bar for 3s before becoming enabled',
       (tester) async {
         bool confirmed = false;
 
@@ -190,7 +190,7 @@ void main() {
     );
 
     testWidgets(
-      'order flow: clicking review order in step 3 triggers 3-second disabled confirm button and loading bar',
+      'WT-MOB-REVIEW-COOLDOWN-002 order flow: clicking review order in step 3 triggers 3-second disabled confirm button and loading bar',
       (tester) async {
         final mockRepo = _MockOrderEntryRepository();
         final container = ProviderContainer(
