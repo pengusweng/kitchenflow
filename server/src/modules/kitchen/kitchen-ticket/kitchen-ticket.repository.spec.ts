@@ -1,10 +1,22 @@
-import { KitchenTicketStatus, Prisma } from '@prisma/client';
+import {
+  KitchenTicketQcStatus,
+  KitchenTicketStatus,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { KitchenTicketRepository } from './kitchen-ticket.repository';
 
 const includeOrderItems = {
+  _count: {
+    select: {
+      qc_attempts: { where: { status: KitchenTicketQcStatus.FAILED } },
+    },
+  },
   order: {
     select: {
+      brand_id: true,
+      order_channel: true,
+      confirmed_at: true,
       order_items_order: {
         select: {
           order_item_id: true,
@@ -23,6 +35,19 @@ const includeOrderItems = {
       },
     },
   },
+};
+
+// What the order and the failed-QC count add to every ticket read with items.
+const orderFields = {
+  brand_id: 'brand',
+  order_channel: 'GRABFOOD',
+  confirmed_at: new Date('2026-10-31T16:20:00Z'),
+};
+const flattenedOrderFields = {
+  brand_id: 'brand',
+  order_channel: 'GRABFOOD',
+  order_confirmed_at: new Date('2026-10-31T16:20:00Z'),
+  qc_failure_count: 1,
 };
 
 describe('Kitchen ticket repository rules', () => {
@@ -111,7 +136,11 @@ describe('Kitchen ticket repository rules', () => {
 
   it('UT-KT-015: Given a root client, When tickets are paginated, Then rows and total share a repeatable-read transaction', async () => {
     client.kitchenTicket.findMany.mockResolvedValue([
-      { kitchen_ticket_id: 'ticket', order: { order_items_order: [] } },
+      {
+        kitchen_ticket_id: 'ticket',
+        _count: { qc_attempts: 1 },
+        order: { ...orderFields, order_items_order: [] },
+      },
     ]);
     client.kitchenTicket.count.mockResolvedValue(6);
     const transaction = jest.fn((queries: Promise<unknown>[]) =>
@@ -122,7 +151,13 @@ describe('Kitchen ticket repository rules', () => {
       $transaction: transaction,
     } as unknown as PrismaService);
     await expect(repository.findAll(2, 2)).resolves.toEqual({
-      kitchenTickets: [{ kitchen_ticket_id: 'ticket', order_items: [] }],
+      kitchenTickets: [
+        {
+          kitchen_ticket_id: 'ticket',
+          ...flattenedOrderFields,
+          order_items: [],
+        },
+      ],
       total: 6,
     });
     expect(transaction).toHaveBeenCalledWith(
@@ -178,7 +213,9 @@ describe('Kitchen ticket repository rules', () => {
   it('UT-KT-018: Given a ticket with items, When it is read with items, Then expose order_item_id and modifiers without the nested order', async () => {
     client.kitchenTicket.findUnique.mockResolvedValue({
       kitchen_ticket_id: 'ticket',
+      _count: { qc_attempts: 1 },
       order: {
+        ...orderFields,
         order_items_order: [
           {
             order_item_id: 'item',
@@ -200,6 +237,7 @@ describe('Kitchen ticket repository rules', () => {
 
     await expect(repository.findOneWithItems('ticket')).resolves.toEqual({
       kitchen_ticket_id: 'ticket',
+      ...flattenedOrderFields,
       order_items: [
         {
           order_item_id: 'item',

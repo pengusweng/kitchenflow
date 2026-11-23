@@ -1,13 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { CreateKitchenTicketDTO } from './dto/create-kitchen-ticket.dto';
-import { KitchenTicketStatus, Prisma } from '@prisma/client';
+import {
+  KitchenTicketQcStatus,
+  KitchenTicketStatus,
+  Prisma,
+} from '@prisma/client';
 
 // Kitchen views need item identities (for QC rejections) but never prices or
-// restricted recipe snapshots.
+// restricted recipe snapshots. The order's brand, channel and confirmation time
+// let a board group tickets and time them from when the order was sent.
 const includeOrderItems = {
+  _count: {
+    select: {
+      qc_attempts: { where: { status: KitchenTicketQcStatus.FAILED } },
+    },
+  },
   order: {
     select: {
+      brand_id: true,
+      order_channel: true,
+      confirmed_at: true,
       order_items_order: {
         select: {
           order_item_id: true,
@@ -33,9 +46,13 @@ type TicketWithOrderItems = Prisma.KitchenTicketGetPayload<{
 }>;
 
 function withOrderItems(ticket: TicketWithOrderItems) {
-  const { order, ...rest } = ticket;
+  const { order, _count, ...rest } = ticket;
   return {
     ...rest,
+    brand_id: order.brand_id,
+    order_channel: order.order_channel,
+    order_confirmed_at: order.confirmed_at,
+    qc_failure_count: _count.qc_attempts,
     order_items: order.order_items_order.map(
       ({ order_item_modifiers_order_item, ...item }) => ({
         ...item,

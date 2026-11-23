@@ -36,6 +36,10 @@ const ticketExample: OrderTicketResponseDTO = {
 };
 const ticketWithItemsExample: KitchenTicketWithItemsDTO = {
   ...ticketExample,
+  brand_id: '00000000-0000-4000-8000-00000000000a',
+  order_channel: 'DINE_IN',
+  order_confirmed_at: '2026-10-30T02:00:00.000Z',
+  qc_failure_count: 0,
   order_items: [
     {
       order_item_id: '00000000-0000-4000-8000-000000000006',
