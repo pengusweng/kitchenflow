@@ -36,6 +36,10 @@ const ticketExample: OrderTicketResponseDTO = {
 };
 const ticketWithItemsExample: KitchenTicketWithItemsDTO = {
   ...ticketExample,
+  brand_id: '00000000-0000-4000-8000-00000000000a',
+  order_channel: 'DINE_IN',
+  order_confirmed_at: '2026-10-30T02:00:00.000Z',
+  qc_failure_count: 0,
   order_items: [
     {
       order_item_id: '00000000-0000-4000-8000-000000000006',
@@ -185,6 +189,31 @@ export function FindTodaysKitchenTicketsDocs() {
       status: 200,
       description: 'Tickets created today in Asia/Manila.',
       schema: { ...ticketArraySchema, example: [ticketWithItemsExample] },
+    }),
+  );
+}
+
+export function FindKitchenTicketsByDateDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary: "List one day's kitchen tickets.",
+      description:
+        'Allowed roles: SUPERADMIN, KITCHEN_HEAD, and SUPERVISOR. Same shape and day rules as GET /kitchen-ticket/today, for any Asia/Manila date: created_at from that midnight inclusive to the next midnight exclusive, every status included. Returns an empty array when no tickets match.',
+    }),
+    ApiParam({
+      name: 'date',
+      type: String,
+      format: 'date',
+      example: '2026-11-22',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Tickets created on that day in Asia/Manila.',
+      schema: { ...ticketArraySchema, example: [ticketWithItemsExample] },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'The date is not a valid YYYY-MM-DD calendar date.',
     }),
   );
 }

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { OrderChannel } from '@prisma/client';
 import { OrderTicketResponseDTO } from '../../../orders/orders/dto/order-response.dto';
 
 export class KitchenTicketItemModifierDTO {
@@ -42,6 +43,36 @@ export class KitchenTicketItemDTO {
 }
 
 export class KitchenTicketWithItemsDTO extends OrderTicketResponseDTO {
+  @ApiProperty({
+    type: String,
+    format: 'uuid',
+    description: "The order's brand.",
+  })
+  brand_id: string;
+
+  @ApiProperty({
+    enum: OrderChannel,
+    description: 'Where the order came from.',
+  })
+  order_channel: OrderChannel;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    format: 'date-time',
+    description:
+      'When the order was confirmed and sent to the kitchen; null only for orders never confirmed.',
+  })
+  order_confirmed_at: string | null;
+
+  @ApiProperty({
+    type: 'integer',
+    minimum: 0,
+    description:
+      'Failed QC attempts so far. A ticket back at FOR_CHECKING with one or more is a recheck.',
+  })
+  qc_failure_count: number;
+
   @ApiProperty({
     type: [KitchenTicketItemDTO],
     description:

@@ -25,7 +25,11 @@ describe('Handoff list HTTP endpoints', () => {
   };
   const allowedRoles: UserRole[] = [UserRole.SUPERADMIN, UserRole.KITCHEN_HEAD];
   const auth = { validateSession: jest.fn() };
-  const service = { findAll: jest.fn(), findManyByActor: jest.fn() };
+  const service = {
+    findAll: jest.fn(),
+    findManyByActor: jest.fn(),
+    findOneByKitchenTicket: jest.fn(),
+  };
   const routes = [
     { path: '', method: 'findAll', prefix: [] },
     {
@@ -194,5 +198,20 @@ describe('Handoff list HTTP endpoints', () => {
     expect(response.status).toBe(400);
     expect(service.findManyByActor).not.toHaveBeenCalled();
     expect(service.findAll).not.toHaveBeenCalled();
+  });
+
+  it("IT-HAND-010: reads a kitchen ticket's handoff by the ticket UUID in the path", async () => {
+    const [handoff] = result.handoffs;
+    service.findOneByKitchenTicket.mockResolvedValue(handoff);
+
+    const response = await request(
+      `/kitchen-ticket/${handoff.kitchen_ticket_id}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(handoff);
+    expect(service.findOneByKitchenTicket).toHaveBeenCalledWith(
+      handoff.kitchen_ticket_id,
+    );
   });
 });

@@ -6,7 +6,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { KitchenTicketQcStatus } from '@prisma/client';
+import { KitchenTicketQcStatus, QcRejectionReason } from '@prisma/client';
 
 const attemptSchema = {
   type: 'object' as const,
@@ -21,6 +21,38 @@ const attemptSchema = {
   },
 };
 const attemptArraySchema = { type: 'array' as const, items: attemptSchema };
+// A ticket's history adds who checked each attempt and every rejected portion.
+const historyAttemptSchema = {
+  type: 'object' as const,
+  properties: {
+    ...attemptSchema.properties,
+    checker: {
+      type: 'object',
+      properties: {
+        first_name: { type: 'string' },
+        last_name: { type: 'string' },
+      },
+    },
+    rejections: {
+      type: 'array',
+      description: 'Rejected portions only, oldest first; empty for a pass.',
+      items: {
+        type: 'object',
+        properties: {
+          rejection_id: { type: 'string', format: 'uuid' },
+          order_item_id: { type: 'string', format: 'uuid' },
+          portion_number: { type: 'integer', minimum: 1 },
+          rejection_reason: {
+            type: 'string',
+            enum: Object.values(QcRejectionReason),
+          },
+          description: { type: 'string' },
+          rejected_at: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
+  },
+};
 const pageSchema = {
   type: 'object' as const,
   required: ['qcAttempts', 'total'],
@@ -80,10 +112,13 @@ export function FindKitchenQcByTicketDocs() {
     ApiOperation({
       summary: 'List all QC attempts for a kitchen ticket.',
       description:
-        'Returns attempts by attempt_number descending, or an empty array when the ticket has no attempts.',
+        "Returns attempts by attempt_number descending, each with its checker's name and rejected portions, or an empty array when the ticket has no attempts.",
     }),
     ApiParam({ name: 'ticketId', format: 'uuid' }),
-    ApiResponse({ status: 200, schema: attemptArraySchema }),
+    ApiResponse({
+      status: 200,
+      schema: { type: 'array', items: historyAttemptSchema },
+    }),
     ApiResponse({ status: 404, description: 'Kitchen ticket not found.' }),
   );
 }

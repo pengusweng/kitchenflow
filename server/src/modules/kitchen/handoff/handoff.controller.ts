@@ -38,7 +38,7 @@ export class HandoffController {
     return this.handoffService.findOne(handoffId);
   }
 
-  @Get('/kitchen-ticket/:id')
+  @Get('/kitchen-ticket/:kitchenTicketId')
   async findOneByKitchenTicket(
     @Param('kitchenTicketId', ParseUUIDPipe) kitchenTicketId: string,
   ) {
