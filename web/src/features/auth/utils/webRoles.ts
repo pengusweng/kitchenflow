@@ -9,5 +9,8 @@ export const RECIPE_NOTES_ROLES: ReadonlySet<string> = new Set(["SUPERADMIN", "R
 /** Roles allowed into Brands. */
 export const BRAND_ROLES: ReadonlySet<string> = new Set(["SUPERADMIN"]);
 
+/** Roles allowed into Modifiers; same as the modifiers endpoints' @Roles. */
+export const MODIFIER_ROLES: ReadonlySet<string> = new Set(["SUPERADMIN", "RECIPE_MANAGER"]);
+
 /** Roles that may add and edit recipes; same as the recipe authoring endpoints' @Roles. */
 export const RECIPE_AUTHOR_ROLES: ReadonlySet<string> = new Set(["SUPERADMIN", "RECIPE_MANAGER"]);
