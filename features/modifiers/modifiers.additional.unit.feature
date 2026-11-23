@@ -54,6 +54,7 @@ Feature: Additional modifiers unit coverage
     Given a modifier UUID or code and an activeOnly filter
     When the modifier is retrieved
     Then the appropriate repository lookup receives the identifier and filter
+    And the menu items that offer the modifier are returned with it
 
   # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
   # Context: ModifiersService operations
@@ -85,11 +86,11 @@ Feature: Additional modifiers unit coverage
   # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
   # Context: ModifiersService operations
   @UT-MOD-009
-  Scenario: Paginate modifiers using either activity filter
+  Scenario: Paginate modifiers by status
     Test Case ID: UT-MOD-009
-    Given modifier rows and an activeOnly filter
+    Given modifier rows and an active, inactive, or all status filter
     When modifiers are paginated
-    Then the filter and offset are forwarded with matching pagination metadata
+    Then the filter and offset are forwarded and the total, page count, and every status count match the requested status
 
   # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
   # Context: ModifiersService operations
@@ -108,6 +109,15 @@ Feature: Additional modifiers unit coverage
     Given a pagination offset beyond the database range
     When modifiers are listed
     Then the request is rejected before querying
+
+  # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
+  # Context: ModifiersService operations
+  @UT-MOD-027
+  Scenario: Forwards the search, brand and sort when listing modifiers
+    Test Case ID: UT-MOD-027
+    Given a search, brand, sort field and sort order
+    When modifiers are listed
+    Then the repository receives every filter and the matching offset
 
   # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
   # Context: ModifiersService operations
@@ -193,11 +203,29 @@ Feature: Additional modifiers unit coverage
   # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
   # Context: Modifiers persistence
   @UT-MOD-021
-  Scenario: Apply modifier activity filters consistently to lookups and totals
+  Scenario: Apply modifier activity filters consistently to lookups
     Test Case ID: UT-MOD-021
     Given an activeOnly filter
-    When modifier lookups and pagination are requested
-    Then the filter applies consistently to every lookup and total count
+    When a modifier is looked up by UUID or code
+    Then the filter applies to both lookups
+
+  # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
+  # Context: Modifiers persistence
+  @UT-MOD-028
+  Scenario: Lists modifiers by status with usage and every status count
+    Test Case ID: UT-MOD-028
+    Given an active, inactive, or all status filter
+    When the repository lists modifiers
+    Then rows match the status newest first with their menu item counts, and active and inactive totals ignore the status in one repeatable-read transaction
+
+  # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
+  # Context: Modifiers persistence
+  @UT-MOD-029
+  Scenario: Filters listed modifiers by search terms and brand and applies the sort
+    Test Case ID: UT-MOD-029
+    Given a multi-term search, a brand, and a sort
+    When the repository lists modifiers
+    Then every term must match the code or name, only modifiers on that brand's items match, and the rows and counts share those filters
 
   # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
   # Context: Modifiers persistence
@@ -206,7 +234,16 @@ Feature: Additional modifiers unit coverage
     Test Case ID: UT-MOD-022
     Given an explicitly supplied transaction client
     When modifiers are listed
-    Then the supplied transaction performs both row and total queries
+    Then the supplied transaction performs the row and status count queries
+
+  # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
+  # Context: Modifiers persistence
+  @UT-MOD-030
+  Scenario: Lists the menu items offering a modifier with menu-safe fields only
+    Test Case ID: UT-MOD-030
+    Given a modifier offered on menu items
+    When the repository lists its uses
+    Then each use carries its price, availability, and the item's id, brand, code, name, and status, ordered by item name
 
   # Jest: server/src/modules/menu/modifiers/tests/modifiers.service.spec.ts
   # Context: Modifiers persistence

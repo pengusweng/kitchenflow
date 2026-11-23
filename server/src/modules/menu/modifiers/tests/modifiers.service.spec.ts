@@ -36,10 +36,13 @@ describe('ModifiersService operations', () => {
     findOneModifierByUID: jest.Mock;
     findOneModifierByCode: jest.Mock;
     findAll: jest.Mock;
+    findUses: jest.Mock;
     updateModifier: jest.Mock;
     reactivateModifier: jest.Mock;
     deleteModifier: jest.Mock;
   };
+  const uses = [{ menu_item_modifier_id: 'link', is_available: true }];
+  const counts = { all: 30, active: 21, inactive: 9 };
   let service: ModifiersService;
 
   beforeEach(() => {
@@ -50,9 +53,8 @@ describe('ModifiersService operations', () => {
       createModifier: jest.fn().mockResolvedValue(modifier),
       findOneModifierByUID: jest.fn().mockResolvedValue(modifier),
       findOneModifierByCode: jest.fn().mockResolvedValue(modifier),
-      findAll: jest
-        .fn()
-        .mockResolvedValue({ modifiers: [modifier], total: 21 }),
+      findAll: jest.fn().mockResolvedValue({ modifiers: [modifier], counts }),
+      findUses: jest.fn().mockResolvedValue(uses),
       updateModifier: jest
         .fn()
         .mockResolvedValue({ ...modifier, name: 'Updated' }),
@@ -108,14 +110,17 @@ describe('ModifiersService operations', () => {
   ] as const)(
     'UT-MOD-005: finds $value using $method with activeOnly=$activeOnly',
     async ({ identifier, method, value, activeOnly }) => {
-      await expect(service.findOne(identifier, activeOnly)).resolves.toEqual(
-        modifier,
-      );
+      await expect(service.findOne(identifier, activeOnly)).resolves.toEqual({
+        ...modifier,
+        menu_item_modifiers_modifier: uses,
+      });
       expect(repository[method]).toHaveBeenCalledWith(value, activeOnly);
       expect(
         repository.findOneModifierByUID.mock.calls.length +
           repository.findOneModifierByCode.mock.calls.length,
       ).toBe(1);
+      // Uses are looked up by the found modifier's id, even when found by code.
+      expect(repository.findUses).toHaveBeenCalledWith(modifierId);
     },
   );
 
@@ -131,31 +136,60 @@ describe('ModifiersService operations', () => {
     },
   );
 
-  it.each([true, false])(
-    'UT-MOD-009: paginates modifiers with activeOnly=%s',
-    async (activeOnly) => {
+  it.each([
+    { status: 'active', total: 21, totalPages: 3 },
+    { status: 'inactive', total: 9, totalPages: 1 },
+    { status: 'all', total: 30, totalPages: 3 },
+  ] as const)(
+    'UT-MOD-009: paginates $status modifiers with their total and every status count',
+    async ({ status, total, totalPages }) => {
       await expect(
-        service.findAll({ page: 2, limit: 10, activeOnly }),
+        service.findAll({ page: 2, limit: 10, status }),
       ).resolves.toEqual({
         data: [modifier],
-        meta: { page: 2, limit: 10, total: 21, totalPages: 3 },
+        meta: { page: 2, limit: 10, total, totalPages, counts },
       });
-      expect(repository.findAll).toHaveBeenCalledWith(10, 10, activeOnly);
+      expect(repository.findAll).toHaveBeenCalledWith(10, 10, {
+        status,
+        search: undefined,
+        brand_id: undefined,
+        sortBy: undefined,
+        sortOrder: undefined,
+      });
     },
   );
 
   it('UT-MOD-010: returns empty pagination results using the default query', async () => {
-    repository.findAll.mockResolvedValue({ modifiers: [], total: 0 });
+    const none = { all: 0, active: 0, inactive: 0 };
+    repository.findAll.mockResolvedValue({ modifiers: [], counts: none });
     await expect(service.findAll(new FindAllModifiersDTO())).resolves.toEqual({
       data: [],
-      meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
+      meta: { page: 1, limit: 10, total: 0, totalPages: 0, counts: none },
     });
-    expect(repository.findAll).toHaveBeenCalledWith(0, 10, true);
+    expect(repository.findAll).toHaveBeenCalledWith(0, 10, {
+      status: 'active',
+      search: undefined,
+      brand_id: undefined,
+      sortBy: undefined,
+      sortOrder: undefined,
+    });
+  });
+
+  it('UT-MOD-027: forwards the search, brand and sort to the repository', async () => {
+    const filters = {
+      status: 'all',
+      search: 'extra rice',
+      brand_id: 'b9c1d62f-8cd6-4e24-a8c5-4f868c9e1646',
+      sortBy: 'name',
+      sortOrder: 'desc',
+    } as const;
+    await service.findAll({ page: 1, limit: 20, ...filters });
+    expect(repository.findAll).toHaveBeenCalledWith(0, 20, filters);
   });
 
   it('UT-MOD-011: rejects pagination overflow before querying', async () => {
     await expect(
-      service.findAll({ page: 2_147_483_647, limit: 2, activeOnly: true }),
+      service.findAll({ page: 2_147_483_647, limit: 2, status: 'active' }),
     ).rejects.toMatchObject({
       status: 400,
       response: { code: 'PAGINATION_UNSUPPORTED_RANGE' },
@@ -251,7 +285,11 @@ describe('Modifiers persistence', () => {
       count: jest.Mock;
       update: jest.Mock;
     };
+    menuItemModifier: { findMany: jest.Mock };
     $transaction: jest.Mock;
+  };
+  const withUsage = {
+    include: { _count: { select: { menu_item_modifiers_modifier: true } } },
   };
 
   beforeEach(() => {
@@ -263,7 +301,8 @@ describe('Modifiers persistence', () => {
         count: jest.fn().mockResolvedValue(1),
         update: jest.fn().mockResolvedValue(modifier),
       },
-      $transaction: jest.fn().mockResolvedValue([[modifier], 1]),
+      menuItemModifier: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn().mockResolvedValue([[modifier], 3, 1]),
     };
     repository = new ModifiersRepository(prisma as unknown as PrismaService);
   });
@@ -276,7 +315,7 @@ describe('Modifiers persistence', () => {
   });
 
   it.each([undefined, true, false])(
-    'UT-MOD-021: applies activeOnly=%s to every find and the total count',
+    'UT-MOD-021: applies activeOnly=%s to lookups by id and code',
     async (activeOnly) => {
       const is_active = activeOnly === false ? undefined : true;
 
@@ -289,25 +328,74 @@ describe('Modifiers persistence', () => {
       expect(prisma.modifier.findUnique).toHaveBeenLastCalledWith({
         where: { code: 'EXTRA', is_active },
       });
+    },
+  );
 
-      await expect(repository.findAll(10, 5, activeOnly)).resolves.toEqual({
+  it.each([
+    { status: 'active', is_active: true },
+    { status: 'inactive', is_active: false },
+    { status: 'all', is_active: undefined },
+  ] as const)(
+    'UT-MOD-028: lists $status modifiers newest first with usage and every status count',
+    async ({ status, is_active }) => {
+      await expect(repository.findAll(10, 5, { status })).resolves.toEqual({
         modifiers: [modifier],
-        total: 1,
+        counts: { all: 4, active: 3, inactive: 1 },
       });
       expect(prisma.modifier.findMany).toHaveBeenLastCalledWith({
         where: { is_active },
         skip: 10,
         take: 5,
         orderBy: [{ created_at: 'desc' }, { modifier_id: 'asc' }],
+        ...withUsage,
+      });
+      // The counts ignore the status filter.
+      expect(prisma.modifier.count).toHaveBeenCalledWith({
+        where: { is_active: true },
       });
       expect(prisma.modifier.count).toHaveBeenCalledWith({
-        where: { is_active },
+        where: { is_active: false },
       });
       expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Array), {
         isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
       });
     },
   );
+
+  it('UT-MOD-029: matches every search term, the brand and the sort in rows and counts', async () => {
+    const brand_id = 'b9c1d62f-8cd6-4e24-a8c5-4f868c9e1646';
+    await repository.findAll(0, 10, {
+      status: 'active',
+      search: 'extra  rice',
+      brand_id,
+      sortBy: 'modified_at',
+      sortOrder: 'desc',
+    });
+
+    const filters = {
+      AND: ['extra', 'rice'].map((term) => ({
+        OR: [
+          { code: { contains: term, mode: 'insensitive' } },
+          { name: { contains: term, mode: 'insensitive' } },
+        ],
+      })),
+      menu_item_modifiers_modifier: { some: { menu_item: { brand_id } } },
+    };
+    expect(prisma.modifier.findMany).toHaveBeenLastCalledWith({
+      where: { ...filters, is_active: true },
+      skip: 0,
+      take: 10,
+      orderBy: [
+        { modified_at: 'desc' },
+        { name: 'asc' },
+        { modifier_id: 'asc' },
+      ],
+      ...withUsage,
+    });
+    expect(prisma.modifier.count).toHaveBeenCalledWith({
+      where: { ...filters, is_active: false },
+    });
+  });
 
   it('UT-MOD-022: lists modifiers using a supplied transaction client', async () => {
     const tx = { modifier: prisma.modifier };
@@ -316,11 +404,40 @@ describe('Modifiers persistence', () => {
       repository.findAll(
         0,
         10,
-        false,
+        { status: 'all' },
         tx as unknown as Prisma.TransactionClient,
       ),
-    ).resolves.toEqual({ modifiers: [modifier], total: 1 });
+    ).resolves.toEqual({
+      modifiers: [modifier],
+      counts: { all: 2, active: 1, inactive: 1 },
+    });
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('UT-MOD-030: lists the menu items offering a modifier with menu-safe fields only', async () => {
+    await repository.findUses('modifier-id');
+
+    expect(prisma.menuItemModifier.findMany).toHaveBeenCalledWith({
+      where: { modifier_id: 'modifier-id' },
+      select: {
+        menu_item_modifier_id: true,
+        additional_price: true,
+        is_available: true,
+        menu_item: {
+          select: {
+            menu_item_id: true,
+            brand_id: true,
+            code: true,
+            name: true,
+            is_active: true,
+          },
+        },
+      },
+      orderBy: [
+        { menu_item: { name: 'asc' } },
+        { menu_item_modifier_id: 'asc' },
+      ],
+    });
   });
 
   it.each(['Updated description', null])(

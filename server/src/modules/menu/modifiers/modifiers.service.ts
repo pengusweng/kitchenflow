@@ -49,23 +49,37 @@ export class ModifiersService {
 
     assertExists(modifier, 'Modifier', identifier, this.logger);
 
-    this.logger.log(`Found modifier ${modifier.modifier_id}`);
-    return modifier;
+    // Where it's offered, so a client can see what a change or deactivation touches.
+    const uses = await this.modifiersRepository.findUses(modifier.modifier_id);
+
+    this.logger.log(
+      `Found modifier ${modifier.modifier_id} on ${uses.length} menu items`,
+    );
+    return { ...modifier, menu_item_modifiers_modifier: uses };
   }
 
-  async findAll({ page, limit, activeOnly }: FindAllModifiersDTO) {
+  async findAll({
+    page,
+    limit,
+    status,
+    search,
+    brand_id,
+    sortBy,
+    sortOrder,
+  }: FindAllModifiersDTO) {
     this.logger.debug(
-      `Listing modifiers: page=${page}, limit=${limit}, activeOnly=${activeOnly}`,
+      `Listing modifiers: page=${page}, limit=${limit}, status=${status}, brand=${brand_id ?? 'any'}, search=${search ? 'yes' : 'no'}, sort=${sortBy ? `${sortBy} ${sortOrder ?? 'asc'}` : 'default'}`,
     );
 
     const skip = (page - 1) * limit;
     assertValidPagination(skip, this.logger);
 
-    const { modifiers, total } = await this.modifiersRepository.findAll(
+    const { modifiers, counts } = await this.modifiersRepository.findAll(
       skip,
       limit,
-      activeOnly,
+      { status, search, brand_id, sortBy, sortOrder },
     );
+    const total = counts[status];
 
     this.logger.log(
       `Listed modifiers: page=${page}, returned=${modifiers.length}, total=${total}`,
@@ -78,6 +92,7 @@ export class ModifiersService {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+        counts,
       },
     };
   }

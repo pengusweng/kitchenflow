@@ -33,10 +33,18 @@ const scalarFields = new Set([
   'limit',
   'total',
   'totalPages',
+  // meta.counts: per-status totals.
+  'all',
+  'active',
+  'inactive',
 ]);
 const nestedFields = new Set([
   'data',
   'meta',
+  'counts',
+  // A modifier's usage: a _count number in lists, the offering items in details.
+  '_count',
+  'menu_item_modifiers_modifier',
   'menu_item',
   'modifier',
   'menuItemModifier',

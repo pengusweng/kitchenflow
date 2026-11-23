@@ -57,26 +57,44 @@ export function FindAllModifiersDocs() {
     ApiOperation({
       summary: 'List modifiers.',
       description:
-        'Supports page, limit, and activeOnly. Returns data and pagination meta. activeOnly defaults to true; false includes inactive modifiers.',
+        "status filters by modifier state (active by default, inactive, or all). search does a case-insensitive partial match on code and name; every space-separated term must match one of them, and a blank search is ignored. brand_id limits results to modifiers offered on at least one of that brand's menu items. sortBy (name, code, created_at, modified_at) with sortOrder (asc or desc) orders the results; without sortBy the newest modifiers come first. Each modifier carries _count.menu_item_modifiers_modifier, the number of menu items that offer it.",
     }),
     ApiResponse({
       status: 200,
-      description: 'Paginated modifiers.',
+      description:
+        'Paginated modifiers in data. meta holds page, limit, total, and totalPages for the requested status, plus counts of all, active, and inactive modifiers matching the search and brand (counts ignore the status filter).',
       content: {
         'application/json': {
           examples: {
             populated: {
               summary: 'One matching modifier',
               value: {
-                data: [modifierExample],
-                meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+                data: [
+                  {
+                    ...modifierExample,
+                    _count: { menu_item_modifiers_modifier: 6 },
+                  },
+                ],
+                meta: {
+                  page: 1,
+                  limit: 10,
+                  total: 1,
+                  totalPages: 1,
+                  counts: { all: 2, active: 1, inactive: 1 },
+                },
               },
             },
             empty: {
               summary: 'No matching modifiers',
               value: {
                 data: [],
-                meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
+                meta: {
+                  page: 1,
+                  limit: 10,
+                  total: 0,
+                  totalPages: 0,
+                  counts: { all: 0, active: 0, inactive: 0 },
+                },
               },
             },
           },
@@ -91,7 +109,7 @@ export function FindOneModifierDocs() {
     ApiOperation({
       summary: 'Get a modifier by code or UUID.',
       description:
-        'UUID-shaped identifiers are treated as modifier IDs; other identifiers are codes. activeOnly defaults to true; false permits inactive modifiers.',
+        "UUID-shaped identifiers are treated as modifier IDs; other identifiers are codes. activeOnly defaults to true; false permits inactive modifiers. menu_item_modifiers_modifier lists every menu item that offers the modifier, by item name, with that item's additional_price and is_available.",
     }),
     ApiParam({
       name: 'id',
@@ -107,8 +125,28 @@ export function FindOneModifierDocs() {
     }),
     ApiResponse({
       status: 200,
-      description: 'Modifier details.',
-      content: { 'application/json': { example: modifierExample } },
+      description: 'Modifier details with the menu items that offer it.',
+      content: {
+        'application/json': {
+          example: {
+            ...modifierExample,
+            menu_item_modifiers_modifier: [
+              {
+                menu_item_modifier_id: '00000000-0000-4000-8000-000000000002',
+                additional_price: '35',
+                is_available: true,
+                menu_item: {
+                  menu_item_id: '00000000-0000-4000-8000-000000000003',
+                  brand_id: '00000000-0000-4000-8000-000000000004',
+                  code: 'GC-BIBIMBAP',
+                  name: 'Bibimbap',
+                  is_active: true,
+                },
+              },
+            ],
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 404,
