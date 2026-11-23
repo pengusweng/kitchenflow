@@ -321,6 +321,51 @@ class CartLine {
   }
 }
 
+/// Represents a distinct brand partition of lines within the cart.
+class BrandCartGroup {
+  const BrandCartGroup({
+    required this.brandId,
+    required this.brandName,
+    required this.lines,
+  });
+
+  final String brandId;
+  final String brandName;
+  final List<CartLine> lines;
+
+  /// Sum of all line totals for this brand in centavos.
+  int totalCentavos(MenuChannel channel) =>
+      lines.fold(0, (sum, line) => sum + line.totalCentavos(channel));
+
+  /// Total count of individual items for this brand.
+  int get totalQuantity => lines.fold(0, (sum, line) => sum + line.quantity);
+}
+
+/// Splits and groups cart lines by their originating brand, preserving insertion order.
+List<BrandCartGroup> groupCartLinesByBrand(List<CartLine> lines) {
+  final groups = <String, BrandCartGroup>{};
+  final orderedKeys = <String>[];
+
+  for (final line in lines) {
+    final key = line.brandId.isNotEmpty
+        ? line.brandId
+        : (line.brandName.isNotEmpty ? line.brandName : 'unknown');
+
+    if (!groups.containsKey(key)) {
+      orderedKeys.add(key);
+      groups[key] = BrandCartGroup(
+        brandId: line.brandId,
+        brandName: line.brandName.isNotEmpty ? line.brandName : 'Other items',
+        lines: [line],
+      );
+    } else {
+      groups[key]!.lines.add(line);
+    }
+  }
+
+  return [for (final key in orderedKeys) groups[key]!];
+}
+
 String formatPeso(int centavos) {
   final pesos = (centavos ~/ 100).toString();
   final cents = (centavos % 100).toString().padLeft(2, '0');

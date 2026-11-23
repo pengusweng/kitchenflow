@@ -116,7 +116,6 @@ void main() {
           ],
         );
         addTearDown(container.dispose);
-        container.read(cartProvider.notifier).add(sampleMenu[0]);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -154,6 +153,9 @@ void main() {
         expect(find.byType(MenuScreen), findsOneWidget);
         expect(container.read(activeBrandProvider).id, 'aurelias-inasal');
         expect(container.read(menuChannelProvider), MenuChannel.dineIn);
+
+        container.read(cartProvider.notifier).add(sampleMenu[0]);
+        await tester.pumpAndSettle();
         expect(container.read(cartCountProvider), 1);
 
         router.go(AppRoutes.mobileOrderFlow);
