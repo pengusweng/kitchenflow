@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/features/app_updates/optional_update_notice.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
+import 'package:mobile/features/new_order/presentation/widgets/brands/brand_switch_confirm_dialog.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_search_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_item_card.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_selector/choose_menu_modal.dart';
@@ -34,6 +35,7 @@ class MenuCatalogView extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         try {
+          ref.invalidate(brandsListProvider);
           ref.invalidate(menuItemsProvider);
           await ref.read(menuItemsProvider.future);
         } catch (_) {
@@ -68,12 +70,31 @@ class MenuCatalogView extends ConsumerWidget {
                         currentChannel: selectedChannel,
                         showChannels: false,
                       );
-                      if (result != null) {
-                        if (!context.mounted) return;
-                        ref
-                            .read(activeBrandProvider.notifier)
-                            .select(result.brand);
+                      if (result == null ||
+                          result.brand.id == activeBrand.id ||
+                          (result.brand.code.isNotEmpty &&
+                              result.brand.code.toUpperCase() ==
+                                  activeBrand.code.toUpperCase())) {
+                        return;
                       }
+                      if (!context.mounted) return;
+
+                      final cartCount = ref.read(cartCountProvider);
+                      if (cartCount > 0) {
+                        final confirmed = await showBrandSwitchConfirm(
+                          context,
+                          current: activeBrand,
+                          target: result.brand,
+                          cartCount: cartCount,
+                        );
+                        if (confirmed != true) return;
+                        if (!context.mounted) return;
+                        ref.read(cartProvider.notifier).clear();
+                      }
+
+                      ref
+                          .read(activeBrandProvider.notifier)
+                          .select(result.brand);
                     },
                   ),
                   const SizedBox(height: KkfcSpace.s12),
@@ -113,7 +134,10 @@ class MenuCatalogView extends ConsumerWidget {
                   title: "Couldn't load the menu",
                   body: 'Check the connection, then try again.',
                   actionLabel: 'Try again',
-                  onAction: () => ref.invalidate(menuItemsProvider),
+                  onAction: () {
+                    ref.invalidate(brandsListProvider);
+                    ref.invalidate(menuItemsProvider);
+                  },
                 ),
               ),
               data: (items) {

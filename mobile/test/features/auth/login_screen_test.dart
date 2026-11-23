@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app/theme/theme.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/core/auth/token_store.dart';
+import 'package:mobile/core/models/user_role.dart';
 import 'package:mobile/features/auth/data/repository/auth_repository.dart';
 import 'package:mobile/features/auth/data/models/login_status.dart';
 import 'package:mobile/features/auth/providers/session_provider.dart';
@@ -17,6 +18,7 @@ import 'package:mobile/features/auth/presentation/widgets/login_form_card.dart';
 import 'package:mobile/features/auth/presentation/widgets/login_notice.dart';
 import 'package:mobile/features/auth/presentation/widgets/login_password_field.dart';
 import 'package:mobile/shared/widgets/kkfc_loading_button.dart';
+import 'package:mobile/shared/widgets/pin_confirmation/pin_confirmation.dart';
 import 'package:mobile/features/auth/presentation/widgets/session_expired/session_expired_copy.dart';
 import 'package:mobile/features/auth/presentation/widgets/session_expired/session_expired_dialog.dart';
 
@@ -30,10 +32,16 @@ class _FakeAuthRepository extends AuthRepository {
 
   final Future<String> Function(String username, String password) onLogin;
   int callCount = 0;
+  String? lastPin;
 
   @override
-  Future<String> login({required String username, required String password}) {
+  Future<String> login({
+    required String username,
+    required String password,
+    String? pin,
+  }) {
     callCount++;
+    lastPin = pin;
     return onLogin(username, password);
   }
 }
@@ -409,6 +417,75 @@ void main() {
 
       expect(find.byType(SessionExpiredCard), findsNothing);
       expect(container.read(sessionExpiredProvider), isFalse);
+    });
+  });
+
+  group('LoginScreen superadmin PIN confirmation', () {
+    testWidgets('shows PIN confirmation dialog when PIN_REQUIRED is returned', (
+      tester,
+    ) async {
+      var callIndex = 0;
+      final repo = _FakeAuthRepository((username, password) async {
+        callIndex++;
+        if (callIndex == 1) {
+          throw const AuthException(
+            'Enter your PIN to sign in.',
+            kind: AuthFailure.pinRequired,
+          );
+        }
+        return 'superadmin-token';
+      });
+
+      final container = await _pumpLogin(tester, authRepository: repo);
+
+      await tester.enterText(_username, 'admin');
+      await tester.enterText(_password, 'correct-password');
+      await _tapSignIn(tester);
+      await tester.pumpAndSettle();
+
+      // PIN dialog should now be displayed
+      expect(find.byType(PinConfirmationDialog), findsOneWidget);
+      expect(find.text('Superadmin Security PIN'), findsOneWidget);
+
+      // Enter 4 digits on numpad
+      await tester.tap(find.text('1'));
+      await tester.pump();
+      await tester.tap(find.text('2'));
+      await tester.pump();
+      await tester.tap(find.text('3'));
+      await tester.pump();
+      await tester.tap(find.text('4'));
+      await tester.pumpAndSettle();
+
+      // Dialog closed and token stored
+      expect(find.byType(PinConfirmationDialog), findsNothing);
+      expect(container.read(sessionTokenProvider), 'superadmin-token');
+      expect(container.read(userRoleProvider), UserRole.superadmin);
+      expect(repo.callCount, 2);
+    });
+
+    testWidgets('cancelling PIN dialog does not log in', (tester) async {
+      final repo = _FakeAuthRepository((_, _) async {
+        throw const AuthException(
+          'Enter your PIN to sign in.',
+          kind: AuthFailure.pinRequired,
+        );
+      });
+
+      final container = await _pumpLogin(tester, authRepository: repo);
+
+      await tester.enterText(_username, 'admin');
+      await tester.enterText(_password, 'correct-password');
+      await _tapSignIn(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PinConfirmationDialog), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PinConfirmationDialog), findsNothing);
+      expect(container.read(sessionTokenProvider), isNull);
     });
   });
 }

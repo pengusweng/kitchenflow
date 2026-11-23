@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mobile/app/theme/tokens.dart';
+import 'package:mobile/core/auth/token_store.dart';
+import 'package:mobile/core/models/user_role.dart';
 import 'package:mobile/features/auth/data/models/login_status.dart';
 import 'package:mobile/features/auth/data/repository/auth_repository.dart';
 import 'package:mobile/features/auth/presentation/widgets/brand_panel.dart';
@@ -10,6 +12,7 @@ import 'package:mobile/features/auth/presentation/widgets/login_layout.dart';
 import 'package:mobile/features/auth/presentation/widgets/session_expired/session_expired_dialog.dart';
 import 'package:mobile/features/auth/providers/session_provider.dart';
 import 'package:mobile/shared/widgets/kkfc_scaffold.dart';
+import 'package:mobile/shared/widgets/pin_confirmation/pin_confirmation.dart';
 import 'package:mobile/shared/widgets/wave_accents.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -73,15 +76,84 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (!mounted) return;
       final role = ref.read(authRepositoryProvider).cachedRole;
+
+      // When superadmin is logging in, require PIN confirmation popup
+      if (role == UserRole.superadmin) {
+        setState(() => _status = LoginStatus.idle);
+        final confirmed = await showSuperadminPinConfirmationDialog(
+          context,
+          userRole: role,
+          title: 'Superadmin Security PIN',
+          subtitle:
+              'Enter your 4-digit security PIN to complete superadmin sign-in.',
+          actionLabel: 'Sign in',
+        );
+
+        if (!confirmed) {
+          await ref.read(tokenStoreProvider).clear();
+          if (!mounted) return;
+          return;
+        }
+      }
+
+      if (!mounted) return;
       if (role != null) {
         ref.read(userRoleProvider.notifier).setRole(role);
       }
       ref.read(sessionTokenProvider.notifier).setToken(token);
     } on AuthException catch (e) {
       if (!mounted) return;
+
+      if (e.kind == AuthFailure.pinRequired) {
+        // Backend returned PIN_REQUIRED for superadmin login
+        setState(() => _status = LoginStatus.idle);
+        String? superadminToken;
+        final confirmed = await showSuperadminPinConfirmationDialog(
+          context,
+          userRole: UserRole.superadmin,
+          title: 'Superadmin Security PIN',
+          subtitle:
+              'Enter your 4-digit security PIN to complete superadmin sign-in.',
+          actionLabel: 'Sign in',
+          onVerifyPin: (pin) async {
+            try {
+              final verifiedToken = await ref
+                  .read(authRepositoryProvider)
+                  .login(
+                    username: _username.text.trim(),
+                    password: _password.text,
+                    pin: pin,
+                  );
+              superadminToken = verifiedToken;
+              return true;
+            } on AuthException catch (err) {
+              if (err.kind == AuthFailure.invalidPin) {
+                return false;
+              }
+              rethrow;
+            }
+          },
+        );
+
+        if (!mounted) return;
+        if (confirmed && superadminToken != null) {
+          final role =
+              ref.read(authRepositoryProvider).cachedRole ??
+              UserRole.superadmin;
+          ref.read(userRoleProvider.notifier).setRole(role);
+          ref.read(sessionTokenProvider.notifier).setToken(superadminToken);
+          return;
+        }
+
+        setState(() => _status = LoginStatus.idle);
+        return;
+      }
+
       setState(() {
         _status = switch (e.kind) {
-          AuthFailure.invalidCredentials => LoginStatus.invalidCredentials,
+          AuthFailure.invalidCredentials ||
+          AuthFailure.invalidPin ||
+          AuthFailure.pinRequired => LoginStatus.invalidCredentials,
           AuthFailure.network ||
           AuthFailure.unexpected => LoginStatus.networkError,
         };

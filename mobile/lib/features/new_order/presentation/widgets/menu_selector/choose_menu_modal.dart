@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile/app/theme/brand_colors.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/core/models/brand_models.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
+import 'package:mobile/features/new_order/presentation/widgets/brands/brand_logo.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 
 /// Shows the "Choose menu" modal bottom sheet matching the visual design.
@@ -55,6 +57,14 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final maxHeight = mediaQuery.size.height * 0.88;
+    final selectedBrandColor = KkfcBrand.colorFor(
+      _selectedBrand.code,
+      _selectedBrand.name,
+    );
+    final selectedBrandTint = KkfcBrand.tintFor(
+      _selectedBrand.code,
+      _selectedBrand.name,
+    );
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
@@ -89,6 +99,47 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10.0,
+                        vertical: 3.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selectedBrandTint,
+                        borderRadius: BorderRadius.circular(100.0),
+                        border: Border.all(
+                          color: selectedBrandColor.withValues(alpha: 0.35),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.storefront_rounded,
+                            size: 13.0,
+                            color: selectedBrandColor,
+                          ),
+                          const SizedBox(width: 5.0),
+                          Flexible(
+                            child: Text(
+                              widget.showChannels
+                                  ? 'MENU SELECTION · ${_selectedBrand.name.toUpperCase()}'
+                                  : '${widget.brands.length} ASSIGNED BRAND${widget.brands.length == 1 ? '' : 'S'}',
+                              style: TextStyle(
+                                fontFamily: KkfcFonts.ibmPlexSans,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                                color: selectedBrandColor,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
                     Text(
                       widget.showChannels ? 'Choose menu' : 'Choose provider',
                       style: const TextStyle(
@@ -151,9 +202,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                             ));
                           },
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(
-                              0xFFA8562A,
-                            ), // Brand Brown
+                            backgroundColor: selectedBrandColor,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8.0),
                             ),
@@ -216,44 +265,292 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
   }
 
   Widget _buildBrandCard(AssignedBrand brand) {
+    final brandColor = KkfcBrand.colorFor(brand.code, brand.name);
+    final brandTint = KkfcBrand.tintFor(brand.code, brand.name);
+    final logoAsset = KkfcBrand.logoFor(brand.code, brand.name);
+
     if (!widget.showChannels) {
       final selected = _selectedBrand.id == brand.id;
+      final isAuthorized = brand.isAuthorized;
+
       return Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Material(
-          color: selected ? const Color(0xFFEDF0F4) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          child: ListTile(
-            key: ValueKey('select-provider-${brand.id}'),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(
-                color: selected
-                    ? const Color(0xFF19293E)
-                    : const Color(0xFFDDD6C9),
+        padding: const EdgeInsets.only(bottom: 10.0),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: selected
+                ? brandTint
+                : (isAuthorized ? Colors.white : const Color(0xFFF8FAFC)),
+            borderRadius: BorderRadius.circular(12.0),
+            border: Border.all(
+              color: selected ? brandColor : const Color(0xFFDDD6C9),
+              width: selected ? 2.0 : 1.0,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: brandColor.withValues(alpha: 0.16),
+                      blurRadius: 10.0,
+                      spreadRadius: 1.0,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 4.0,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              key: ValueKey('select-provider-${brand.id}'),
+              borderRadius: BorderRadius.circular(12.0),
+              splashColor: brandColor.withValues(alpha: 0.12),
+              highlightColor: brandColor.withValues(alpha: 0.05),
+              onTap: isAuthorized
+                  ? () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedBrand = brand);
+                    }
+                  : null,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 64.0),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12.0,
+                    vertical: 10.0,
+                  ),
+                  child: Row(
+                    children: [
+                      // Vertical Brand Color Accent Strip
+                      Container(
+                        width: 4.0,
+                        height: 44.0,
+                        decoration: BoxDecoration(
+                          color: isAuthorized
+                              ? (selected
+                                    ? brandColor
+                                    : brandColor.withValues(alpha: 0.4))
+                              : const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(2.0),
+                        ),
+                      ),
+                      const SizedBox(width: 10.0),
+
+                      // Dedicated Logo & Image Container
+                      Container(
+                        width: 54.0,
+                        height: 44.0,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8.0),
+                          border: Border.all(
+                            color: selected
+                                ? brandColor.withValues(alpha: 0.35)
+                                : const Color(0xFFE5DFD4),
+                            width: 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 3.0,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(7.0),
+                          child: Center(
+                            child: logoAsset != null
+                                ? Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5.0,
+                                      vertical: 3.0,
+                                    ),
+                                    child: Image.asset(
+                                      logoAsset,
+                                      fit: BoxFit.contain,
+                                      filterQuality: FilterQuality.medium,
+                                      gaplessPlayback: true,
+                                      semanticLabel: brand.name,
+                                    ),
+                                  )
+                                : Padding(
+                                    padding: const EdgeInsets.all(4.0),
+                                    child: BrandLogo(
+                                      brand: brand,
+                                      height: 24.0,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12.0),
+
+                      // Brand Title, Code Tag & Status Subtitle
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    brand.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: KkfcFonts.ibmPlexSans,
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isAuthorized
+                                          ? const Color(0xFF19293E)
+                                          : const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6.0),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6.0,
+                                    vertical: 1.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: brandColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(4.0),
+                                    border: Border.all(
+                                      color: brandColor.withValues(alpha: 0.3),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    brand.code,
+                                    style: TextStyle(
+                                      fontFamily: KkfcFonts.ibmPlexSans,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                      color: isAuthorized
+                                          ? brandColor
+                                          : const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4.0),
+                            if (isAuthorized)
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 7.0,
+                                    height: 7.0,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: selected
+                                          ? brandColor
+                                          : brandColor.withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6.0),
+                                  Flexible(
+                                    child: Text(
+                                      selected
+                                          ? 'Selected provider'
+                                          : 'Available provider',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontFamily: KkfcFonts.ibmPlexSans,
+                                        fontSize: 12.5,
+                                        fontWeight: selected
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
+                                        color: selected
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              Row(
+                                children: const [
+                                  Icon(
+                                    Icons.lock_outline,
+                                    size: 13.0,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                  SizedBox(width: 4.0),
+                                  Flexible(
+                                    child: Text(
+                                      'Not authorized',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontFamily: KkfcFonts.ibmPlexSans,
+                                        fontSize: 12.0,
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8.0),
+
+                      // Trailing icon: Lock outline if not authorized, custom radio if authorized
+                      if (!isAuthorized)
+                        const Icon(
+                          Icons.lock_outline,
+                          color: Color(0xFF94A3B8),
+                          size: 22.0,
+                        )
+                      else
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 22.0,
+                          height: 22.0,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: selected ? brandColor : Colors.transparent,
+                            border: Border.all(
+                              color: selected
+                                  ? brandColor
+                                  : const Color(0xFFCBD5E1),
+                              width: selected ? 2.0 : 1.5,
+                            ),
+                          ),
+                          child: selected
+                              ? Center(
+                                  child: Container(
+                                    width: 7.5,
+                                    height: 7.5,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            selected: selected,
-            enabled: brand.isAuthorized,
-            leading: Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-            ),
-            title: Text(brand.name),
-            trailing: brand.isAuthorized
-                ? null
-                : const Icon(Icons.lock_outline),
-            onTap: brand.isAuthorized
-                ? () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _selectedBrand = brand);
-                  }
-                : null,
           ),
         ),
       );
     }
+
     final channelsAsync = ref.watch(brandChannelsProvider(brand));
     final defaultChannels =
         brand.channels ??
@@ -264,36 +561,125 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
     final isAuthorized =
         channelsAsync.value?.isAuthorized ?? brand.isAuthorized;
     final channels = channelsAsync.value?.channels ?? defaultChannels;
+    final isBrandActive = _selectedBrand.id == brand.id;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10.0),
+      margin: const EdgeInsets.only(bottom: 12.0),
       padding: const EdgeInsets.fromLTRB(14.0, 12.0, 14.0, 10.0),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F4F8), // Soft card background
-        borderRadius: BorderRadius.circular(10.0),
+        color: isBrandActive ? brandTint : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(
+          color: isBrandActive
+              ? brandColor.withValues(alpha: 0.6)
+              : const Color(0xFFE2E8F0),
+          width: isBrandActive ? 1.5 : 1.0,
+        ),
+        boxShadow: isBrandActive
+            ? [
+                BoxShadow(
+                  color: brandColor.withValues(alpha: 0.08),
+                  blurRadius: 8.0,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Brand Name Header
-          Text(
-            brand.name,
-            style: const TextStyle(
-              fontFamily: KkfcFonts.ibmPlexSans,
-              fontSize: 14.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF19293E),
-            ),
+          // Brand Header with Accent strip, Logo & Code badge
+          Row(
+            children: [
+              Container(
+                width: 3.5,
+                height: 24.0,
+                decoration: BoxDecoration(
+                  color: isAuthorized ? brandColor : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2.0),
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              // Mini logo container
+              Container(
+                width: 36.0,
+                height: 28.0,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6.0),
+                  border: Border.all(
+                    color: const Color(0xFFE2E8F0),
+                    width: 1.0,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(5.0),
+                  child: Center(
+                    child: logoAsset != null
+                        ? Padding(
+                            padding: const EdgeInsets.all(3.0),
+                            child: Image.asset(
+                              logoAsset,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.medium,
+                            ),
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.all(2.0),
+                            child: BrandLogo(brand: brand, height: 18.0),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Flexible(
+                child: Text(
+                  brand.name,
+                  style: const TextStyle(
+                    fontFamily: KkfcFonts.ibmPlexSans,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF19293E),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6.0),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5.0,
+                  vertical: 1.0,
+                ),
+                decoration: BoxDecoration(
+                  color: brandColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4.0),
+                  border: Border.all(
+                    color: brandColor.withValues(alpha: 0.25),
+                    width: 1.0,
+                  ),
+                ),
+                child: Text(
+                  brand.code,
+                  style: TextStyle(
+                    fontFamily: KkfcFonts.ibmPlexSans,
+                    fontSize: 10.0,
+                    fontWeight: FontWeight.w800,
+                    color: brandColor,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8.0),
+          const SizedBox(height: 10.0),
 
           if (isAuthorized)
             // Authorized Channels List with Radio Options
             Column(
               children: [
                 for (final channel in channels)
-                  _buildChannelRadioRow(brand, channel),
+                  _buildChannelRadioRow(brand, channel, brandColor),
               ],
             )
           else
@@ -328,7 +714,11 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
     );
   }
 
-  Widget _buildChannelRadioRow(AssignedBrand brand, MenuChannel channel) {
+  Widget _buildChannelRadioRow(
+    AssignedBrand brand,
+    MenuChannel channel,
+    Color brandColor,
+  ) {
     final isSelected =
         _selectedBrand.id == brand.id && _selectedChannel == channel;
 
@@ -347,27 +737,26 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
           padding: const EdgeInsets.symmetric(vertical: 7.0, horizontal: 2.0),
           child: Row(
             children: [
-              // Custom Radio Indicator matching mockup
+              // Custom Radio Indicator matching brand color
               Container(
                 width: 20.0,
                 height: 20.0,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFF19293E)
-                        : const Color(0xFF94A3B8),
+                    color: isSelected ? brandColor : const Color(0xFF94A3B8),
                     width: isSelected ? 2.0 : 1.5,
                   ),
+                  color: isSelected ? brandColor : Colors.transparent,
                 ),
                 child: isSelected
                     ? Center(
                         child: Container(
-                          width: 10.0,
-                          height: 10.0,
+                          width: 7.5,
+                          height: 7.5,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Color(0xFF19293E),
+                            color: Colors.white,
                           ),
                         ),
                       )
@@ -384,7 +773,9 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                     fontFamily: KkfcFonts.ibmPlexSans,
                     fontSize: 14.0,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: const Color(0xFF19293E),
+                    color: isSelected
+                        ? const Color(0xFF19293E)
+                        : const Color(0xFF475569),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
