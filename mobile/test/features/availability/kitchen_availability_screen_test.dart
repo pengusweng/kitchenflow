@@ -76,7 +76,7 @@ void main() {
 
   group('KitchenBoardToolbar Availability button', () {
     testWidgets(
-      'renders availability button beside refresh button with matching design and triggers callback',
+      'WT-MOB-AVAIL-018 renders availability button beside refresh button with matching design and triggers callback',
       (tester) async {
         bool availabilityTapped = false;
         bool refreshTapped = false;
@@ -121,7 +121,7 @@ void main() {
 
   group('KitchenAvailabilityScreen UI & behavior', () {
     testWidgets(
-      'renders AppHeader reflecting kitchen board app bar with Availability title, role chip, and logout',
+      'WT-MOB-AVAIL-019 renders AppHeader reflecting kitchen board app bar with Availability title, role chip, and logout',
       (tester) async {
         await tester.pumpWidget(buildAvailabilityTestWidget());
         await tester.pumpAndSettle();
@@ -136,7 +136,7 @@ void main() {
     );
 
     testWidgets(
-      'renders CurrentMenuCard brand picker and CatalogSearchBar mirroring menu_screen.dart, excluding category filters',
+      'WT-MOB-AVAIL-020 renders CurrentMenuCard brand picker and CatalogSearchBar mirroring menu_screen.dart, excluding category filters',
       (tester) async {
         await tester.pumpWidget(buildAvailabilityTestWidget());
         await tester.pumpAndSettle();
@@ -189,54 +189,58 @@ void main() {
       },
     );
 
-    testWidgets('tapping CurrentMenuCard opens ChooseMenuModal', (
+    testWidgets(
+      'WT-MOB-AVAIL-021 tapping CurrentMenuCard opens ChooseMenuModal',
+      (tester) async {
+        await tester.pumpWidget(buildAvailabilityTestWidget());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byType(CurrentMenuCard));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ChooseMenuModal), findsOneWidget);
+        expect(find.text('Choose menu'), findsOneWidget);
+        expect(find.text('Switch menu'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+
+        // Cancel closes modal
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(find.byType(ChooseMenuModal), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-AVAIL-022 search field filters menu item cards in real time',
+      (tester) async {
+        await tester.pumpWidget(buildAvailabilityTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Gamcheon Samgyupsal Rice Bowl'), findsOneWidget);
+
+        final searchTextField = find.descendant(
+          of: find.byType(CatalogSearchBar),
+          matching: find.byType(TextField),
+        );
+        await tester.enterText(searchTextField, 'samgyupsal');
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Gamcheon Samgyupsal Rice Bowl'), findsOneWidget);
+
+        // Search non-existent
+        await tester.enterText(searchTextField, 'non-existent-xyz');
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Gamcheon Samgyupsal Rice Bowl'), findsNothing);
+        expect(find.text('No items matching search'), findsOneWidget);
+      },
+    );
+
+    testWidgets('WT-MOB-AVAIL-023 Kitchen Board button pops navigator back', (
       tester,
     ) async {
-      await tester.pumpWidget(buildAvailabilityTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byType(CurrentMenuCard));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ChooseMenuModal), findsOneWidget);
-      expect(find.text('Choose menu'), findsOneWidget);
-      expect(find.text('Switch menu'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-
-      // Cancel closes modal
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-      expect(find.byType(ChooseMenuModal), findsNothing);
-    });
-
-    testWidgets('search field filters menu item cards in real time', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildAvailabilityTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.text('Gamcheon Samgyupsal Rice Bowl'), findsOneWidget);
-
-      final searchTextField = find.descendant(
-        of: find.byType(CatalogSearchBar),
-        matching: find.byType(TextField),
-      );
-      await tester.enterText(searchTextField, 'samgyupsal');
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Gamcheon Samgyupsal Rice Bowl'), findsOneWidget);
-
-      // Search non-existent
-      await tester.enterText(searchTextField, 'non-existent-xyz');
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Gamcheon Samgyupsal Rice Bowl'), findsNothing);
-      expect(find.text('No items matching search'), findsOneWidget);
-    });
-
-    testWidgets('Kitchen Board button pops navigator back', (tester) async {
       bool popped = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -288,33 +292,34 @@ void main() {
       expect(popped, isTrue);
     });
 
-    testWidgets('tapping Change on item card opens ChangeAvailabilityDialog', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildAvailabilityTestWidget());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'WT-MOB-AVAIL-024 tapping Change on item card opens ChangeAvailabilityDialog',
+      (tester) async {
+        await tester.pumpWidget(buildAvailabilityTestWidget());
+        await tester.pumpAndSettle();
 
-      final changeButton = find.byKey(
-        const ValueKey('availability-change-button-gamcheon-samgyupsal'),
-      );
-      expect(changeButton, findsOneWidget);
+        final changeButton = find.byKey(
+          const ValueKey('availability-change-button-gamcheon-samgyupsal'),
+        );
+        expect(changeButton, findsOneWidget);
 
-      await tester.tap(changeButton);
-      await tester.pumpAndSettle();
+        await tester.tap(changeButton);
+        await tester.pumpAndSettle();
 
-      expect(find.byType(ChangeAvailabilityDialog), findsOneWidget);
-      expect(find.text('Make item unavailable?'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(ChangeAvailabilityDialog),
-          matching: find.text('Gamcheon Samgyupsal Rice Bowl'),
-        ),
-        findsOneWidget,
-      );
-    });
+        expect(find.byType(ChangeAvailabilityDialog), findsOneWidget);
+        expect(find.text('Make item unavailable?'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(ChangeAvailabilityDialog),
+            matching: find.text('Gamcheon Samgyupsal Rice Bowl'),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets(
-      'confirming ChangeAvailabilityDialog triggers onUpdateAvailability and displays success toast',
+      'WT-MOB-AVAIL-025 confirming ChangeAvailabilityDialog triggers onUpdateAvailability and displays success toast',
       (tester) async {
         bool? updatedTo;
         await tester.pumpWidget(
@@ -347,31 +352,32 @@ void main() {
       },
     );
 
-    testWidgets('renders background canvas wave accents and header wave arcs', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildAvailabilityTestWidget());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'WT-MOB-AVAIL-026 renders background canvas wave accents and header wave arcs',
+      (tester) async {
+        await tester.pumpWidget(buildAvailabilityTestWidget());
+        await tester.pumpAndSettle();
 
-      expect(find.byType(KkfcCanvasWaves), findsOneWidget);
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is CustomPaint && widget.painter is CanvasWavesPainter,
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is CustomPaint && widget.painter is HeaderWavesPainter,
-        ),
-        findsOneWidget,
-      );
-    });
+        expect(find.byType(KkfcCanvasWaves), findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is CustomPaint && widget.painter is CanvasWavesPainter,
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is CustomPaint && widget.painter is HeaderWavesPainter,
+          ),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets(
-      'displays AvailabilityListSkeleton while loading and replaces it when items arrive',
+      'WT-MOB-AVAIL-027 displays AvailabilityListSkeleton while loading and replaces it when items arrive',
       (tester) async {
         final completer = Completer<List<MenuItem>>();
         await tester.pumpWidget(

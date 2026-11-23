@@ -12,20 +12,23 @@ import 'package:mobile/shared/widgets/app_header.dart';
 import 'package:mobile/shared/widgets/workspace_switcher.dart';
 
 void main() {
-  test('only SUPERADMIN and SUPERVISOR can switch workspaces', () {
-    for (final role in UserRole.values) {
-      expect(
-        role.canSwitchWorkspace,
-        role == UserRole.superadmin || role == UserRole.supervisor,
-        reason: role.apiValue,
-      );
-    }
-    expect(UserRole.kitchenStaff.canAccessPos, isFalse);
-    expect(UserRole.kitchenHead.canAccessPos, isFalse);
-    expect(UserRole.supervisor.canAccessKitchenBoard, isTrue);
-    expect(UserRole.superadmin.canAccessKitchenBoard, isTrue);
-    expect(UserRole.manager.canAccessKitchenBoard, isFalse);
-  });
+  test(
+    'UT-MOB-WORKSPACE-001 only SUPERADMIN and SUPERVISOR can switch workspaces',
+    () {
+      for (final role in UserRole.values) {
+        expect(
+          role.canSwitchWorkspace,
+          role == UserRole.superadmin || role == UserRole.supervisor,
+          reason: role.apiValue,
+        );
+      }
+      expect(UserRole.kitchenStaff.canAccessPos, isFalse);
+      expect(UserRole.kitchenHead.canAccessPos, isFalse);
+      expect(UserRole.supervisor.canAccessKitchenBoard, isTrue);
+      expect(UserRole.superadmin.canAccessKitchenBoard, isTrue);
+      expect(UserRole.manager.canAccessKitchenBoard, isFalse);
+    },
+  );
 
   Future<GoRouter> pump(WidgetTester tester, UserRole role) async {
     final router = GoRouter(
@@ -55,100 +58,109 @@ void main() {
     return router;
   }
 
-  testWidgets('SUPERADMIN can switch from POS to KDS and back', (tester) async {
-    await pump(tester, UserRole.superadmin);
-    expect(find.byKey(const ValueKey('workspace-switcher')), findsOneWidget);
+  testWidgets(
+    'WT-MOB-WORKSPACE-001 SUPERADMIN can switch from POS to KDS and back',
+    (tester) async {
+      await pump(tester, UserRole.superadmin);
+      expect(find.byKey(const ValueKey('workspace-switcher')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('workspace-switcher')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('workspace-option-KDS')));
-    await tester.pumpAndSettle();
-    expect(find.text('KDS page'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('workspace-switcher')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('workspace-option-KDS')));
+      await tester.pumpAndSettle();
+      expect(find.text('KDS page'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('workspace-switcher')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('workspace-option-POS')));
-    await tester.pumpAndSettle();
-    expect(find.text('POS page'), findsOneWidget);
-  });
+      await tester.tap(find.byKey(const ValueKey('workspace-switcher')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('workspace-option-POS')));
+      await tester.pumpAndSettle();
+      expect(find.text('POS page'), findsOneWidget);
+    },
+  );
 
-  testWidgets('switcher is hidden for roles that cannot switch', (
-    tester,
-  ) async {
-    await pump(tester, UserRole.kitchenHead);
-    expect(find.byKey(const ValueKey('workspace-switcher')), findsNothing);
-  });
+  testWidgets(
+    'WT-MOB-WORKSPACE-002 switcher is hidden for roles that cannot switch',
+    (tester) async {
+      await pump(tester, UserRole.kitchenHead);
+      expect(find.byKey(const ValueKey('workspace-switcher')), findsNothing);
+    },
+  );
 
-  testWidgets('SUPERVISOR defaults to menu screen on login', (tester) async {
-    final container = ProviderContainer(
-      overrides: [
-        sessionProvider.overrideWith((ref) => true),
-        userRoleProvider.overrideWith(() => _FixedRole(UserRole.supervisor)),
-        menuItemsProvider.overrideWith((ref) async => []),
-        availabilityMenuItemsProvider.overrideWith((ref) async => []),
-      ],
-    );
-    addTearDown(container.dispose);
+  testWidgets(
+    'WT-MOB-WORKSPACE-003 SUPERVISOR defaults to menu screen on login',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          sessionProvider.overrideWith((ref) => true),
+          userRoleProvider.overrideWith(() => _FixedRole(UserRole.supervisor)),
+          menuItemsProvider.overrideWith((ref) async => []),
+          availabilityMenuItemsProvider.overrideWith((ref) async => []),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    final router = container.read(routerProvider);
-    router.go(AppRoutes.login);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(router.routeInformationProvider.value.uri.path, AppRoutes.menu);
-  });
+      final router = container.read(routerProvider);
+      router.go(AppRoutes.login);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(router.routeInformationProvider.value.uri.path, AppRoutes.menu);
+    },
+  );
 
-  testWidgets('KITCHEN_HEAD defaults to kitchenTickets on login', (
-    tester,
-  ) async {
-    final container = ProviderContainer(
-      overrides: [
-        sessionProvider.overrideWith((ref) => true),
-        userRoleProvider.overrideWith(() => _FixedRole(UserRole.kitchenHead)),
-        menuItemsProvider.overrideWith((ref) async => []),
-        availabilityMenuItemsProvider.overrideWith((ref) async => []),
-      ],
-    );
-    addTearDown(container.dispose);
+  testWidgets(
+    'WT-MOB-WORKSPACE-004 KITCHEN_HEAD defaults to kitchenTickets on login',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          sessionProvider.overrideWith((ref) => true),
+          userRoleProvider.overrideWith(() => _FixedRole(UserRole.kitchenHead)),
+          menuItemsProvider.overrideWith((ref) async => []),
+          availabilityMenuItemsProvider.overrideWith((ref) async => []),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    final router = container.read(routerProvider);
-    router.go(AppRoutes.login);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      AppRoutes.kitchenTickets,
-    );
-  });
+      final router = container.read(routerProvider);
+      router.go(AppRoutes.login);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        AppRoutes.kitchenTickets,
+      );
+    },
+  );
 
-  testWidgets('AppHeaderRoleChip displays role text without dropdown icon', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: AppHeaderRoleChip(role: 'Supervisor')),
-      ),
-    );
+  testWidgets(
+    'WT-MOB-WORKSPACE-005 AppHeaderRoleChip displays role text without dropdown icon',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: AppHeaderRoleChip(role: 'Supervisor')),
+        ),
+      );
 
-    expect(find.text('Supervisor'), findsOneWidget);
-    // Role pill must not have dropdown icon
-    expect(
-      find.descendant(
-        of: find.byType(AppHeaderRoleChip),
-        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
-      ),
-      findsNothing,
-    );
-  });
+      expect(find.text('Supervisor'), findsOneWidget);
+      // Role pill must not have dropdown icon
+      expect(
+        find.descendant(
+          of: find.byType(AppHeaderRoleChip),
+          matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+        ),
+        findsNothing,
+      );
+    },
+  );
 }
 
 class _FixedRole extends UserRoleNotifier {

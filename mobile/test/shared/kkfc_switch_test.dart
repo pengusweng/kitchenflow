@@ -5,7 +5,7 @@ import 'package:mobile/app/theme/theme.dart';
 import 'package:mobile/shared/widgets/kkfc_switch.dart';
 
 void main() {
-  testWidgets('tap toggles the value', (tester) async {
+  testWidgets('WT-MOB-SWITCH-001 tap toggles the value', (tester) async {
     var value = false;
     await tester.pumpWidget(
       MaterialApp(
@@ -30,7 +30,7 @@ void main() {
     expect(value, isTrue);
   });
 
-  testWidgets('disabled switch ignores taps', (tester) async {
+  testWidgets('WT-MOB-SWITCH-002 disabled switch ignores taps', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: counterTheme,
@@ -45,7 +45,9 @@ void main() {
     expect(find.byType(KkfcSwitch), findsOneWidget);
   });
 
-  testWidgets('still builds at large text scale', (tester) async {
+  testWidgets('WT-MOB-SWITCH-003 still builds at large text scale', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: counterTheme,

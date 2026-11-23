@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/order_entry/data/models/platform_reference_view_data.dart';
 
 void main() {
-  test('IT-MOB-MENU-007 Given King Kungs Kafe on GrabFood When context is applied Then Store reference is read-only brand and channel', () {
+  test('UT-MOB-PLATFORM-001 Given King Kungs Kafe on GrabFood When context is applied Then Store reference is read-only brand and channel', () {
     final data = PlatformReferenceViewData.sample.withContext(
       brandName: 'King Kungs Kafe',
       channelLabel: 'GrabFood',

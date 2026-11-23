@@ -143,7 +143,7 @@ void main() {
   }
 
   testWidgets(
-    'Editing after review uses a new ID; unchanged review reuses its ID',
+    'WT-MOB-ORDER-FLOW-003 Editing after review uses a new ID; unchanged review reuses its ID',
     (tester) async {
       final repo = MockOrderEntryRepository();
       final container = ProviderContainer(
@@ -181,69 +181,71 @@ void main() {
     },
   );
 
-  testWidgets('A failed request retries with the same order ID', (
-    tester,
-  ) async {
-    final repo = MockOrderEntryRepository(shouldFailCreate: true);
-    final container = ProviderContainer(
-      overrides: [
-        orderEntryRepositoryProvider.overrideWithValue(repo),
-        assignedBrandsProvider.overrideWithValue([sampleBrand]),
-      ],
-    );
-    addTearDown(container.dispose);
-    container.read(cartProvider.notifier).add(sampleItem);
-    await tester.pumpWidget(createSubject(container));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Table 1');
-    await tester.tap(find.text('Review order'));
-    await tester.pumpAndSettle();
-    final firstId = repo.lastCreatePayload!['orderId'];
-    await tester.tap(find.text('Review order'));
-    await tester.pumpAndSettle();
-    expect(repo.createCallCount, 2);
-    expect(repo.lastCreatePayload!['orderId'], firstId);
-  });
-
-  testWidgets('Step 3 prevents submitting another provider’s items', (
-    tester,
-  ) async {
-    final mockRepo = MockOrderEntryRepository();
-    final container = ProviderContainer(
-      overrides: [
-        orderEntryRepositoryProvider.overrideWithValue(mockRepo),
-        assignedBrandsProvider.overrideWithValue([sampleBrand]),
-      ],
-    );
-    addTearDown(container.dispose);
-    container.read(activeBrandProvider.notifier).select(sampleBrand);
-    container.read(cartProvider.notifier).add(sampleItem);
-    container
-        .read(activeBrandProvider.notifier)
-        .select(
-          const AssignedBrand(
-            id: '55555555-5555-4555-8555-555555555555',
-            code: 'KK',
-            name: 'King Kungs Cafe',
-          ),
-        );
-    container.read(menuChannelProvider.notifier).select(MenuChannel.takeaway);
-
-    await tester.pumpWidget(createSubject(container));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Review order'));
-    await tester.pumpAndSettle();
-
-    expect(mockRepo.createCallCount, 0);
-    expect(
-      find.textContaining('Each order must contain items from one provider.'),
-      findsOneWidget,
-    );
-    expect(container.read(cartProvider).single.brandName, sampleBrand.name);
-  });
+  testWidgets(
+    'WT-MOB-ORDER-FLOW-004 A failed request retries with the same order ID',
+    (tester) async {
+      final repo = MockOrderEntryRepository(shouldFailCreate: true);
+      final container = ProviderContainer(
+        overrides: [
+          orderEntryRepositoryProvider.overrideWithValue(repo),
+          assignedBrandsProvider.overrideWithValue([sampleBrand]),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(cartProvider.notifier).add(sampleItem);
+      await tester.pumpWidget(createSubject(container));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Table 1');
+      await tester.tap(find.text('Review order'));
+      await tester.pumpAndSettle();
+      final firstId = repo.lastCreatePayload!['orderId'];
+      await tester.tap(find.text('Review order'));
+      await tester.pumpAndSettle();
+      expect(repo.createCallCount, 2);
+      expect(repo.lastCreatePayload!['orderId'], firstId);
+    },
+  );
 
   testWidgets(
-    'Step 3 requires table for Dine-in and does not call API when blank',
+    'WT-MOB-ORDER-FLOW-005 Step 3 prevents submitting another provider’s items',
+    (tester) async {
+      final mockRepo = MockOrderEntryRepository();
+      final container = ProviderContainer(
+        overrides: [
+          orderEntryRepositoryProvider.overrideWithValue(mockRepo),
+          assignedBrandsProvider.overrideWithValue([sampleBrand]),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(activeBrandProvider.notifier).select(sampleBrand);
+      container.read(cartProvider.notifier).add(sampleItem);
+      container
+          .read(activeBrandProvider.notifier)
+          .select(
+            const AssignedBrand(
+              id: '55555555-5555-4555-8555-555555555555',
+              code: 'KK',
+              name: 'King Kungs Cafe',
+            ),
+          );
+      container.read(menuChannelProvider.notifier).select(MenuChannel.takeaway);
+
+      await tester.pumpWidget(createSubject(container));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Review order'));
+      await tester.pumpAndSettle();
+
+      expect(mockRepo.createCallCount, 0);
+      expect(
+        find.textContaining('Each order must contain items from one provider.'),
+        findsOneWidget,
+      );
+      expect(container.read(cartProvider).single.brandName, sampleBrand.name);
+    },
+  );
+
+  testWidgets(
+    'WT-MOB-ORDER-FLOW-006 Step 3 requires table for Dine-in and does not call API when blank',
     (tester) async {
       final mockRepo = MockOrderEntryRepository();
       final container = ProviderContainer(
@@ -275,7 +277,7 @@ void main() {
   );
 
   testWidgets(
-    'Step 3 creates order draft via API when valid and advances to Step 4',
+    'WT-MOB-ORDER-FLOW-007 Step 3 creates order draft via API when valid and advances to Step 4',
     (tester) async {
       final mockRepo = MockOrderEntryRepository();
       final container = ProviderContainer(
@@ -322,45 +324,46 @@ void main() {
     },
   );
 
-  testWidgets('Step 3 displays API error banner when draft creation fails', (
-    tester,
-  ) async {
-    final mockRepo = MockOrderEntryRepository(
-      shouldFailCreate: true,
-      createErrorMessage: 'Menu item is unavailable on this channel.',
-    );
-    final container = ProviderContainer(
-      overrides: [
-        orderEntryRepositoryProvider.overrideWithValue(mockRepo),
-        activeBrandProvider.overrideWith(
-          () => FakeActiveBrandNotifier(sampleBrand),
-        ),
-      ],
-    );
+  testWidgets(
+    'WT-MOB-ORDER-FLOW-008 Step 3 displays API error banner when draft creation fails',
+    (tester) async {
+      final mockRepo = MockOrderEntryRepository(
+        shouldFailCreate: true,
+        createErrorMessage: 'Menu item is unavailable on this channel.',
+      );
+      final container = ProviderContainer(
+        overrides: [
+          orderEntryRepositoryProvider.overrideWithValue(mockRepo),
+          activeBrandProvider.overrideWith(
+            () => FakeActiveBrandNotifier(sampleBrand),
+          ),
+        ],
+      );
 
-    container.read(cartProvider.notifier).addConfigured(sampleItem, {}, 1);
-    container.read(menuChannelProvider.notifier).select(MenuChannel.dineIn);
+      container.read(cartProvider.notifier).addConfigured(sampleItem, {}, 1);
+      container.read(menuChannelProvider.notifier).select(MenuChannel.dineIn);
 
-    await tester.pumpWidget(createSubject(container));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(createSubject(container));
+      await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'Table 5');
-    await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Table 5');
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Review order'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Review order'));
+      await tester.pumpAndSettle();
 
-    expect(mockRepo.createCallCount, 1);
-    // Stays on Step 3 and shows server error message
-    expect(
-      find.text('Menu item is unavailable on this channel.'),
-      findsOneWidget,
-    );
-    expect(find.text('Review order'), findsOneWidget);
-  });
+      expect(mockRepo.createCallCount, 1);
+      // Stays on Step 3 and shows server error message
+      expect(
+        find.text('Menu item is unavailable on this channel.'),
+        findsOneWidget,
+      );
+      expect(find.text('Review order'), findsOneWidget);
+    },
+  );
 
   testWidgets(
-    'Full flow: Step 3 creates draft -> Step 4 confirms order -> Step 5 shows real kitchen ticket',
+    'WT-MOB-ORDER-FLOW-009 Full flow: Step 3 creates draft -> Step 4 confirms order -> Step 5 shows real kitchen ticket',
     (tester) async {
       final mockRepo = MockOrderEntryRepository();
       final container = ProviderContainer(

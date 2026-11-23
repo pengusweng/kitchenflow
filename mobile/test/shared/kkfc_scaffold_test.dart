@@ -27,7 +27,9 @@ Widget _harness(
 }
 
 void main() {
-  testWidgets('login screen lays out at 2.5x text scale', (tester) async {
+  testWidgets('WT-MOB-WIDG-001 login screen lays out at 2.5x text scale', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _harness(const LoginScreen(), textScaler: const TextScaler.linear(2.5)),
     );
@@ -37,17 +39,18 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
   });
 
-  testWidgets('body clears the top system inset when there is no app bar', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _harness(
-        const KkfcScaffold(body: Text('Body')),
-        padding: const EdgeInsets.only(top: 40),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'WT-MOB-WIDG-002 body clears the top system inset when there is no app bar',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          const KkfcScaffold(body: Text('Body')),
+          padding: const EdgeInsets.only(top: 40),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(tester.getTopLeft(find.text('Body')).dy, greaterThanOrEqualTo(40));
-  });
+      expect(tester.getTopLeft(find.text('Body')).dy, greaterThanOrEqualTo(40));
+    },
+  );
 }

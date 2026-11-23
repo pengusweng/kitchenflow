@@ -60,7 +60,7 @@ Future<ProviderContainer> _pumpMenu(
 void main() {
   group('MenuScreen layout', () {
     testWidgets(
-      'the header displays application title and cashier controls on desktop',
+      'WT-MOB-MENU-009 the header displays application title and cashier controls on desktop',
       (tester) async {
         await _pumpMenu(tester, _desktop);
 
@@ -81,13 +81,17 @@ void main() {
       },
     );
 
-    testWidgets('the header spans the full width', (tester) async {
+    testWidgets('WT-MOB-MENU-010 the header spans the full width', (
+      tester,
+    ) async {
       await _pumpMenu(tester, _desktop);
 
       expect(tester.getSize(find.byType(AppHeader)).width, _desktop.width);
     });
 
-    testWidgets('the cart panel docks on a wide screen', (tester) async {
+    testWidgets('WT-MOB-MENU-011 the cart panel docks on a wide screen', (
+      tester,
+    ) async {
       await _pumpMenu(tester, _desktop);
 
       expect(find.byType(CartPanel), findsOneWidget);
@@ -99,7 +103,7 @@ void main() {
     });
 
     testWidgets(
-      'a phone docks the catalog without side cart panel and shows floating cart bar when not empty',
+      'WT-MOB-MENU-012 a phone docks the catalog without side cart panel and shows floating cart bar when not empty',
       (tester) async {
         final container = await _pumpMenu(tester, _phone);
 
@@ -126,36 +130,38 @@ void main() {
       },
     );
 
-    testWidgets('the current menu card shows only the active provider', (
-      tester,
-    ) async {
-      await _pumpMenu(tester, _desktop);
+    testWidgets(
+      'WT-MOB-MENU-013 the current menu card shows only the active provider',
+      (tester) async {
+        await _pumpMenu(tester, _desktop);
 
-      expect(find.byType(CurrentMenuCard), findsOneWidget);
-      expect(find.textContaining('Gamcheon'), findsWidgets);
-      expect(
-        find.descendant(
-          of: find.byType(CurrentMenuCard),
-          matching: find.textContaining('Dine-in'),
-        ),
-        findsNothing,
-      );
-    });
-
-    testWidgets('tapping current menu card opens choose menu modal', (
-      tester,
-    ) async {
-      await _pumpMenu(tester, _phone);
-
-      await tester.tap(find.byType(CurrentMenuCard));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Choose provider'), findsOneWidget);
-      expect(find.text('Choose the provider for this menu.'), findsOneWidget);
-    });
+        expect(find.byType(CurrentMenuCard), findsOneWidget);
+        expect(find.textContaining('Gamcheon'), findsWidgets);
+        expect(
+          find.descendant(
+            of: find.byType(CurrentMenuCard),
+            matching: find.textContaining('Dine-in'),
+          ),
+          findsNothing,
+        );
+      },
+    );
 
     testWidgets(
-      'the catalog search bar displays search field and unavailable toggle',
+      'WT-MOB-MENU-014 tapping current menu card opens choose menu modal',
+      (tester) async {
+        await _pumpMenu(tester, _phone);
+
+        await tester.tap(find.byType(CurrentMenuCard));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Choose provider'), findsOneWidget);
+        expect(find.text('Choose the provider for this menu.'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-MENU-015 the catalog search bar displays search field and unavailable toggle',
       (tester) async {
         await _pumpMenu(tester, _phone);
 
@@ -165,25 +171,26 @@ void main() {
       },
     );
 
-    testWidgets('the header does not overflow on a narrow phone', (
-      tester,
-    ) async {
-      await _pumpMenu(tester, _narrowPhone);
+    testWidgets(
+      'WT-MOB-MENU-016 the header does not overflow on a narrow phone',
+      (tester) async {
+        await _pumpMenu(tester, _narrowPhone);
 
-      expect(tester.takeException(), isNull);
+        expect(tester.takeException(), isNull);
 
-      final logout = find.byType(LogoutButton);
-      expect(logout, findsOneWidget);
-      expect(find.text('Cashier Staff'), findsOneWidget);
-      expect(find.text('Orders'), findsOneWidget);
-      expect(
-        tester.getTopRight(logout).dx,
-        lessThanOrEqualTo(_narrowPhone.width),
-      );
-    });
+        final logout = find.byType(LogoutButton);
+        expect(logout, findsOneWidget);
+        expect(find.text('Cashier Staff'), findsOneWidget);
+        expect(find.text('Orders'), findsOneWidget);
+        expect(
+          tester.getTopRight(logout).dx,
+          lessThanOrEqualTo(_narrowPhone.width),
+        );
+      },
+    );
 
     testWidgets(
-      'in tablet version of menu screen, continuing from cart panel opens the step-by-step order flow',
+      'WT-MOB-MENU-017 in tablet version of menu screen, continuing from cart panel opens the step-by-step order flow',
       (tester) async {
         final router = GoRouter(
           initialLocation: AppRoutes.menu,
@@ -230,44 +237,46 @@ void main() {
       },
     );
 
-    testWidgets('renders background canvas wave accents and header wave arcs', (
-      tester,
-    ) async {
-      await _pumpMenu(tester, _desktop);
+    testWidgets(
+      'WT-MOB-MENU-018 renders background canvas wave accents and header wave arcs',
+      (tester) async {
+        await _pumpMenu(tester, _desktop);
 
-      // Verifies the fluid background canvas waves from the login page are present
-      expect(find.byType(KkfcCanvasWaves), findsOneWidget);
+        // Verifies the fluid background canvas waves from the login page are present
+        expect(find.byType(KkfcCanvasWaves), findsOneWidget);
 
-      // Verifies custom paint with CanvasWavesPainter is in the widget tree
-      final canvasWaves = find.byWidgetPredicate(
-        (widget) =>
-            widget is CustomPaint && widget.painter is CanvasWavesPainter,
-      );
-      expect(canvasWaves, findsOneWidget);
+        // Verifies custom paint with CanvasWavesPainter is in the widget tree
+        final canvasWaves = find.byWidgetPredicate(
+          (widget) =>
+              widget is CustomPaint && widget.painter is CanvasWavesPainter,
+        );
+        expect(canvasWaves, findsOneWidget);
 
-      // Verifies the navy header copper wave arcs from the login page are present
-      final headerWaves = find.byWidgetPredicate(
-        (widget) =>
-            widget is CustomPaint && widget.painter is HeaderWavesPainter,
-      );
-      expect(headerWaves, findsOneWidget);
-    });
-
-    testWidgets('renders background canvas wave accents on phone layout', (
-      tester,
-    ) async {
-      await _pumpMenu(tester, _phone);
-
-      expect(find.byType(KkfcCanvasWaves), findsOneWidget);
-      final headerWaves = find.byWidgetPredicate(
-        (widget) =>
-            widget is CustomPaint && widget.painter is HeaderWavesPainter,
-      );
-      expect(headerWaves, findsOneWidget);
-    });
+        // Verifies the navy header copper wave arcs from the login page are present
+        final headerWaves = find.byWidgetPredicate(
+          (widget) =>
+              widget is CustomPaint && widget.painter is HeaderWavesPainter,
+        );
+        expect(headerWaves, findsOneWidget);
+      },
+    );
 
     testWidgets(
-      'tapping current menu card on a compact screen opens choose menu modal without pixel overflow and scrolls smoothly',
+      'WT-MOB-MENU-019 renders background canvas wave accents on phone layout',
+      (tester) async {
+        await _pumpMenu(tester, _phone);
+
+        expect(find.byType(KkfcCanvasWaves), findsOneWidget);
+        final headerWaves = find.byWidgetPredicate(
+          (widget) =>
+              widget is CustomPaint && widget.painter is HeaderWavesPainter,
+        );
+        expect(headerWaves, findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-MENU-020 tapping current menu card on a compact screen opens choose menu modal without pixel overflow and scrolls smoothly',
       (tester) async {
         const compactSize = Size(360, 560);
         await _pumpMenu(tester, compactSize);
@@ -312,7 +321,7 @@ void main() {
     );
 
     testWidgets(
-      'ChooseMenuModal does not overflow on small height with high text scaling and multiple brands',
+      'WT-MOB-MENU-021 ChooseMenuModal does not overflow on small height with high text scaling and multiple brands',
       (tester) async {
         tester.view.physicalSize = const Size(360, 480);
         tester.view.devicePixelRatio = 1;

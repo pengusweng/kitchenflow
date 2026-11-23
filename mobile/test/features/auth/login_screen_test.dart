@@ -109,20 +109,23 @@ Finder get _dialogSignIn => find.descendant(
 
 void main() {
   group('LoginScreen layout', () {
-    testWidgets('shows both fields, the form card and the submit button', (
+    testWidgets(
+      'WT-MOB-LOGIN-001 shows both fields, the form card and the submit button',
+      (tester) async {
+        await _pumpLogin(tester);
+
+        expect(find.byType(LoginFormCard), findsOneWidget);
+        expect(find.byType(BrandPanel), findsOneWidget);
+        expect(find.byType(TextField), findsNWidgets(2));
+        expect(find.byType(LoginPasswordField), findsOneWidget);
+        expect(find.byType(KkfcLoadingButton), findsOneWidget);
+        expect(_status(tester), LoginStatus.idle);
+      },
+    );
+
+    testWidgets('WT-MOB-LOGIN-002 uses the compact brand panel on a phone', (
       tester,
     ) async {
-      await _pumpLogin(tester);
-
-      expect(find.byType(LoginFormCard), findsOneWidget);
-      expect(find.byType(BrandPanel), findsOneWidget);
-      expect(find.byType(TextField), findsNWidgets(2));
-      expect(find.byType(LoginPasswordField), findsOneWidget);
-      expect(find.byType(KkfcLoadingButton), findsOneWidget);
-      expect(_status(tester), LoginStatus.idle);
-    });
-
-    testWidgets('uses the compact brand panel on a phone', (tester) async {
       await _pumpLogin(tester, size: _phone);
 
       expect(
@@ -131,7 +134,9 @@ void main() {
       );
     });
 
-    testWidgets('uses the full brand panel on a wide screen', (tester) async {
+    testWidgets('WT-MOB-LOGIN-003 uses the full brand panel on a wide screen', (
+      tester,
+    ) async {
       await _pumpLogin(tester, size: _desktop);
 
       expect(
@@ -142,7 +147,7 @@ void main() {
     });
 
     testWidgets(
-      'header renders logo_light.png, bold Multi-brand POS title, and brands in middle of header',
+      'WT-MOB-LOGIN-004 header renders logo_light.png, bold Multi-brand POS title, and brands in middle of header',
       (tester) async {
         // 1. Check compact layout (phone)
         await _pumpLogin(tester, size: _phone);
@@ -213,7 +218,9 @@ void main() {
       },
     );
 
-    testWidgets('does not overflow at 2x text scale', (tester) async {
+    testWidgets('WT-MOB-LOGIN-005 does not overflow at 2x text scale', (
+      tester,
+    ) async {
       await _pumpLogin(tester, textScale: 2);
 
       expect(tester.takeException(), isNull);
@@ -221,35 +228,37 @@ void main() {
   });
 
   group('LoginScreen validation', () {
-    testWidgets('empty submit shows the required-fields notice', (
-      tester,
-    ) async {
-      await _pumpLogin(tester);
+    testWidgets(
+      'WT-MOB-LOGIN-006 empty submit shows the required-fields notice',
+      (tester) async {
+        await _pumpLogin(tester);
 
-      await _tapSignIn(tester);
-      await tester.pump(const Duration(milliseconds: 400));
+        await _tapSignIn(tester);
+        await tester.pump(const Duration(milliseconds: 400));
 
-      expect(_status(tester), LoginStatus.missingFields);
-      expect(
-        tester
-            .widget<KkfcLoadingButton>(find.byType(KkfcLoadingButton))
-            .isLoading,
-        isFalse,
-      );
-    });
+        expect(_status(tester), LoginStatus.missingFields);
+        expect(
+          tester
+              .widget<KkfcLoadingButton>(find.byType(KkfcLoadingButton))
+              .isLoading,
+          isFalse,
+        );
+      },
+    );
 
-    testWidgets('username without a password is still missing fields', (
-      tester,
-    ) async {
-      await _pumpLogin(tester);
+    testWidgets(
+      'WT-MOB-LOGIN-007 username without a password is still missing fields',
+      (tester) async {
+        await _pumpLogin(tester);
 
-      await tester.enterText(_username, 'ana.r');
-      await _tapSignIn(tester);
+        await tester.enterText(_username, 'ana.r');
+        await _tapSignIn(tester);
 
-      expect(_status(tester), LoginStatus.missingFields);
-    });
+        expect(_status(tester), LoginStatus.missingFields);
+      },
+    );
 
-    testWidgets('typing clears the notice', (tester) async {
+    testWidgets('WT-MOB-LOGIN-008 typing clears the notice', (tester) async {
       await _pumpLogin(tester);
 
       await _tapSignIn(tester);
@@ -263,85 +272,90 @@ void main() {
   });
 
   group('LoginScreen submit', () {
-    testWidgets('a successful sign-in stores the session token', (
+    testWidgets(
+      'WT-MOB-LOGIN-009 a successful sign-in stores the session token',
+      (tester) async {
+        final completer = Completer<String>();
+        final repo = _FakeAuthRepository((_, _) => completer.future);
+        final container = await _pumpLogin(tester, authRepository: repo);
+
+        await tester.enterText(_username, 'test_owner');
+        await tester.enterText(_password, 'Password123!');
+        await _tapSignIn(tester);
+
+        // While submitting
+        expect(_status(tester), LoginStatus.submitting);
+        expect(
+          tester
+              .widget<KkfcLoadingButton>(find.byType(KkfcLoadingButton))
+              .isLoading,
+          isTrue,
+        );
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNull,
+        );
+        expect(tester.widget<TextField>(_username).enabled, isFalse);
+        expect(tester.widget<TextField>(_password).enabled, isFalse);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+        completer.complete('token-abc');
+        await _finishSignIn(tester);
+
+        // Holding the token is what makes the router navigate to /orders.
+        expect(container.read(sessionTokenProvider), 'token-abc');
+        expect(repo.callCount, 1);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-LOGIN-010 rejected credentials show the invalid-credentials notice',
+      (tester) async {
+        final repo = _FakeAuthRepository(
+          (_, _) async => throw const AuthException(
+            'Invalid username or password.',
+            kind: AuthFailure.invalidCredentials,
+          ),
+        );
+        await _pumpLogin(tester, authRepository: repo);
+
+        await tester.enterText(_username, 'ana.r');
+        await tester.enterText(_password, 'wrong');
+        await _tapSignIn(tester);
+        await _finishSignIn(tester);
+
+        expect(_status(tester), LoginStatus.invalidCredentials);
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNotNull,
+        );
+        expect(tester.widget<TextField>(_username).enabled, isTrue);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-LOGIN-011 a network failure shows the network-error notice',
+      (tester) async {
+        final repo = _FakeAuthRepository(
+          (_, _) async => throw const AuthException(
+            'Unable to reach the server.',
+            kind: AuthFailure.network,
+          ),
+        );
+        await _pumpLogin(tester, authRepository: repo);
+
+        await tester.enterText(_username, 'test_owner');
+        await tester.enterText(_password, 'Password123!');
+        await _tapSignIn(tester);
+        await _finishSignIn(tester);
+
+        expect(_status(tester), LoginStatus.networkError);
+      },
+    );
+
+    testWidgets('WT-MOB-LOGIN-012 a second tap while submitting is ignored', (
       tester,
     ) async {
-      final completer = Completer<String>();
-      final repo = _FakeAuthRepository((_, _) => completer.future);
-      final container = await _pumpLogin(tester, authRepository: repo);
-
-      await tester.enterText(_username, 'test_owner');
-      await tester.enterText(_password, 'Password123!');
-      await _tapSignIn(tester);
-
-      // While submitting
-      expect(_status(tester), LoginStatus.submitting);
-      expect(
-        tester
-            .widget<KkfcLoadingButton>(find.byType(KkfcLoadingButton))
-            .isLoading,
-        isTrue,
-      );
-      expect(
-        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-        isNull,
-      );
-      expect(tester.widget<TextField>(_username).enabled, isFalse);
-      expect(tester.widget<TextField>(_password).enabled, isFalse);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-      completer.complete('token-abc');
-      await _finishSignIn(tester);
-
-      // Holding the token is what makes the router navigate to /orders.
-      expect(container.read(sessionTokenProvider), 'token-abc');
-      expect(repo.callCount, 1);
-    });
-
-    testWidgets('rejected credentials show the invalid-credentials notice', (
-      tester,
-    ) async {
-      final repo = _FakeAuthRepository(
-        (_, _) async => throw const AuthException(
-          'Invalid username or password.',
-          kind: AuthFailure.invalidCredentials,
-        ),
-      );
-      await _pumpLogin(tester, authRepository: repo);
-
-      await tester.enterText(_username, 'ana.r');
-      await tester.enterText(_password, 'wrong');
-      await _tapSignIn(tester);
-      await _finishSignIn(tester);
-
-      expect(_status(tester), LoginStatus.invalidCredentials);
-      expect(
-        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-        isNotNull,
-      );
-      expect(tester.widget<TextField>(_username).enabled, isTrue);
-    });
-
-    testWidgets('a network failure shows the network-error notice', (
-      tester,
-    ) async {
-      final repo = _FakeAuthRepository(
-        (_, _) async => throw const AuthException(
-          'Unable to reach the server.',
-          kind: AuthFailure.network,
-        ),
-      );
-      await _pumpLogin(tester, authRepository: repo);
-
-      await tester.enterText(_username, 'test_owner');
-      await tester.enterText(_password, 'Password123!');
-      await _tapSignIn(tester);
-      await _finishSignIn(tester);
-
-      expect(_status(tester), LoginStatus.networkError);
-    });
-
-    testWidgets('a second tap while submitting is ignored', (tester) async {
       final completer = Completer<String>();
       final repo = _FakeAuthRepository((_, _) => completer.future);
       await _pumpLogin(tester, authRepository: repo);
@@ -361,7 +375,7 @@ void main() {
 
   group('LoginPasswordField', () {
     testWidgets(
-      'is obscured by default and toggles with the Show/Hide button',
+      'WT-MOB-LOGIN-013 is obscured by default and toggles with the Show/Hide button',
       (tester) async {
         await _pumpLogin(tester);
 
@@ -384,13 +398,17 @@ void main() {
   });
 
   group('LoginScreen session expired', () {
-    testWidgets('no prompt while the session is still valid', (tester) async {
+    testWidgets('WT-MOB-LOGIN-014 no prompt while the session is still valid', (
+      tester,
+    ) async {
       await _pumpLogin(tester);
 
       expect(find.byType(SessionExpiredCard), findsNothing);
     });
 
-    testWidgets('prompts when the session was rejected', (tester) async {
+    testWidgets('WT-MOB-LOGIN-015 prompts when the session was rejected', (
+      tester,
+    ) async {
       final container = await _pumpLogin(tester, sessionExpired: true);
 
       expect(find.byType(SessionExpiredCard), findsOneWidget);
@@ -399,16 +417,17 @@ void main() {
       expect(container.read(sessionExpiredProvider), isTrue);
     });
 
-    testWidgets('the CTA closes the prompt and clears the flag', (
-      tester,
-    ) async {
-      final container = await _pumpLogin(tester, sessionExpired: true);
+    testWidgets(
+      'WT-MOB-LOGIN-016 the CTA closes the prompt and clears the flag',
+      (tester) async {
+        final container = await _pumpLogin(tester, sessionExpired: true);
 
-      await tester.tap(_dialogSignIn);
-      await tester.pumpAndSettle();
+        await tester.tap(_dialogSignIn);
+        await tester.pumpAndSettle();
 
-      expect(find.byType(SessionExpiredCard), findsNothing);
-      expect(container.read(sessionExpiredProvider), isFalse);
-    });
+        expect(find.byType(SessionExpiredCard), findsNothing);
+        expect(container.read(sessionExpiredProvider), isFalse);
+      },
+    );
   });
 }

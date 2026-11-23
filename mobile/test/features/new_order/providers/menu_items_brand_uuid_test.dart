@@ -57,7 +57,7 @@ void main() {
     mockMenuRepo = _MockMenuRepository();
   });
 
-  test('menuItemsProvider resolves slug brand to real backend UUID before calling getByBrand', () async {
+  test('UT-MOB-BRAND-001 menuItemsProvider resolves slug brand to real backend UUID before calling getByBrand', () async {
     final container = ProviderContainer(
       overrides: [
         brandRepositoryProvider.overrideWithValue(mockBrandRepo),
@@ -82,7 +82,7 @@ void main() {
     expect(mockMenuRepo.requestedBrandIds, isNot(contains('gamcheon')));
   });
 
-  test('menuItemsProvider uses brand UUID directly when activeBrand already has a UUID', () async {
+  test('UT-MOB-BRAND-002 menuItemsProvider uses brand UUID directly when activeBrand already has a UUID', () async {
     final container = ProviderContainer(
       overrides: [
         brandRepositoryProvider.overrideWithValue(mockBrandRepo),

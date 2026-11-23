@@ -52,70 +52,73 @@ void main() {
   }
 
   group('ChangeAvailabilityDialog UI and interactions', () {
-    testWidgets('renders correctly when item is currently available', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildDialogHost(item: availableItem));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'WT-MOB-AVAIL-011 renders correctly when item is currently available',
+      (tester) async {
+        await tester.pumpWidget(buildDialogHost(item: availableItem));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Open Dialog'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Open Dialog'));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(ChangeAvailabilityDialog), findsOneWidget);
-      expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
-      expect(find.text('Make item unavailable?'), findsOneWidget);
-      expect(find.text('Gamcheon Samgyupsal Rice Bowl'), findsOneWidget);
-      expect(
-        find.text('Dine-in · Other availability restrictions still apply.'),
-        findsOneWidget,
-      );
-      expect(find.text('Mark unavailable'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-    });
-
-    testWidgets('renders correctly when item is currently unavailable', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildDialogHost(item: unavailableItem));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Open Dialog'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ChangeAvailabilityDialog), findsOneWidget);
-      expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
-      expect(find.text('Make item available?'), findsOneWidget);
-      expect(find.text('Gamcheon Bulgogi Rice Bowl'), findsOneWidget);
-      expect(find.text('Mark available'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-    });
-
-    testWidgets('tapping Cancel dismisses dialog without updating', (
-      tester,
-    ) async {
-      bool updateCalled = false;
-      await tester.pumpWidget(
-        buildDialogHost(
-          item: availableItem,
-          onUpdateAvailability: (_) async => updateCalled = true,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Open Dialog'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(const ValueKey('change-availability-cancel-button')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ChangeAvailabilityDialog), findsNothing);
-      expect(updateCalled, isFalse);
-    });
+        expect(find.byType(ChangeAvailabilityDialog), findsOneWidget);
+        expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
+        expect(find.text('Make item unavailable?'), findsOneWidget);
+        expect(find.text('Gamcheon Samgyupsal Rice Bowl'), findsOneWidget);
+        expect(
+          find.text('Dine-in · Other availability restrictions still apply.'),
+          findsOneWidget,
+        );
+        expect(find.text('Mark unavailable'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+      },
+    );
 
     testWidgets(
-      'tapping Mark unavailable invokes callback with false and pops dialog',
+      'WT-MOB-AVAIL-012 renders correctly when item is currently unavailable',
+      (tester) async {
+        await tester.pumpWidget(buildDialogHost(item: unavailableItem));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Open Dialog'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ChangeAvailabilityDialog), findsOneWidget);
+        expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
+        expect(find.text('Make item available?'), findsOneWidget);
+        expect(find.text('Gamcheon Bulgogi Rice Bowl'), findsOneWidget);
+        expect(find.text('Mark available'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-AVAIL-013 tapping Cancel dismisses dialog without updating',
+      (tester) async {
+        bool updateCalled = false;
+        await tester.pumpWidget(
+          buildDialogHost(
+            item: availableItem,
+            onUpdateAvailability: (_) async => updateCalled = true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Open Dialog'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey('change-availability-cancel-button')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ChangeAvailabilityDialog), findsNothing);
+        expect(updateCalled, isFalse);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-AVAIL-014 tapping Mark unavailable invokes callback with false and pops dialog',
       (tester) async {
         bool? passedAvailability;
         await tester.pumpWidget(
@@ -142,7 +145,7 @@ void main() {
     );
 
     testWidgets(
-      'tapping Mark available invokes callback with true and pops dialog',
+      'WT-MOB-AVAIL-015 tapping Mark available invokes callback with true and pops dialog',
       (tester) async {
         bool? passedAvailability;
         await tester.pumpWidget(
@@ -168,35 +171,36 @@ void main() {
       },
     );
 
-    testWidgets('shows loading indicator while update is in progress', (
-      tester,
-    ) async {
-      final completer = Completer<void>();
-      await tester.pumpWidget(
-        buildDialogHost(
-          item: availableItem,
-          onUpdateAvailability: (_) => completer.future,
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'WT-MOB-AVAIL-016 shows loading indicator while update is in progress',
+      (tester) async {
+        final completer = Completer<void>();
+        await tester.pumpWidget(
+          buildDialogHost(
+            item: availableItem,
+            onUpdateAvailability: (_) => completer.future,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Open Dialog'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Open Dialog'));
+        await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const ValueKey('change-availability-submit-button')),
-      );
-      await tester.pump();
+        await tester.tap(
+          find.byKey(const ValueKey('change-availability-submit-button')),
+        );
+        await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-      completer.complete();
-      await tester.pumpAndSettle();
-      expect(find.byType(ChangeAvailabilityDialog), findsNothing);
-    });
+        completer.complete();
+        await tester.pumpAndSettle();
+        expect(find.byType(ChangeAvailabilityDialog), findsNothing);
+      },
+    );
 
     testWidgets(
-      'on update error shows error toast and does not dismiss dialog',
+      'WT-MOB-AVAIL-017 on update error shows error toast and does not dismiss dialog',
       (tester) async {
         await tester.pumpWidget(
           buildDialogHost(

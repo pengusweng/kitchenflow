@@ -6,7 +6,7 @@ import 'package:mobile/features/order_entry/presentation/widgets/platform_refere
 
 void main() {
   testWidgets(
-    'IT-MOB-MENU-007 Given King Kungs Kafe on GrabFood When the platform reference card renders Then only the external reference is editable',
+    'WT-MOB-MENU-007 Given King Kungs Kafe on GrabFood When the platform reference card renders Then only the external reference is editable',
     (tester) async {
       final controller = TextEditingController();
       addTearDown(controller.dispose);

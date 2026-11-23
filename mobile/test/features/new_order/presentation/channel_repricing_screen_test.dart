@@ -52,29 +52,33 @@ Future<void> _pumpScreen(WidgetTester tester, Size size) async {
 
 void main() {
   group('ChannelRepricingScreen layout', () {
-    testWidgets('a phone shows the updated order summary and got it action', (
+    testWidgets(
+      'WT-MOB-CHANNEL-005 a phone shows the updated order summary and got it action',
+      (tester) async {
+        await _pumpScreen(tester, _phone);
+
+        expect(find.text('GrabFood prices updated'), findsOneWidget);
+        expect(find.text('Channel change and undo'), findsOneWidget);
+        expect(find.text('Got it'), findsOneWidget);
+        expect(find.byType(OperationalContextCard), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-CHANNEL-006 a tablet docks the rail, context card and got it action',
+      (tester) async {
+        await _pumpScreen(tester, _tablet);
+
+        expect(find.text('Prices updated for GrabFood'), findsOneWidget);
+        expect(find.byType(OperationalContextCard), findsOneWidget);
+        expect(find.text('Operational context'), findsOneWidget);
+        expect(find.text('Got it'), findsOneWidget);
+      },
+    );
+
+    testWidgets('WT-MOB-CHANNEL-007 shows the recalculated channel prices', (
       tester,
     ) async {
-      await _pumpScreen(tester, _phone);
-
-      expect(find.text('GrabFood prices updated'), findsOneWidget);
-      expect(find.text('Channel change and undo'), findsOneWidget);
-      expect(find.text('Got it'), findsOneWidget);
-      expect(find.byType(OperationalContextCard), findsNothing);
-    });
-
-    testWidgets('a tablet docks the rail, context card and got it action', (
-      tester,
-    ) async {
-      await _pumpScreen(tester, _tablet);
-
-      expect(find.text('Prices updated for GrabFood'), findsOneWidget);
-      expect(find.byType(OperationalContextCard), findsOneWidget);
-      expect(find.text('Operational context'), findsOneWidget);
-      expect(find.text('Got it'), findsOneWidget);
-    });
-
-    testWidgets('shows the recalculated channel prices', (tester) async {
       await _pumpScreen(tester, _phone);
 
       expect(find.text('Selected channel'), findsOneWidget);
@@ -90,11 +94,15 @@ void main() {
       expect(find.text('₱790.00'), findsOneWidget);
     });
 
-    testWidgets('does not overflow on a narrow phone', (tester) async {
+    testWidgets('WT-MOB-CHANNEL-008 does not overflow on a narrow phone', (
+      tester,
+    ) async {
       await _pumpScreen(tester, _narrowPhone);
     });
 
-    testWidgets('got it returns to the new order screen', (tester) async {
+    testWidgets('WT-MOB-CHANNEL-009 got it returns to the new order screen', (
+      tester,
+    ) async {
       tester.view.physicalSize = _phone;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -136,24 +144,25 @@ void main() {
       expect(find.byType(ChannelRepricingScreen), findsNothing);
     });
 
-    testWidgets('undo restores the previous channel and recalculates prices', (
-      tester,
-    ) async {
-      await _pumpScreen(tester, _phone);
+    testWidgets(
+      'WT-MOB-CHANNEL-010 undo restores the previous channel and recalculates prices',
+      (tester) async {
+        await _pumpScreen(tester, _phone);
 
-      expect(find.text('GrabFood prices updated'), findsOneWidget);
-      expect(find.text('₱790.00'), findsOneWidget);
+        expect(find.text('GrabFood prices updated'), findsOneWidget);
+        expect(find.text('₱790.00'), findsOneWidget);
 
-      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Undo'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Undo'));
-      await tester.pumpAndSettle();
+        await tester.ensureVisible(find.widgetWithText(FilledButton, 'Undo'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(FilledButton, 'Undo'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Dine-in prices updated'), findsOneWidget);
-      expect(find.text('2 × (₱220.00 + ₱25.00)'), findsOneWidget);
-      expect(find.text('₱490.00'), findsOneWidget);
-      expect(find.text('1 × ₱240.00'), findsOneWidget);
-      expect(find.text('₱730.00'), findsOneWidget);
-    });
+        expect(find.text('Dine-in prices updated'), findsOneWidget);
+        expect(find.text('2 × (₱220.00 + ₱25.00)'), findsOneWidget);
+        expect(find.text('₱490.00'), findsOneWidget);
+        expect(find.text('1 × ₱240.00'), findsOneWidget);
+        expect(find.text('₱730.00'), findsOneWidget);
+      },
+    );
   });
 }

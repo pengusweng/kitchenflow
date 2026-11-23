@@ -33,58 +33,59 @@ class _FakeAuthRepository extends AuthRepository {
 }
 
 void main() {
-  testWidgets('header logout clears the draft order and the session', (
-    tester,
-  ) async {
-    final repo = _FakeAuthRepository();
-    final container = ProviderContainer(
-      overrides: [
-        initialTokenProvider.overrideWithValue('tok-abc'),
-        authRepositoryProvider.overrideWithValue(repo),
-        assignedBrandProvider.overrideWith(
-          (ref) async => sampleAssignedBrands[1],
+  testWidgets(
+    'WT-MOB-LOGOUT-002 header logout clears the draft order and the session',
+    (tester) async {
+      final repo = _FakeAuthRepository();
+      final container = ProviderContainer(
+        overrides: [
+          initialTokenProvider.overrideWithValue('tok-abc'),
+          authRepositoryProvider.overrideWithValue(repo),
+          assignedBrandProvider.overrideWith(
+            (ref) async => sampleAssignedBrands[1],
+          ),
+          menuItemsProvider.overrideWith((ref) async => const <MenuItem>[]),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(cartProvider.notifier).add(_meal);
+      container.read(orderReferenceProvider.notifier).set('ORDER-1');
+      container.read(storeReferenceProvider.notifier).set('STORE-1');
+      container.read(menuSearchProvider.notifier).set('meal');
+      container.read(menuChannelProvider.notifier).select(MenuChannel.takeaway);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: counterTheme,
+            home: const Scaffold(body: MenuHeader()),
+          ),
         ),
-        menuItemsProvider.overrideWith((ref) async => const <MenuItem>[]),
-      ],
-    );
-    addTearDown(container.dispose);
+      );
+      await tester.pumpAndSettle();
 
-    container.read(cartProvider.notifier).add(_meal);
-    container.read(orderReferenceProvider.notifier).set('ORDER-1');
-    container.read(storeReferenceProvider.notifier).set('STORE-1');
-    container.read(menuSearchProvider.notifier).set('meal');
-    container.read(menuChannelProvider.notifier).select(MenuChannel.takeaway);
+      await tester.tap(find.byTooltip('Logout'));
+      await tester.pumpAndSettle();
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: counterTheme,
-          home: const Scaffold(body: MenuHeader()),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      expect(find.text('Do you want to logout?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(KkfcPrimaryButton, 'Logout'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Logout'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Do you want to logout?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(KkfcPrimaryButton, 'Logout'));
-    await tester.pumpAndSettle();
-
-    expect(container.read(cartProvider), isEmpty);
-    expect(container.read(cartCountProvider), 0);
-    expect(container.read(cartTotalProvider), 0);
-    expect(container.read(orderReferenceProvider), isEmpty);
-    expect(container.read(storeReferenceProvider), isEmpty);
-    expect(container.read(menuSearchProvider), isEmpty);
-    expect(container.read(menuChannelProvider), MenuChannel.dineIn);
-    expect(
-      container.read(menuChannelProvider.notifier).previousChannel,
-      isNull,
-    );
-    expect(container.read(sessionTokenProvider), isNull);
-    expect(repo.logoutTokens, ['tok-abc']);
-  });
+      expect(container.read(cartProvider), isEmpty);
+      expect(container.read(cartCountProvider), 0);
+      expect(container.read(cartTotalProvider), 0);
+      expect(container.read(orderReferenceProvider), isEmpty);
+      expect(container.read(storeReferenceProvider), isEmpty);
+      expect(container.read(menuSearchProvider), isEmpty);
+      expect(container.read(menuChannelProvider), MenuChannel.dineIn);
+      expect(
+        container.read(menuChannelProvider.notifier).previousChannel,
+        isNull,
+      );
+      expect(container.read(sessionTokenProvider), isNull);
+      expect(repo.logoutTokens, ['tok-abc']);
+    },
+  );
 }

@@ -12,7 +12,9 @@ void main() {
   }
 
   group('KkfcPrimaryButton', () {
-    testWidgets('renders label and handles tap', (tester) async {
+    testWidgets('WT-MOB-BUTTON-001 renders label and handles tap', (
+      tester,
+    ) async {
       var tapped = false;
 
       await tester.pumpWidget(
@@ -26,66 +28,75 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('shows loading spinner and ignores tap when loading', (
-      tester,
-    ) async {
-      var tapped = false;
+    testWidgets(
+      'WT-MOB-BUTTON-002 shows loading spinner and ignores tap when loading',
+      (tester) async {
+        var tapped = false;
 
-      await tester.pumpWidget(
-        buildTestWidget(
-          KkfcPrimaryButton(
-            label: 'Sign in',
-            loadingLabel: 'Signing in…',
-            isLoading: true,
-            onPressed: () => tapped = true,
+        await tester.pumpWidget(
+          buildTestWidget(
+            KkfcPrimaryButton(
+              label: 'Sign in',
+              loadingLabel: 'Signing in…',
+              isLoading: true,
+              onPressed: () => tapped = true,
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Signing in…'), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.text('Signing in…'), findsOneWidget);
 
-      await tester.tap(find.byType(KkfcPrimaryButton));
-      expect(tapped, isFalse);
-    });
+        await tester.tap(find.byType(KkfcPrimaryButton));
+        expect(tapped, isFalse);
+      },
+    );
 
-    testWidgets('renders leading and trailing icons and price', (tester) async {
-      await tester.pumpWidget(
-        buildTestWidget(
-          const KkfcPrimaryButton(
-            label: 'Add to order',
-            leadingIcon: Icon(Icons.add),
-            trailingText: '₱220.00',
-            onPressed: null,
+    testWidgets(
+      'WT-MOB-BUTTON-003 renders leading and trailing icons and price',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(
+            const KkfcPrimaryButton(
+              label: 'Add to order',
+              leadingIcon: Icon(Icons.add),
+              trailingText: '₱220.00',
+              onPressed: null,
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.byIcon(Icons.add), findsOneWidget);
-      expect(find.text('Add to order'), findsOneWidget);
-      expect(find.text('₱220.00'), findsOneWidget);
-    });
+        expect(find.byIcon(Icons.add), findsOneWidget);
+        expect(find.text('Add to order'), findsOneWidget);
+        expect(find.text('₱220.00'), findsOneWidget);
+      },
+    );
   });
 
   group('KkfcOutlinedButton', () {
-    testWidgets('renders standard outlined button with label', (tester) async {
-      var tapped = false;
+    testWidgets(
+      'WT-MOB-BUTTON-004 renders standard outlined button with label',
+      (tester) async {
+        var tapped = false;
 
-      await tester.pumpWidget(
-        buildTestWidget(
-          KkfcOutlinedButton(
-            label: 'Keep Dine-in',
-            onPressed: () => tapped = true,
+        await tester.pumpWidget(
+          buildTestWidget(
+            KkfcOutlinedButton(
+              label: 'Keep Dine-in',
+              onPressed: () => tapped = true,
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Keep Dine-in'), findsOneWidget);
-      await tester.tap(find.byType(KkfcOutlinedButton));
-      expect(tapped, isTrue);
-    });
+        expect(find.text('Keep Dine-in'), findsOneWidget);
+        await tester.tap(find.byType(KkfcOutlinedButton));
+        expect(tapped, isTrue);
+      },
+    );
 
-    testWidgets('renders danger intent and badge', (tester) async {
+    testWidgets('WT-MOB-BUTTON-005 renders danger intent and badge', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTestWidget(
           const KkfcOutlinedButton(
@@ -101,26 +112,31 @@ void main() {
       expect(find.text('[1]'), findsOneWidget);
     });
 
-    testWidgets('renders dashed border style without errors', (tester) async {
-      await tester.pumpWidget(
-        buildTestWidget(
-          const KkfcOutlinedButton(
-            label: 'Add ingredient',
-            borderStyle: KkfcBorderStyle.dashed,
-            leadingIcon: Icon(Icons.add),
-            onPressed: null,
+    testWidgets(
+      'WT-MOB-BUTTON-006 renders dashed border style without errors',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(
+            const KkfcOutlinedButton(
+              label: 'Add ingredient',
+              borderStyle: KkfcBorderStyle.dashed,
+              leadingIcon: Icon(Icons.add),
+              onPressed: null,
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Add ingredient'), findsOneWidget);
-      expect(find.byIcon(Icons.add), findsOneWidget);
-      expect(find.byType(CustomPaint), findsWidgets);
-    });
+        expect(find.text('Add ingredient'), findsOneWidget);
+        expect(find.byIcon(Icons.add), findsOneWidget);
+        expect(find.byType(CustomPaint), findsWidgets);
+      },
+    );
   });
 
   group('KkfcSubtleButton', () {
-    testWidgets('renders subtle button and fires callback', (tester) async {
+    testWidgets('WT-MOB-BUTTON-007 renders subtle button and fires callback', (
+      tester,
+    ) async {
       var tapped = false;
 
       await tester.pumpWidget(
@@ -142,29 +158,32 @@ void main() {
   });
 
   group('KkfcGhostButton', () {
-    testWidgets('renders ghost button with underline and danger intent', (
-      tester,
-    ) async {
-      var tapped = false;
+    testWidgets(
+      'WT-MOB-BUTTON-008 renders ghost button with underline and danger intent',
+      (tester) async {
+        var tapped = false;
 
-      await tester.pumpWidget(
-        buildTestWidget(
-          KkfcGhostButton(
-            label: 'Change',
-            underline: true,
-            onPressed: () => tapped = true,
+        await tester.pumpWidget(
+          buildTestWidget(
+            KkfcGhostButton(
+              label: 'Change',
+              underline: true,
+              onPressed: () => tapped = true,
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Change'), findsOneWidget);
-      await tester.tap(find.byType(KkfcGhostButton));
-      expect(tapped, isTrue);
-    });
+        expect(find.text('Change'), findsOneWidget);
+        await tester.tap(find.byType(KkfcGhostButton));
+        expect(tapped, isTrue);
+      },
+    );
   });
 
   group('KkfcSplitButton', () {
-    testWidgets('renders left and right content separated', (tester) async {
+    testWidgets('WT-MOB-BUTTON-009 renders left and right content separated', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTestWidget(
           const KkfcSplitButton(
@@ -183,46 +202,53 @@ void main() {
   });
 
   group('KkfcIconButton', () {
-    testWidgets('renders square icon button and shows tooltip', (tester) async {
-      var tapped = false;
+    testWidgets(
+      'WT-MOB-BUTTON-010 renders square icon button and shows tooltip',
+      (tester) async {
+        var tapped = false;
 
-      await tester.pumpWidget(
-        buildTestWidget(
-          KkfcIconButton(
-            icon: const Icon(Icons.close),
-            tooltip: 'Close modal',
-            onPressed: () => tapped = true,
+        await tester.pumpWidget(
+          buildTestWidget(
+            KkfcIconButton(
+              icon: const Icon(Icons.close),
+              tooltip: 'Close modal',
+              onPressed: () => tapped = true,
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.byIcon(Icons.close), findsOneWidget);
-      expect(find.byType(Tooltip), findsOneWidget);
+        expect(find.byIcon(Icons.close), findsOneWidget);
+        expect(find.byType(Tooltip), findsOneWidget);
 
-      await tester.tap(find.byType(KkfcIconButton));
-      expect(tapped, isTrue);
-    });
+        await tester.tap(find.byType(KkfcIconButton));
+        expect(tapped, isTrue);
+      },
+    );
   });
 
   group('KkfcButton factory dispatch', () {
-    testWidgets('KkfcButton.primary builds KkfcPrimaryButton', (tester) async {
-      await tester.pumpWidget(
-        buildTestWidget(
-          KkfcButton.primary(label: 'Continue', onPressed: () {}),
-        ),
-      );
+    testWidgets(
+      'WT-MOB-BUTTON-011 KkfcButton.primary builds KkfcPrimaryButton',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(
+            KkfcButton.primary(label: 'Continue', onPressed: () {}),
+          ),
+        );
 
-      expect(find.byType(KkfcPrimaryButton), findsOneWidget);
-    });
+        expect(find.byType(KkfcPrimaryButton), findsOneWidget);
+      },
+    );
 
-    testWidgets('KkfcButton.outlined builds KkfcOutlinedButton', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        buildTestWidget(KkfcButton.outlined(label: 'Back', onPressed: () {})),
-      );
+    testWidgets(
+      'WT-MOB-BUTTON-012 KkfcButton.outlined builds KkfcOutlinedButton',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(KkfcButton.outlined(label: 'Back', onPressed: () {})),
+        );
 
-      expect(find.byType(KkfcOutlinedButton), findsOneWidget);
-    });
+        expect(find.byType(KkfcOutlinedButton), findsOneWidget);
+      },
+    );
   });
 }

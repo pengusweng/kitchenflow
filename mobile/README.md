@@ -50,6 +50,13 @@ Both must pass. After changing a model or enum with `freezed` or `json_serializa
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+Start each test title with a stable ID in the form `<type>-MOB-<scope>-<nnn>`.
+Use `UT` for `test`, `WT` for `testWidgets` under `test/`, `GT` for
+`goldenTest`, and `IT` or `E2E` for device tests under `integration_test/`.
+Choose a short scope such as `CART`, `KITCHEN`, or `AUTH` and assign a new
+three-digit number within that scope. A parameterized declaration keeps its
+ID across variants. Existing feature scenarios use the same ID as the test.
+
 ### Unit, widget, and golden test reports
 
 Run from `mobile/`:
@@ -63,7 +70,8 @@ This runs `test/` (including golden tests) and writes a new folder under
 `results.json`, and `run.log`. The HTML groups counts by test type and includes
 test durations, failure details, blockers, and Given/When/Then scenarios. Each
 executed test, including parameter variants, gets its own scenario and result.
-Descriptions are generated from the test names and fixtures; existing
+Reports show the declared test ID. Each executed variant also has a separate
+execution tag in the generated Gherkin. Descriptions are generated from the test names and fixtures; existing
 Given/When/Then wording in names is preserved. Results apply to complete tests,
 not independently executed Gherkin steps.
 

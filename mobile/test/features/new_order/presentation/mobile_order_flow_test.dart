@@ -136,7 +136,7 @@ void main() {
   }
 
   testWidgets(
-    'MobileOrderFlowScreen displays cart matching visual design, steps without rerouting, and controls work',
+    'WT-MOB-ORDER-FLOW-001 MobileOrderFlowScreen displays cart matching visual design, steps without rerouting, and controls work',
     (tester) async {
       final container = ProviderContainer(
         overrides: [
@@ -318,7 +318,7 @@ void main() {
   );
 
   testWidgets(
-    'MobileOrderFlowScreen renders background canvas wave accents and header wave arcs across steps',
+    'WT-MOB-ORDER-FLOW-002 MobileOrderFlowScreen renders background canvas wave accents and header wave arcs across steps',
     (tester) async {
       final container = ProviderContainer(
         overrides: [

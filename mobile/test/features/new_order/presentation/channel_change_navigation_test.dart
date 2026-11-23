@@ -17,65 +17,77 @@ import 'package:mobile/features/new_order/providers/brand_providers.dart';
 
 void main() {
   group('ChannelTabs selection', () {
-    testWidgets('tapping a different channel updates state and notifies', (
-      tester,
-    ) async {
-      final container = ProviderContainer(
-        overrides: [menuItemsProvider.overrideWith((ref) async => sampleMenu)],
-      );
-      addTearDown(container.dispose);
-      container.read(cartProvider.notifier).add(sampleMenu[0]);
-      MenuChannel? notified;
+    testWidgets(
+      'WT-MOB-CHANNEL-001 tapping a different channel updates state and notifies',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            menuItemsProvider.overrideWith((ref) async => sampleMenu),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.read(cartProvider.notifier).add(sampleMenu[0]);
+        MenuChannel? notified;
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: counterTheme,
-            home: Scaffold(
-              body: Center(child: ChannelTabs(onSelected: (c) => notified = c)),
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: counterTheme,
+              home: Scaffold(
+                body: Center(
+                  child: ChannelTabs(onSelected: (c) => notified = c),
+                ),
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.tap(find.text('GrabFood'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('GrabFood'));
+        await tester.pumpAndSettle();
 
-      expect(notified, MenuChannel.grabFood);
-      expect(container.read(menuChannelProvider), MenuChannel.grabFood);
-    });
+        expect(notified, MenuChannel.grabFood);
+        expect(container.read(menuChannelProvider), MenuChannel.grabFood);
+      },
+    );
 
-    testWidgets('tapping the current channel does not notify', (tester) async {
-      final container = ProviderContainer(
-        overrides: [menuItemsProvider.overrideWith((ref) async => sampleMenu)],
-      );
-      addTearDown(container.dispose);
-      container.read(cartProvider.notifier).add(sampleMenu[0]);
-      MenuChannel? notified;
+    testWidgets(
+      'WT-MOB-CHANNEL-002 tapping the current channel does not notify',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            menuItemsProvider.overrideWith((ref) async => sampleMenu),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.read(cartProvider.notifier).add(sampleMenu[0]);
+        MenuChannel? notified;
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: counterTheme,
-            home: Scaffold(
-              body: Center(child: ChannelTabs(onSelected: (c) => notified = c)),
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: counterTheme,
+              home: Scaffold(
+                body: Center(
+                  child: ChannelTabs(onSelected: (c) => notified = c),
+                ),
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.tap(find.text('Dine-in'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Dine-in'));
+        await tester.pumpAndSettle();
 
-      expect(notified, isNull);
-    });
+        expect(notified, isNull);
+      },
+    );
   });
 
   group('Channel change navigation', () {
     testWidgets(
-      'ordering selects a provider once and changes channels only in order details',
+      'WT-MOB-CHANNEL-003 ordering selects a provider once and changes channels only in order details',
       (tester) async {
         tester.view.physicalSize = const Size(412, 915);
         tester.view.devicePixelRatio = 1;
@@ -163,42 +175,46 @@ void main() {
       },
     );
 
-    testWidgets('switching again on the notice updates it in place', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(412, 915);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
+    testWidgets(
+      'WT-MOB-CHANNEL-004 switching again on the notice updates it in place',
+      (tester) async {
+        tester.view.physicalSize = const Size(412, 915);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
 
-      final router = GoRouter(
-        initialLocation: AppRoutes.channelChange,
-        routes: [
-          GoRoute(
-            path: AppRoutes.menu,
-            builder: (context, state) => const MenuScreen(),
+        final router = GoRouter(
+          initialLocation: AppRoutes.channelChange,
+          routes: [
+            GoRoute(
+              path: AppRoutes.menu,
+              builder: (context, state) => const MenuScreen(),
+            ),
+            GoRoute(
+              path: AppRoutes.channelChange,
+              builder: (context, state) => const ChannelRepricingScreen(),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp.router(
+              theme: counterTheme,
+              routerConfig: router,
+            ),
           ),
-          GoRoute(
-            path: AppRoutes.channelChange,
-            builder: (context, state) => const ChannelRepricingScreen(),
-          ),
-        ],
-      );
-      addTearDown(router.dispose);
+        );
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp.router(theme: counterTheme, routerConfig: router),
-        ),
-      );
-      await tester.pumpAndSettle();
+        expect(find.text('Dine-in prices updated'), findsOneWidget);
 
-      expect(find.text('Dine-in prices updated'), findsOneWidget);
+        await tester.tap(find.text('Takeaway'));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Takeaway'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ChannelRepricingScreen), findsOneWidget);
-      expect(find.text('Takeaway prices updated'), findsOneWidget);
-    });
+        expect(find.byType(ChannelRepricingScreen), findsOneWidget);
+        expect(find.text('Takeaway prices updated'), findsOneWidget);
+      },
+    );
   });
 }

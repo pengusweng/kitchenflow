@@ -19,7 +19,7 @@ void main() {
   for (final height in [656.0, 300.0]) {
     for (final scale in [1.0, 2.0]) {
       testWidgets(
-        'cart controls and review stay reachable at 380x$height and ${scale}x text',
+        'WT-MOB-CART-002 cart controls and review stay reachable at 380x$height and ${scale}x text',
         (tester) async {
           tester.view.physicalSize = const Size(1000, 1000);
           tester.view.devicePixelRatio = 1;

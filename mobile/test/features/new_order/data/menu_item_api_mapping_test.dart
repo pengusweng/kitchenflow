@@ -24,7 +24,7 @@ void main() {
     null,
     {'is_active': false},
   ]) {
-    test('recipe $recipe is unavailable on every channel', () {
+    test('UT-MOB-MENU-001 recipe $recipe is unavailable on every channel', () {
       final item = MenuItem.fromApiJson({
         'menu_item_id': 'item',
         'name': 'Meal',
@@ -41,7 +41,7 @@ void main() {
     });
   }
 
-  test('base stockout is preserved even when channel overrides exist', () {
+  test('UT-MOB-MENU-002 base stockout is preserved even when channel overrides exist', () {
     final item = MenuItem.fromApiJson({
       'menu_item_id': 'item',
       'name': 'Meal',
@@ -58,63 +58,59 @@ void main() {
     }
   });
 
-  test('empty catalog succeeds without falling back to menu-items', () async {
-    final dio = Dio();
-    dio.httpClientAdapter = _FakeAdapter((options) {
-      expect(options.path, '/menu-catalog/brand/brand-1');
-      return ResponseBody.fromString(
-        '{"data":[],"meta":{"totalPages":0}}',
-        200,
-        headers: {
-          Headers.contentTypeHeader: [Headers.jsonContentType],
-        },
-      );
-    });
-    expect(await MenuRepository(dio).getByBrand('brand-1'), isEmpty);
-  });
   test(
-    'maps the brand menu response and its channel overrides to a menu card',
-    () {
-      final item = MenuItem.fromApiJson({
-        'menu_item_id': 'item-1',
-        'name': 'Chicken Inasal',
-        'description': null,
-        'base_price': '189.50',
-        'is_available': true,
-        'menu_item_channels_menu_item': [
-          {
-            'order_channel': 'GRABFOOD',
-            'price': '219.00',
-            'is_available': true,
+    'UT-MOB-MENU-003 empty catalog succeeds without falling back to menu-items',
+    () async {
+      final dio = Dio();
+      dio.httpClientAdapter = _FakeAdapter((options) {
+        expect(options.path, '/menu-catalog/brand/brand-1');
+        return ResponseBody.fromString(
+          '{"data":[],"meta":{"totalPages":0}}',
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
           },
-          {'order_channel': 'FOODPANDA', 'price': 225, 'is_available': false},
-        ],
+        );
       });
-
-      expect(item.id, 'item-1');
-      expect(item.description, isEmpty);
-      expect(item.priceFor(MenuChannel.dineIn), 18950);
-      expect(item.priceFor(MenuChannel.takeaway), 18950);
-      expect(item.priceFor(MenuChannel.grabFood), 21900);
-      expect(item.priceFor(MenuChannel.foodpanda), 22500);
-      expect(
-        item.availabilityFor(MenuChannel.grabFood),
-        MenuAvailability.available,
-      );
-      expect(
-        item.availabilityFor(MenuChannel.foodpanda),
-        MenuAvailability.manualOff,
-      );
-      expect(item.channels, {
-        MenuChannel.dineIn,
-        MenuChannel.takeaway,
-        MenuChannel.grabFood,
-        MenuChannel.foodpanda,
-      });
+      expect(await MenuRepository(dio).getByBrand('brand-1'), isEmpty);
     },
   );
+  test('UT-MOB-MENU-004 maps the brand menu response and its channel overrides to a menu card', () {
+    final item = MenuItem.fromApiJson({
+      'menu_item_id': 'item-1',
+      'name': 'Chicken Inasal',
+      'description': null,
+      'base_price': '189.50',
+      'is_available': true,
+      'menu_item_channels_menu_item': [
+        {'order_channel': 'GRABFOOD', 'price': '219.00', 'is_available': true},
+        {'order_channel': 'FOODPANDA', 'price': 225, 'is_available': false},
+      ],
+    });
 
-  test('MenuRepository loads per-item channel overrides from /menu-channels/menu-item/:id', () async {
+    expect(item.id, 'item-1');
+    expect(item.description, isEmpty);
+    expect(item.priceFor(MenuChannel.dineIn), 18950);
+    expect(item.priceFor(MenuChannel.takeaway), 18950);
+    expect(item.priceFor(MenuChannel.grabFood), 21900);
+    expect(item.priceFor(MenuChannel.foodpanda), 22500);
+    expect(
+      item.availabilityFor(MenuChannel.grabFood),
+      MenuAvailability.available,
+    );
+    expect(
+      item.availabilityFor(MenuChannel.foodpanda),
+      MenuAvailability.manualOff,
+    );
+    expect(item.channels, {
+      MenuChannel.dineIn,
+      MenuChannel.takeaway,
+      MenuChannel.grabFood,
+      MenuChannel.foodpanda,
+    });
+  });
+
+  test('UT-MOB-MENU-005 MenuRepository loads per-item channel overrides from /menu-channels/menu-item/:id', () async {
     final dio = Dio();
     dio.httpClientAdapter = _FakeAdapter((options) {
       if (options.path == '/menu-items/brand/brand-1') {
@@ -153,7 +149,7 @@ void main() {
     });
   });
 
-  test('MenuRepository includes inactive items without loading their channel overrides', () async {
+  test('UT-MOB-MENU-006 MenuRepository includes inactive items without loading their channel overrides', () async {
     var channelLoads = 0;
     final dio = Dio();
     dio.httpClientAdapter = _FakeAdapter((options) {
@@ -202,7 +198,7 @@ void main() {
     }
   });
 
-  test('MenuRepository loads bundled channels and modifiers from /menu-catalog/brand/:id', () async {
+  test('UT-MOB-MENU-007 MenuRepository loads bundled channels and modifiers from /menu-catalog/brand/:id', () async {
     final dio = Dio();
     dio.httpClientAdapter = _FakeAdapter((options) {
       if (options.path == '/menu-catalog/brand/brand-1') {

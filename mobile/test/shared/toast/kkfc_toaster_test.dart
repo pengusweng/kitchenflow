@@ -25,7 +25,7 @@ Widget _app(void Function(BuildContext) onTap, {double textScale = 1}) {
 }
 
 void main() {
-  testWidgets('shows, then auto-dismisses', (tester) async {
+  testWidgets('WT-MOB-TOAST-001 shows, then auto-dismisses', (tester) async {
     await tester.pumpWidget(
       _app((c) => KkfcToaster.success(c, message: 'Sent')),
     );
@@ -39,7 +39,7 @@ void main() {
     expect(find.byType(KkfcToast), findsNothing);
   });
 
-  testWidgets('action fires and dismisses', (tester) async {
+  testWidgets('WT-MOB-TOAST-002 action fires and dismisses', (tester) async {
     var undone = false;
     await tester.pumpWidget(
       _app(
@@ -56,7 +56,9 @@ void main() {
     expect(find.byType(KkfcToast), findsNothing);
   });
 
-  testWidgets('persistent toast stays until dismissed', (tester) async {
+  testWidgets('WT-MOB-TOAST-003 persistent toast stays until dismissed', (
+    tester,
+  ) async {
     late KkfcToastHandle handle;
     await tester.pumpWidget(
       _app(
@@ -76,23 +78,24 @@ void main() {
     expect(find.byType(KkfcToast), findsNothing);
   });
 
-  testWidgets('long message at 2x text scale does not overflow', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(
-        (c) => KkfcToaster.warning(
-          c,
-          message: 'Offline. You can keep building the order; sending waits for Wi-Fi.',
-          actionLabel: 'Retry now',
-          onAction: () {},
-          persistent: true,
+  testWidgets(
+    'WT-MOB-TOAST-004 long message at 2x text scale does not overflow',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          (c) => KkfcToaster.warning(
+            c,
+            message: 'Offline. You can keep building the order; sending waits for Wi-Fi.',
+            actionLabel: 'Retry now',
+            onAction: () {},
+            persistent: true,
+          ),
+          textScale: 2,
         ),
-        textScale: 2,
-      ),
-    );
-    await tester.tap(find.byType(ElevatedButton));
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await tester.tap(find.byType(ElevatedButton));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

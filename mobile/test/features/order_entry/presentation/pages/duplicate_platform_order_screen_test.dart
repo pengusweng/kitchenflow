@@ -23,7 +23,7 @@ void main() {
 
   group('DuplicatePlatformOrderScreen Tablet layout', () {
     testWidgets(
-      'renders all tablet components including rail, cards and single action button',
+      'WT-MOB-DUPLICATE-001 renders all tablet components including rail, cards and single action button',
       (tester) async {
         tester.view.physicalSize = const Size(1024, 768);
         tester.view.devicePixelRatio = 1.0;
@@ -76,7 +76,7 @@ void main() {
 
   group('DuplicatePlatformOrderScreen Phone layout', () {
     testWidgets(
-      'renders compact phone layout with bottom nav and tone notice',
+      'WT-MOB-DUPLICATE-002 renders compact phone layout with bottom nav and tone notice',
       (tester) async {
         tester.view.physicalSize = const Size(390, 844);
         tester.view.devicePixelRatio = 1.0;

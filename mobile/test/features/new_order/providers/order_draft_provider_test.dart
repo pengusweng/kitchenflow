@@ -16,7 +16,7 @@ const _item = MenuItem(
 const _line = CartLine(id: 'line', item: _item, quantity: 1);
 
 void main() {
-  test('Request edits rotate the ID while identical retries keep it', () {
+  test('UT-MOB-ORDER-DRAFT-001 Request edits rotate the ID while identical retries keep it', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final ids = container.read(clientOrderIdProvider.notifier);
@@ -50,7 +50,7 @@ void main() {
     }
   });
 
-  test('Clearing the cart resets its draft and ID even for an identical next order', () {
+  test('UT-MOB-ORDER-DRAFT-002 Clearing the cart resets its draft and ID even for an identical next order', () {
     final container = ProviderContainer(
       overrides: [
         assignedBrandsProvider.overrideWithValue([

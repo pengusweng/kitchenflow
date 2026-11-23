@@ -11,7 +11,7 @@ void main() {
         final state = isLoading ? 'loading' : 'idle';
 
         goldenTest(
-          '$state at ${viewport.name} and ${textScale}x text',
+          'GT-MOB-LOADING-BUTTON-001 $state at ${viewport.name} and ${textScale}x text',
           fileName: goldenFileName(
             'kkfc_loading_button',
             state,

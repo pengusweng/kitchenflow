@@ -27,7 +27,7 @@ void main() {
   });
   tearDown(() => mobile.delete(recursive: true));
 
-  test('the runner identifies an old order fixture before building', () async {
+  test('UT-MOB-TEST-CONFIG-001 the runner identifies an old order fixture before building', () async {
     await orders.writeAsString(jsonEncode(config));
     await expectLater(
       integrationConfigArgs(mobile, 'orders', []),
@@ -41,7 +41,7 @@ void main() {
     );
   });
 
-  test('an API URL override retains the generated credentials', () async {
+  test('UT-MOB-TEST-CONFIG-002 an API URL override retains the generated credentials', () async {
     await orders.writeAsString(
       jsonEncode({
         ...config,

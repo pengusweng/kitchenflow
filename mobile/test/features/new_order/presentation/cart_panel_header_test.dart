@@ -38,7 +38,7 @@ Future<void> _pump(
 
 void main() {
   testWidgets(
-    'IT-MOB-MENU-006 Given King Kungs Kafe on GrabFood When the cart header renders Then Store reference shows the brand and channel',
+    'WT-MOB-MENU-006 Given King Kungs Kafe on GrabFood When the cart header renders Then Store reference shows the brand and channel',
     (tester) async {
       final controller = TextEditingController();
       addTearDown(controller.dispose);

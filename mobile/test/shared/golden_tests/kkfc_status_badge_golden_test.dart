@@ -10,7 +10,7 @@ void main() {
   for (final viewport in goldenViewports) {
     for (final textScale in goldenTextScales) {
       goldenTest(
-        'gallery at ${viewport.name} and ${textScale}x text',
+        'GT-MOB-STATUS-BADGE-001 gallery at ${viewport.name} and ${textScale}x text',
         fileName: goldenFileName(
           'kkfc_status_badge',
           'gallery',

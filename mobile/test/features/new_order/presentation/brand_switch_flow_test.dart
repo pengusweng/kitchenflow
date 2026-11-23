@@ -75,19 +75,7 @@ Future<void> _continue(WidgetTester tester) async {
 
 void main() {
   testWidgets(
-    'IT-MOB-BRAND-001 Given a populated cart When continuing with the only assigned brand Then preserve brand and cart',
-    (tester) async {
-      final container = await _pump(tester);
-      final before = container.read(cartProvider);
-      await _continue(tester);
-      expect(find.text('Clear cart & switch'), findsNothing);
-      expect(container.read(activeBrandProvider).id, 'a');
-      expect(container.read(cartProvider), same(before));
-    },
-  );
-
-  testWidgets(
-    'IT-MOB-BRAND-002 Given an assigned brand When opening the picker Then show no demo brands',
+    'WT-MOB-BRAND-002 Given an assigned brand When opening the picker Then show no demo brands',
     (tester) async {
       final container = await _pump(tester);
       expect(find.text('Brand A'), findsWidgets);
@@ -97,7 +85,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-BRAND-003 Given the current brand When continuing without a different selection Then preserve the cart without confirmation',
+    'WT-MOB-BRAND-003 Given the current brand When continuing without a different selection Then preserve the cart without confirmation',
     (tester) async {
       final container = await _pump(tester);
       final before = container.read(cartProvider);
@@ -109,7 +97,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-BRAND-004 Given the brand picker When dismissed Then preserve brand and cart',
+    'WT-MOB-BRAND-004 Given the brand picker When dismissed Then preserve brand and cart',
     (tester) async {
       final container = await _pump(tester);
       final before = container.read(cartProvider);
@@ -122,7 +110,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-BRAND-005 Given an empty cart When continuing with the assigned brand Then do not switch menus',
+    'WT-MOB-BRAND-005 Given an empty cart When continuing with the assigned brand Then do not switch menus',
     (tester) async {
       final container = await _pump(tester, empty: true);
       await _continue(tester);
@@ -132,7 +120,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-BRAND-006 Given a narrow phone at enlarged text When switching brand Then keep both dialogs scrollable and controls reachable',
+    'WT-MOB-BRAND-006 Given a narrow phone at enlarged text When switching brand Then keep both dialogs scrollable and controls reachable',
     (tester) async {
       final container = await _pump(
         tester,

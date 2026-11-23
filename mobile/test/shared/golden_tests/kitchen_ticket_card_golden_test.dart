@@ -100,7 +100,7 @@ void main() {
     for (final textScale in goldenTextScales) {
       if (viewport.name == '720dp') {
         goldenTest(
-          'board rework and role restrictions @ ${viewport.name}, text $textScale',
+          'GT-MOB-KITCHEN-001 board rework and role restrictions @ ${viewport.name}, text $textScale',
           fileName: goldenFileName(
             _component,
             'board_rework_roles',
@@ -150,7 +150,7 @@ void main() {
       // One sheet per age state, all six kitchen statuses on each.
       for (final c in _ageCases) {
         goldenTest(
-          '${c.state} statuses @ ${viewport.name}, text $textScale',
+          'GT-MOB-KITCHEN-002 ${c.state} statuses @ ${viewport.name}, text $textScale',
           fileName: goldenFileName(_component, c.state, viewport, textScale),
           textScaleFactor: textScale,
           constraints: goldenSheetConstraints(viewport),
@@ -173,7 +173,7 @@ void main() {
 
       // Loading, read-only, and long-content variants.
       goldenTest(
-        'variants @ ${viewport.name}, text $textScale',
+        'GT-MOB-KITCHEN-003 variants @ ${viewport.name}, text $textScale',
         fileName: goldenFileName(_component, 'variants', viewport, textScale),
         textScaleFactor: textScale,
         constraints: goldenSheetConstraints(viewport),

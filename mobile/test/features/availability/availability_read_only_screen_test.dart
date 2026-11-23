@@ -59,7 +59,7 @@ Future<void> _pump(
 
 void main() {
   testWidgets(
-    'IT-MOB-AVAIL-003 Given backend menu items When opening availability Then list every item with Dine-in status and inactive state',
+    'WT-MOB-AVAIL-003 Given backend menu items When opening availability Then list every item with Dine-in status and inactive state',
     (tester) async {
       await _pump(tester, () async => [_activeItem, _inactiveItem]);
       await tester.pumpAndSettle();
@@ -72,7 +72,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-AVAIL-004 Given per-channel availability When selecting Takeaway Then show Takeaway availability',
+    'WT-MOB-AVAIL-004 Given per-channel availability When selecting Takeaway Then show Takeaway availability',
     (tester) async {
       await _pump(tester, () async => [_activeItem, _inactiveItem]);
       await tester.pumpAndSettle();
@@ -87,7 +87,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-AVAIL-005 Given a pending availability request When data arrives Then replace the loading state with rows',
+    'WT-MOB-AVAIL-005 Given a pending availability request When data arrives Then replace the loading state with rows',
     (tester) async {
       final pending = Completer<List<MenuItem>>();
       await _pump(tester, () => pending.future);
@@ -104,7 +104,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-AVAIL-006 Given a failed availability request When retrying Then reload and show rows',
+    'WT-MOB-AVAIL-006 Given a failed availability request When retrying Then reload and show rows',
     (tester) async {
       var loads = 0;
       await _pump(tester, () async {
@@ -125,7 +125,7 @@ void main() {
   );
 
   testWidgets(
-    'IT-MOB-AVAIL-007 Given a brand with no menu items When opening availability Then show an empty state',
+    'WT-MOB-AVAIL-007 Given a brand with no menu items When opening availability Then show an empty state',
     (tester) async {
       await _pump(tester, () async => const <MenuItem>[]);
       await tester.pumpAndSettle();
