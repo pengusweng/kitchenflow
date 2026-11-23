@@ -87,10 +87,11 @@ cleanup removes QC rejections, attempts, and handoffs before their parent ticket
    and verification that logout prevents old-session updates from reaching the
    next user's board. Fragmented-event and pre-cancel tests cover only part of
    this boundary.
-6. **CI device execution.** Current Flutter CI runs unit/widget/golden tests and
-   builds the APK; real API device suites remain local. Add a dedicated emulator
-   job with a temporary migrated database, fixture setup/cleanup, saved reports,
-   and bounded readiness checks.
+
+Flutter CI now runs the login and POS suites in Stage 2 and the order and kitchen
+suite in Stage 3. Each device stage provisions an Android emulator and a migrated
+test database and uploads its reports and API log. See `mobile/README.md` for
+the GitHub Actions entry point.
 
 Run the connected flow with the setup in `mobile/README.md`:
 

@@ -76,8 +76,27 @@ Flutter CI uses this command and uploads the `flutter-test-results` artifact
 even when tests fail. Coverage remains in `flutter-coverage-report`; golden
 failure comparison images are uploaded as `flutter-golden-failures` when present.
 Download and extract the results artifact, then open its `report.html` file.
-This CI job runs unit, widget, and golden tests only; real API integration tests
-continue to run separately.
+These checks and the debug APK build run in Stage 1 of Flutter CI.
+
+### Flutter-to-API tests in GitHub Actions
+
+The repository's CI workflow calls Flutter CI for Flutter changes. Each stage
+starts after the previous stage passes:
+
+1. **Unit, Widget & Golden Tests and Build** runs formatting, analysis, the
+   Flutter test suite, and the Android debug build.
+2. **Flutter-to-API Integration Tests** runs `--suite=auth` and `--suite=pos` on
+   Android and uploads `flutter-api-integration-results`.
+3. **Order and Kitchen E2E Tests** runs `--suite=orders` on Android and uploads
+   `flutter-api-order-results`.
+
+Each device stage starts a fresh PostgreSQL service, applies Prisma migrations,
+and generates its test accounts before starting the real API on port `3001`.
+The Android emulator reaches it at `http://10.0.2.2:3001/api`. The device stages
+upload the HTML, JSON, Gherkin, raw test output, and API log on success or failure.
+
+Once the workflow is on the default branch, it can also be started from
+**Actions → Flutter CI → Run workflow**. Pick the branch you want to test.
 
 ### Real API login integration tests
 
@@ -121,8 +140,8 @@ dart run tool/run_integration_tests.dart --suite=pos -d emulator-5554
 
 HTML, JSON, Gherkin, and raw logs are saved under `reports/integration/<timestamp>/`.
 The Gherkin source is `features/mobile/pos-core.integration.feature`. The default
-runner without `--suite=pos` still runs only the authentication suite. Neither
-device suite runs in CI.
+runner without a `--suite` option runs the authentication suite. Both run in
+Stage 2 of Flutter CI.
 
 For a USB-connected phone, configure `adb reverse tcp:3001 tcp:3001` and use:
 
@@ -191,7 +210,7 @@ npx.cmd ts-node -P prisma/tsconfig.seed.json prisma/mobile-pos-fixtures.ts clean
 
 Cleanup removes this fixture's orders, tickets, daily counters, catalog, accounts,
 QC attempts, rejected portions, handoffs, and sessions only. Reports include HTML, Gherkin, JSON, and raw logs under
-`reports/integration/`. This suite is not added to CI.
+`reports/integration/`. This suite runs in Stage 3 of Flutter CI.
 
 To run only the connected kitchen flow, append `--plain-name=IT-MOB-ORD-005`.
 It uses Takeaway so camera access and S3 are unnecessary. Delivery upload coverage
@@ -296,8 +315,7 @@ test environment variables), and stop the temporary database from the root:
 docker compose -p kkfc-mobile-test -f docker-compose.mobile-test.yml down
 ```
 
-These device tests run separately from `flutter test` and the existing unit/widget
-CI job. See the [Flutter integration test guide](https://docs.flutter.dev/testing/integration-tests)
+See the [Flutter integration test guide](https://docs.flutter.dev/testing/integration-tests)
 for the SDK runner used here.
 
 ### Golden tests
