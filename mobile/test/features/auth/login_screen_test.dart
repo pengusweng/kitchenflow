@@ -116,6 +116,30 @@ Finder get _dialogSignIn => find.descendant(
 );
 
 void main() {
+  testWidgets(
+    'WT-MOB-LOGIN-017 shows and clears the login notice with animations disabled',
+    (tester) async {
+      Future<void> show(LoginStatus status) => tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: Scaffold(body: LoginNotice(status: status)),
+          ),
+        ),
+      );
+
+      final message = find.text(LoginStatus.invalidCredentials.noticeMessage);
+      await show(LoginStatus.idle);
+      expect(message, findsNothing);
+      await show(LoginStatus.invalidCredentials);
+      expect(tester.takeException(), isNull);
+      expect(message, findsOneWidget);
+      await show(LoginStatus.idle);
+      expect(tester.takeException(), isNull);
+      expect(message, findsNothing);
+    },
+  );
+
   group('LoginScreen layout', () {
     testWidgets(
       'WT-MOB-LOGIN-001 shows both fields, the form card and the submit button',
