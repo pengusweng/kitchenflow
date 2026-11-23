@@ -67,3 +67,10 @@ Feature: Paginated handoff list and actor history endpoints
     Given an authenticated permitted user supplies an invalid actor UUID
     When the actor handoff history endpoint is requested
     Then the response is 400 and no list service is called
+
+  @IT-HAND-010
+  Scenario: Read a kitchen ticket's handoff
+    Test Case ID: IT-HAND-010
+    Given an authenticated permitted user supplies a kitchen ticket UUID
+    When the kitchen ticket handoff endpoint is requested
+    Then the response is 200 with that ticket's handoff and signed image URLs
