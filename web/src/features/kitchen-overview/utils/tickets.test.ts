@@ -9,6 +9,11 @@ import {
   flagReason,
   formatElapsed,
   formatGap,
+  qcFailures,
+  qcSummary,
+  type QcAttempt,
+  type QcStatus,
+  showsHandoffPhotos,
   ticketTimeline,
   type KitchenTicket,
   type TicketStage,
@@ -18,6 +23,19 @@ const NOW = Date.parse("2026-11-23T08:00:00.000Z");
 const MIN = 60_000;
 const GC: MenuBrand = { id: "b-gc", code: "GC", name: "Gamcheon", accent: "#3D5A80" };
 const AI: MenuBrand = { id: "b-ai", code: "AI", name: "Aurelia's Inasal", accent: "#9A4A1F" };
+
+function attempt(number: number, status: QcStatus): QcAttempt {
+  const at = new Date(NOW - (10 - number) * MIN).toISOString();
+  return {
+    id: `qc-${number}`,
+    number,
+    status,
+    checker: "Ana Santos",
+    startedAt: at,
+    completedAt: status === "IN_PROGRESS" ? null : at,
+    rejections: [],
+  };
+}
 
 function ticket(
   number: string,
@@ -38,7 +56,9 @@ function ticket(
     preparationStartedAt: null,
     readyAt: null,
     handedOverAt: null,
-    qcFailures: 0,
+    channel: "DINE_IN",
+    handoffPhotos: [],
+    qcAttempts: [],
     items: [],
     ...extra,
   } satisfies KitchenTicket;
@@ -56,7 +76,7 @@ describe("flagReason", () => {
 
   test("waiting for QC is only a recheck after a failed attempt", () => {
     expect(flagReason(ticket("T-3", MIN, "FOR_CHECKING"), NOW)).toBeNull();
-    expect(flagReason(ticket("T-3", MIN, "FOR_CHECKING", { qcFailures: 1 }), NOW)).toBe("recheck");
+    expect(flagReason(ticket("T-3", MIN, "FOR_CHECKING", { qcAttempts: [attempt(1, "FAILED")] }), NOW)).toBe("recheck");
   });
 
   test("lateness wins over rework", () => {
@@ -159,5 +179,47 @@ describe("handed over", () => {
       new Date(NOW - 28 * MIN).toISOString(),
       new Date(NOW - 40 * MIN).toISOString(),
     ]);
+  });
+});
+
+test("only handed-over delivery tickets show handoff photos", () => {
+  expect(showsHandoffPhotos(ticket("T-1", MIN, "HANDED_OVER", { channel: "GRABFOOD" }))).toBe(true);
+  expect(showsHandoffPhotos(ticket("T-1", MIN, "HANDED_OVER", { channel: "FOODPANDA" }))).toBe(true);
+  expect(showsHandoffPhotos(ticket("T-1", MIN, "HANDED_OVER", { channel: "DINE_IN" }))).toBe(false);
+  expect(showsHandoffPhotos(ticket("T-1", MIN, "HANDED_OVER", { channel: "TAKEAWAY" }))).toBe(false);
+  expect(showsHandoffPhotos(ticket("T-1", MIN, "READY", { channel: "GRABFOOD" }))).toBe(false);
+});
+
+describe("QC history", () => {
+  const withChecks = (...statuses: QcStatus[]) =>
+    ticket("T-1", MIN, "READY", { qcAttempts: statuses.map((status, i) => attempt(i + 1, status)) });
+
+  test("counts failures from the attempts", () => {
+    expect(qcFailures(withChecks("FAILED", "FAILED", "PASSED"))).toBe(2);
+  });
+
+  test("sums the checks up in one line", () => {
+    expect(qcSummary(withChecks())).toBe("Not checked yet");
+    expect(qcSummary(withChecks("IN_PROGRESS"))).toBe("Being checked");
+    expect(qcSummary(withChecks("PASSED"))).toBe("Passed first time");
+    expect(qcSummary(withChecks("FAILED", "PASSED"))).toBe("Passed on check 2 · failed once");
+    expect(qcSummary(withChecks("FAILED", "FAILED"))).toBe("2 checks · failed twice");
+    expect(qcSummary(withChecks("FAILED", "IN_PROGRESS"))).toBe("Being rechecked · failed once");
+  });
+
+  test("mock checks run in order and rejections point at the ticket's own items", () => {
+    for (const t of mockTickets(NOW)) {
+      t.qcAttempts.forEach((a, i) => {
+        expect(a.number).toBe(i + 1);
+        if (a.completedAt) expect(Date.parse(a.completedAt)).toBeGreaterThanOrEqual(Date.parse(a.startedAt));
+        if (i > 0) expect(Date.parse(a.startedAt)).toBeGreaterThan(Date.parse(t.qcAttempts[i - 1].completedAt!));
+        expect(a.rejections.length > 0).toBe(a.status === "FAILED");
+        for (const r of a.rejections) {
+          const item = t.items.find((it) => it.id === r.itemId);
+          expect(item).toBeDefined();
+          expect(r.portion).toBeLessThanOrEqual(item!.quantity);
+        }
+      });
+    }
   });
 });

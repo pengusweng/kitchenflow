@@ -4,16 +4,20 @@ import Link from "next/link";
 const CLASS =
   "inline-flex h-8 cursor-pointer items-center gap-1 rounded-md pr-1.5 pl-2.5 font-semibold text-ink transition-colors outline-none hover:bg-ink/6 focus-visible:ring-2 focus-visible:ring-primary/40 active:bg-ink/10 [&_svg]:text-ink-muted";
 
-type ViewButtonProps = { label: string } & (
+type ViewButtonProps = {
+  label: string;
+  /** The visible word; "View" unless the row needs to say what it opens. Keep it inside `label`. */
+  text?: string;
+} & (
   | { onClick?: () => void; href?: never }
   /** Opens a page instead of a modal; a real link, so it can open in a new tab. */
   | { href: string; onClick?: never }
 );
 
-export default function ViewButton({ label, onClick, href }: ViewButtonProps) {
+export default function ViewButton({ label, text = "View", onClick, href }: ViewButtonProps) {
   const content = (
     <>
-      View
+      {text}
       <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.25} />
     </>
   );

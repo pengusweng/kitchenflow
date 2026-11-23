@@ -1,4 +1,5 @@
 import type { MenuBrand } from "@/src/features/menu/utils/menu";
+import type { OrderChannel } from "@/src/features/orders/utils/orders";
 
 /** Mirrors the server's KitchenTicketStatus, minus CANCELLED. Everything before HANDED_OVER is still open. */
 export type TicketStage =
@@ -37,12 +38,49 @@ export type TicketItem = {
   modifiers: string[];
 };
 
+/** Mirrors KitchenTicketQcStatus. */
+export type QcStatus = "IN_PROGRESS" | "PASSED" | "FAILED";
+
+/** Mirrors QcRejectionReason; the checker's note carries the detail. */
+export type QcRejectionReason = "INCOMPLETE";
+
+export const QC_REJECTION_LABEL: Record<QcRejectionReason, string> = { INCOMPLETE: "Incomplete" };
+
+/** One rejected portion, as OrderItemQcRejection stores it. */
+export type QcRejection = {
+  id: string;
+  /** The ticket item it belongs to (order_item_id). */
+  itemId: string;
+  /** Which of the item's portions, from 1. */
+  portion: number;
+  reason: QcRejectionReason;
+  note: string;
+  rejectedAt: string;
+};
+
+/** One pass through QC, as KitchenTicketQcAttempt stores it. A recheck is a new attempt. */
+export type QcAttempt = {
+  id: string;
+  /** From 1. */
+  number: number;
+  status: QcStatus;
+  /** The checker's display name. */
+  checker: string;
+  startedAt: string;
+  /** Null while it's still being checked. */
+  completedAt: string | null;
+  /** Rejected portions only; a pass has none. */
+  rejections: QcRejection[];
+};
+
 export type KitchenTicket = {
   id: string;
   /** e.g. "T-012". */
   number: string;
   orderCode: string;
   brand: MenuBrand;
+  /** Where the order came from; delivery handoffs are photographed for the rider. */
+  channel: OrderChannel;
   stage: TicketStage;
   /** When the cashier sent the order to the kitchen; the clock every ticket is judged by. */
   orderSentAt: string;
@@ -52,10 +90,22 @@ export type KitchenTicket = {
   preparationStartedAt: string | null;
   readyAt: string | null;
   handedOverAt: string | null;
-  /** Failed QC attempts so far; a ticket back at Waiting for QC after one is a recheck. */
-  qcFailures: number;
+  /** Signed URLs of the photos taken at handoff, as the handoff API returns them (img_urls). */
+  handoffPhotos: string[];
+  /** Every QC check so far, first one first. */
+  qcAttempts: QcAttempt[];
   items: TicketItem[];
 };
+
+/** GrabFood and foodpanda orders leave with a rider, so their handoff is photographed. */
+export function isDelivery(channel: OrderChannel) {
+  return channel === "GRABFOOD" || channel === "FOODPANDA";
+}
+
+/** Handoff photos belong to handed-over delivery tickets; dine-in and takeaway are handed over in person. */
+export function showsHandoffPhotos(ticket: KitchenTicket) {
+  return ticket.stage === "HANDED_OVER" && isDelivery(ticket.channel);
+}
 
 /** Amber from here. */
 export const CAUTION_MIN = 10;
@@ -92,8 +142,38 @@ export function flagReason(ticket: KitchenTicket, now: number): FlagReason | nul
   return null;
 }
 
+/** Failed QC checks so far; a ticket back at Waiting for QC after one is a recheck. */
+export function qcFailures(ticket: KitchenTicket) {
+  return ticket.qcAttempts.filter((attempt) => attempt.status === "FAILED").length;
+}
+
 export function isRecheck(ticket: KitchenTicket) {
-  return ticket.stage === "FOR_CHECKING" && ticket.qcFailures > 0;
+  return ticket.stage === "FOR_CHECKING" && qcFailures(ticket) > 0;
+}
+
+const TIMES = ["once", "twice"];
+/** "once", "twice", "3 times". */
+export function timesWord(n: number) {
+  return TIMES[n - 1] ?? `${n} times`;
+}
+
+/** One line on how QC has gone, for the button that opens the full history. */
+export function qcSummary(ticket: KitchenTicket) {
+  const attempts = ticket.qcAttempts;
+  const failed = qcFailures(ticket);
+  const last = attempts.at(-1);
+  const checks = `${attempts.length} ${attempts.length === 1 ? "check" : "checks"}`;
+  if (!last) return "Not checked yet";
+  if (last.status === "IN_PROGRESS") return failed ? `Being rechecked · failed ${timesWord(failed)}` : "Being checked";
+  if (last.status === "PASSED")
+    return failed ? `Passed on check ${last.number} · failed ${timesWord(failed)}` : "Passed first time";
+  return `${checks} · failed ${timesWord(failed)}`;
+}
+
+/** How long a check took, or has been going: "Under a minute", "3 min". */
+export function formatDuration(ms: number) {
+  const min = Math.round(ms / 60_000);
+  return min < 1 ? "Under a minute" : `${min} min`;
 }
 
 export const FLAG_LABEL: Record<FlagReason, string> = {
