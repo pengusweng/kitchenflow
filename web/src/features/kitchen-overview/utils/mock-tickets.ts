@@ -145,6 +145,8 @@ export function mockTickets(anchor: number): KitchenTicket[] {
       acknowledgedAt: reached("ACKNOWLEDGED") ? at(seed.sent * 0.85) : null,
       preparationStartedAt: reached("PREPARING") ? at(seed.sent * 0.7) : null,
       readyAt: reached("READY") ? at(seed.sent * 0.1) : null,
+      // Handed-over tickets are closed and leave the overview.
+      handedOverAt: null,
       qcFailures: seed.qcFailures ?? 0,
       items,
     };

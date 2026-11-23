@@ -36,6 +36,7 @@ function ticket(
     acknowledgedAt: null,
     preparationStartedAt: null,
     readyAt: null,
+    handedOverAt: null,
     qcFailures: 0,
     items: [],
     ...extra,
@@ -127,8 +128,9 @@ describe("ticketTimeline", () => {
       "Acknowledged",
       "Started cooking",
       "Ready",
+      "Handed over",
     ]);
-    expect(steps.map((s) => s.at !== null)).toEqual([true, true, true, false, false]);
+    expect(steps.map((s) => s.at !== null)).toEqual([true, true, true, false, false, false]);
   });
 
   test("formatGap rounds to minutes and calls anything shorter right away", () => {

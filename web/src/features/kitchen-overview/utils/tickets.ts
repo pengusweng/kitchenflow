@@ -45,6 +45,7 @@ export type KitchenTicket = {
   acknowledgedAt: string | null;
   preparationStartedAt: string | null;
   readyAt: string | null;
+  handedOverAt: string | null;
   /** Failed QC attempts so far; a ticket back at Waiting for QC after one is a recheck. */
   qcFailures: number;
   items: TicketItem[];
@@ -137,7 +138,7 @@ export function formatTicketTime(iso: string) {
 }
 
 export type TimelineStep = {
-  key: "sent" | "created" | "acknowledged" | "cooking" | "ready";
+  key: "sent" | "created" | "acknowledged" | "cooking" | "ready" | "handedOver";
   label: string;
   /** Null for a step the ticket hasn't reached yet. */
   at: string | null;
@@ -151,6 +152,7 @@ export function ticketTimeline(ticket: KitchenTicket): TimelineStep[] {
     { key: "acknowledged", label: "Acknowledged", at: ticket.acknowledgedAt },
     { key: "cooking", label: "Started cooking", at: ticket.preparationStartedAt },
     { key: "ready", label: "Ready", at: ticket.readyAt },
+    { key: "handedOver", label: "Handed over", at: ticket.handedOverAt },
   ];
 }
 
