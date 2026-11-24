@@ -15,11 +15,12 @@ import {
 import FormField from "@/src/features/brands/components/molecules/form-field";
 import { type LogoPreview } from "@/src/features/brands/components/molecules/logo-field";
 import { useLogoPicker } from "@/src/features/brands/hooks/useLogoPicker";
-import type { MenuBrand, MenuItem, MenuModifierOption } from "../../utils/menu";
+import { useBrandRecipes, useModifierOptions } from "../../hooks/useMenu";
+import type { MenuBrand } from "../../utils/menu";
+import { menuSaveError, type MenuSaveError } from "../../utils/menu-errors";
 import {
   emptyFormValues,
   hasErrors,
-  newMenuItem,
   suggestCode,
   validateNewMenuItem,
   type MenuItemFormValues,
@@ -32,15 +33,12 @@ import MenuItemFields, { FIELD_ORDER } from "./menu-item-fields";
 type CreateMenuItemModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: (item: MenuItem) => void;
+  /** Adds the item; rejects with the API's error when it's refused. */
+  onSubmit: (input: { brandId: string; values: MenuItemFormValues; photo: File }) => Promise<unknown>;
+  /** Brands a new item can go to. */
   brands: MenuBrand[];
   /** Brand code to start on, e.g. the one the page is filtered to. */
   defaultBrand?: string;
-  /** Recipes a brand can link to. */
-  recipesFor: (brandCode: string) => string[];
-  modifierCatalog: MenuModifierOption[];
-  /** Codes menu items already use. */
-  takenCodes: Set<string>;
 };
 
 // DESIGN.md › Elevation: dialogs get Shadow 3. Shadows vanish on the dark
@@ -65,25 +63,45 @@ export default function CreateMenuItemModal({ open, onOpenChange, ...formProps }
 }
 
 function CreateMenuItemForm({
-  onCreated,
+  onSubmit,
   brands,
   defaultBrand,
-  recipesFor,
-  modifierCatalog,
-  takenCodes,
 }: Omit<CreateMenuItemModalProps, "open" | "onOpenChange">) {
-  const [brandCode, setBrandCode] = useState(defaultBrand);
+  const [brandCode, setBrandCode] = useState(() =>
+    brands.some((b) => b.code === defaultBrand) ? defaultBrand : undefined,
+  );
   const [values, setValues] = useState<MenuItemFormValues>(emptyFormValues);
   // The code follows the brand and name until someone types their own.
   const [codeEdited, setCodeEdited] = useState(false);
   // Errors show after the first add attempt, then follow every keystroke.
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // What the API refused, until the field it's about changes.
+  const [saveError, setSaveError] = useState<(MenuSaveError & { sent: unknown }) | null>(null);
   const photo = useLogoPicker("Photos");
 
   const brand = brands.find((b) => b.code === brandCode);
-  const recipes = brandCode ? recipesFor(brandCode) : [];
-  const check = () => validateNewMenuItem(values, takenCodes, { brand: brandCode, hasPhoto: photo.logo !== null });
+  const { recipes, isPending: recipesLoading } = useBrandRecipes(brand?.id);
+  const modifiers = useModifierOptions();
+  const check = () =>
+    validateNewMenuItem(values, {
+      brand: brandCode,
+      hasPhoto: photo.logo !== null,
+    });
+
+  const fieldValue = (field: NonNullable<MenuSaveError["field"]>) =>
+    field === "photo" ? photo.logo?.file : values[field];
+  const serverError =
+    saveError && (!saveError.field || fieldValue(saveError.field) === saveError.sent) ? saveError : null;
   const errors: NewMenuItemErrors = submitted ? check() : {};
+  if ((serverError?.field === "code" || serverError?.field === "recipeId") && !errors[serverError.field])
+    errors[serverError.field] = serverError.message;
+  if (serverError?.field === "photo" && !errors.photo) errors.photo = serverError.message;
+
+  let recipePlaceholder = "Choose a recipe";
+  if (!brand) recipePlaceholder = "Choose a brand first";
+  else if (recipesLoading) recipePlaceholder = "Loading recipes…";
+  else if (recipes.length === 0) recipePlaceholder = "This brand has no active recipes";
 
   const set = <K extends keyof MenuItemFormValues>(key: K, value: MenuItemFormValues[K]) =>
     setValues((current) => {
@@ -99,30 +117,46 @@ function CreateMenuItemForm({
   };
 
   const changeBrand = (code: string) => {
+    if (code === brandCode) return;
     setBrandCode(code);
     setValues((current) => ({
       ...current,
       code: codeEdited ? current.code : suggestCode(code, current.name),
       // Each brand has its own recipes, so a recipe from the last brand can't stay.
-      recipe: recipesFor(code).includes(current.recipe) ? current.recipe : "",
+      recipeId: "",
     }));
   };
 
   const preview: LogoPreview | null = photo.logo
-    ? { url: photo.logo.previewUrl, name: photo.logo.file.name, size: photo.logo.file.size }
+    ? {
+        url: photo.logo.previewUrl,
+        name: photo.logo.file.name,
+        size: photo.logo.file.size,
+      }
     : null;
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     setSubmitted(true);
     const found = check();
     if (hasErrors(found) || !brand || !photo.logo) {
       focusFirstProblem(found);
       return;
     }
-    // Static UI: a fresh object URL for the picked photo, since the picker
-    // releases its own as soon as this form closes.
-    onCreated(newMenuItem(`new-${crypto.randomUUID()}`, brand, values, URL.createObjectURL(photo.logo.file)));
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSubmit({ brandId: brand.id, values, photo: photo.logo.file });
+    } catch (error) {
+      const reason = menuSaveError(error);
+      setSaveError({
+        ...reason,
+        sent: reason.field ? fieldValue(reason.field) : undefined,
+      });
+      if (reason.field) focusFirstProblem({ [reason.field]: reason.message });
+      setSaving(false);
+    }
   };
 
   return (
@@ -130,7 +164,9 @@ function CreateMenuItemForm({
       <DialogHeader className="flex-row items-center justify-between gap-4 border-b border-hairline py-3 pr-3 pl-6">
         <DialogTitle className="text-base font-semibold text-ink">Add menu item</DialogTitle>
         <DialogClose
-          render={<Button type="button" variant="ghost" size="icon-lg" className="size-10 text-ink-muted hover:text-ink" />}
+          render={
+            <Button type="button" variant="ghost" size="icon-lg" className="size-10 text-ink-muted hover:text-ink" />
+          }
         >
           <X aria-hidden="true" className="size-5" />
           <span className="sr-only">Close</span>
@@ -139,7 +175,7 @@ function CreateMenuItemForm({
 
       <div className="flex min-h-0 flex-col gap-5 overflow-y-auto overscroll-contain px-6 pt-5 pb-6">
         <DialogDescription className="text-sm leading-relaxed text-ink-muted">
-          New items start active and available. Channel prices are set after it&apos;s added.
+          New items start active and available, at the base price on every channel.
         </DialogDescription>
 
         <FormField id={`${ID}-brand`} label="Brand" error={errors.brand}>
@@ -167,20 +203,29 @@ function CreateMenuItemForm({
           }}
           codeHint={codeEdited ? "Must be unique across every brand." : "Filled in from the brand and name."}
           recipes={recipes}
-          recipePlaceholder={brand ? "Choose a recipe" : "Choose a brand first"}
-          recipeDisabled={!brand}
-          modifierCatalog={modifierCatalog}
+          recipePlaceholder={recipePlaceholder}
+          recipeDisabled={!brand || recipesLoading}
+          modifierCatalog={modifiers.options}
+          modifierCatalogLoading={modifiers.isPending}
           tagNewModifiers={false}
         />
       </div>
 
+      {serverError && !serverError.field ? (
+        <p role="alert" className="px-6 pb-3 text-sm leading-5 text-danger-ink">
+          {serverError.message}
+        </p>
+      ) : null}
+
       <DialogFooter className="mx-0 mb-0 items-center border-hairline bg-transparent px-6 py-4">
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
-          <DialogClose render={<Button type="button" variant="outline" size="lg" className="h-10 px-4 font-semibold" />}>
+          <DialogClose
+            render={<Button type="button" variant="outline" size="lg" className="h-10 px-4 font-semibold" />}
+          >
             Cancel
           </DialogClose>
-          <Button type="submit" size="lg" className="h-10 px-4 font-semibold">
-            Add item
+          <Button type="submit" size="lg" className="h-10 px-4 font-semibold" disabled={saving}>
+            {saving ? "Adding…" : "Add item"}
           </Button>
         </div>
       </DialogFooter>

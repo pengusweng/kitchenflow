@@ -1,85 +1,131 @@
 import { describe, expect, test } from "vitest";
-import { countMenuItems, filterMenuItems, type MenuBrand, type MenuFilters, type MenuItem } from "./menu";
+import type { MenuEntryRecord, MenuPage } from "../schemas/menuSchema";
+import { patchAvailability, toMenuItem, type MenuBrand } from "./menu";
 
-const GC: MenuBrand = { id: "b-gc", code: "GC", name: "Gamcheon", accent: "#3D5A80" };
-const AI: MenuBrand = { id: "b-ai", code: "AI", name: "Aurelia's Inasal", accent: "#9A4A1F" };
-const ORDER = ["GC", "AI"];
+const GC: MenuBrand = {
+  id: "b-gc",
+  code: "GC",
+  name: "Gamcheon",
+  accent: "#3D5A80",
+};
 
-function item(code: string, name: string, brand: MenuBrand, overrides: Partial<MenuItem> = {}): MenuItem {
-  return {
-    id: code,
-    code,
-    name,
-    brand,
-    description: null,
-    servingDescription: null,
-    recipe: name,
-    imageUrl: null,
-    basePrice: 100,
-    available: true,
-    active: true,
-    channels: [],
-    modifiers: [],
-    ...overrides,
-  };
-}
+const RECORD: MenuEntryRecord = {
+  menu_item_id: "mi-1",
+  brand_id: "b-gc",
+  code: "GC-KIMCHI-RICE",
+  name: "Kimchi Fried Rice",
+  description: null,
+  serving_description: "1 bowl",
+  img_url: "https://files.example.test/photo.jpg",
+  base_price: 189.5,
+  is_available: true,
+  is_active: true,
+  recipe: {
+    recipe_id: "r-kimchi",
+    name: "Kimchi Fried Rice",
+    is_active: false,
+  },
+  menuChannels: [
+    {
+      menu_item_channel_id: "c-1",
+      order_channel: "GRABFOOD",
+      price: 219,
+      is_available: true,
+    },
+    {
+      menu_item_channel_id: "c-2",
+      order_channel: "FOODPANDA",
+      price: 189.5,
+      is_available: false,
+    },
+  ],
+  menuItemModifiers: [
+    {
+      menu_item_modifier_id: "mim-rice",
+      modifier_id: "m-rice",
+      additional_price: 35,
+      modifier: {
+        modifier_id: "m-rice",
+        code: "EXTRA-RICE",
+        name: "Extra rice",
+        description: null,
+        is_active: false,
+      },
+    },
+  ],
+};
 
-const ITEMS = [
-  item("AI-PECHO", "Chicken Inasal Pecho", AI, { available: false }),
-  item("GC-SOY", "Soy Garlic Chicken", GC, { available: false }),
-  item("GC-KIMCHI", "Kimchi Fried Rice", GC),
-  item("AI-RICE", "Garlic Rice", AI),
-  item("GC-SET", "Samgyeopsal Set", GC, { active: false }),
-];
+describe("toMenuItem", () => {
+  const item = toMenuItem(RECORD, () => GC);
 
-const NONE: MenuFilters = { search: "", brand: undefined, availability: "all", active: "active" };
-
-describe("filterMenuItems", () => {
-  test("lists every brand's active items, in brand then name order", () => {
-    expect(filterMenuItems(ITEMS, NONE, ORDER).map((i) => i.code)).toEqual([
-      "GC-KIMCHI",
-      "GC-SOY",
-      "AI-PECHO",
-      "AI-RICE",
+  test("lists every channel at the base price unless a delivery channel overrides it", () => {
+    expect(item.channels).toEqual([
+      { channel: "DINE_IN", price: 189.5, available: true },
+      { channel: "TAKEAWAY", price: 189.5, available: true },
+      { channel: "GRABFOOD", price: 219, available: true },
+      { channel: "FOODPANDA", price: 189.5, available: false },
     ]);
   });
 
-  test("narrows to one brand and one availability state", () => {
-    const rows = filterMenuItems(ITEMS, { ...NONE, availability: "unavailable" }, ORDER);
-    expect(rows.map((i) => i.code)).toEqual(["GC-SOY", "AI-PECHO"]);
-    const gc = filterMenuItems(ITEMS, { ...NONE, brand: "GC", availability: "unavailable" }, ORDER);
-    expect(gc.map((i) => i.code)).toEqual(["GC-SOY"]);
+  test("keeps the recipe and each modifier's link, price and whether it can still be ordered", () => {
+    expect(item.recipe).toEqual({
+      id: "r-kimchi",
+      name: "Kimchi Fried Rice",
+      active: false,
+    });
+    expect(item.modifiers).toEqual([
+      {
+        id: "mim-rice",
+        modifierId: "m-rice",
+        code: "EXTRA-RICE",
+        name: "Extra rice",
+        description: null,
+        price: 35,
+        available: false,
+      },
+    ]);
   });
 
-  test("needs every search term to match the name or the code", () => {
-    expect(filterMenuItems(ITEMS, { ...NONE, search: "chicken ai" }, ORDER).map((i) => i.code)).toEqual(["AI-PECHO"]);
-    expect(filterMenuItems(ITEMS, { ...NONE, search: "gc-kim" }, ORDER).map((i) => i.code)).toEqual(["GC-KIMCHI"]);
-  });
-
-  test("shows inactive items only when asked", () => {
-    expect(filterMenuItems(ITEMS, { ...NONE, active: "inactive" }, ORDER).map((i) => i.code)).toEqual(["GC-SET"]);
-    expect(filterMenuItems(ITEMS, { ...NONE, active: undefined }, ORDER)).toHaveLength(5);
+  test("names the brand and reads the photo URL", () => {
+    expect(item.brand).toBe(GC);
+    expect(item.imageUrl).toBe(RECORD.img_url);
+    expect(toMenuItem({ ...RECORD, img_url: "" }, () => GC).imageUrl).toBeNull();
   });
 });
 
-describe("countMenuItems", () => {
-  test("counts brands across the board, whatever brand is picked", () => {
-    const { brands } = countMenuItems(ITEMS, { ...NONE, brand: "GC", availability: "available" });
-    expect(brands).toEqual({
-      all: { total: 4, unavailable: 2 },
-      GC: { total: 2, unavailable: 1 },
-      AI: { total: 2, unavailable: 1 },
+describe("patchAvailability", () => {
+  const page: MenuPage = {
+    data: [RECORD, { ...RECORD, menu_item_id: "mi-2" }],
+    meta: {
+      page: 1,
+      limit: 20,
+      total: 2,
+      totalPages: 1,
+      counts: {
+        brands: {
+          all: { total: 5, unavailable: 1 },
+          "b-gc": { total: 3, unavailable: 0 },
+        },
+        availability: { all: 3, available: 3, unavailable: 0 },
+      },
+    },
+  };
+
+  test("flips the item in place and moves its counts", () => {
+    const next = patchAvailability(page, "mi-1", false);
+    expect(next.data.map((r) => r.is_available)).toEqual([false, true]);
+    expect(next.meta.total).toBe(2);
+    expect(next.meta.counts).toEqual({
+      brands: {
+        all: { total: 5, unavailable: 2 },
+        "b-gc": { total: 3, unavailable: 1 },
+      },
+      availability: { all: 3, available: 2, unavailable: 1 },
     });
   });
 
-  test("counts availability within the picked brand, ignoring the availability filter", () => {
-    const { availability } = countMenuItems(ITEMS, { ...NONE, brand: "AI", availability: "unavailable" });
-    expect(availability).toEqual({ all: 2, available: 1, unavailable: 1 });
-  });
-
-  test("respects the search", () => {
-    const { brands, availability } = countMenuItems(ITEMS, { ...NONE, search: "rice" });
-    expect(brands.all).toEqual({ total: 2, unavailable: 0 });
-    expect(availability).toEqual({ all: 2, available: 2, unavailable: 0 });
+  test("leaves a page alone when it doesn't show the item or nothing changes", () => {
+    expect(patchAvailability(page, "mi-9", false)).toBe(page);
+    expect(patchAvailability(page, "mi-1", true)).toBe(page);
   });
 });

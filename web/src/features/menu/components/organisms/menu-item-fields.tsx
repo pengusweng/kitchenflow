@@ -12,7 +12,7 @@ import ModifierEditor from "../molecules/modifier-editor";
 import PriceInput from "../molecules/price-input";
 
 /** Field ids in form order, so a failed save can move focus to the first problem. */
-export const FIELD_ORDER = ["name", "code", "basePrice", "servingDescription", "recipe", "description"] as const;
+export const FIELD_ORDER = ["name", "code", "basePrice", "servingDescription", "recipeId", "description"] as const;
 
 type MenuItemFieldsProps = {
   /** Prefixes every field id, e.g. "edit-menu-item" gives "edit-menu-item-name". */
@@ -28,11 +28,12 @@ type MenuItemFieldsProps = {
     hint: string;
   };
   codeHint?: string;
-  recipes: string[];
+  recipes: { id: string; name: string }[];
   /** Shown as the recipe picker's first, unpickable option while no recipe is chosen. */
   recipePlaceholder?: string;
   recipeDisabled?: boolean;
   modifierCatalog: MenuModifierOption[];
+  modifierCatalogLoading?: boolean;
   /** Off when every modifier is new anyway, as on a brand-new item. */
   tagNewModifiers?: boolean;
 };
@@ -50,6 +51,7 @@ export default function MenuItemFields({
   recipePlaceholder,
   recipeDisabled = false,
   modifierCatalog,
+  modifierCatalogLoading = false,
   tagNewModifiers = true,
 }: MenuItemFieldsProps) {
   const id = (name: string) => `${idPrefix}-${name}`;
@@ -126,28 +128,28 @@ export default function MenuItemFields({
       </div>
 
       <FormField
-        id={id("recipe")}
+        id={id("recipeId")}
         label="Recipe"
         hint="What the kitchen follows when this item is ordered."
-        error={errors.recipe}
+        error={errors.recipeId}
       >
         <SelectField
-          id={id("recipe")}
-          value={values.recipe}
+          id={id("recipeId")}
+          value={values.recipeId}
           disabled={recipeDisabled}
-          onChange={(e) => set("recipe", e.target.value)}
-          aria-invalid={Boolean(errors.recipe)}
-          aria-describedby={`${id("recipe")}-message`}
-          className={cn(!values.recipe && "text-ink-muted")}
+          onChange={(e) => set("recipeId", e.target.value)}
+          aria-invalid={Boolean(errors.recipeId)}
+          aria-describedby={`${id("recipeId")}-message`}
+          className={cn(!values.recipeId && "text-ink-muted")}
         >
-          {recipePlaceholder !== undefined && !values.recipe ? (
+          {recipePlaceholder !== undefined && !values.recipeId ? (
             <option value="" disabled>
               {recipePlaceholder}
             </option>
           ) : null}
           {recipes.map((recipe) => (
-            <option key={recipe} value={recipe}>
-              {recipe}
+            <option key={recipe.id} value={recipe.id}>
+              {recipe.name}
             </option>
           ))}
         </SelectField>
@@ -175,6 +177,7 @@ export default function MenuItemFields({
           drafts={values.modifiers}
           onChange={(modifiers) => set("modifiers", modifiers)}
           catalog={modifierCatalog}
+          catalogLoading={modifierCatalogLoading}
           errors={errors.modifiers}
           tagNew={tagNewModifiers}
         />

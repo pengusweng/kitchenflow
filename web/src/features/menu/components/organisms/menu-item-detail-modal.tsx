@@ -19,6 +19,12 @@ type MenuItemDetailModalProps = {
   onEdit?: (item: MenuItem) => void;
   onDeactivate?: (item: MenuItem) => void;
   onReactivate?: (item: MenuItem) => void;
+  /** Shows Edit, Deactivate and Reactivate. Availability is open to more roles than editing. */
+  canManage?: boolean;
+  /** An action is on its way; its buttons wait. */
+  busy?: boolean;
+  /** Why the last action failed. */
+  error?: string | null;
 };
 
 // DESIGN.md › Elevation: dialogs get Shadow 3. Shadows vanish on the dark
@@ -68,6 +74,9 @@ export default function MenuItemDetailModal({
   onEdit,
   onDeactivate,
   onReactivate,
+  canManage = false,
+  busy = false,
+  error = null,
 }: MenuItemDetailModalProps) {
   // Which item the footer is asking "deactivate?" about; any other item, or reopening, starts fresh.
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -90,7 +99,9 @@ export default function MenuItemDetailModal({
             <div className="flex min-w-0 items-center gap-3.5">
               <ItemThumb item={item} dim={!item.active} className="size-12" />
               <div className="flex min-w-0 flex-col gap-0.5">
-                <DialogTitle className="text-lg leading-snug font-semibold text-balance text-ink">{item.name}</DialogTitle>
+                <DialogTitle className="text-lg leading-snug font-semibold text-balance text-ink">
+                  {item.name}
+                </DialogTitle>
                 <p className="inline-flex items-center gap-1.5 text-sm text-ink-muted">
                   <span
                     aria-hidden="true"
@@ -106,7 +117,9 @@ export default function MenuItemDetailModal({
             <DialogTitle className="sr-only">Menu item</DialogTitle>
           )}
           <DialogClose
-            render={<Button variant="ghost" size="icon-lg" className="-mt-1 size-10 shrink-0 text-ink-muted hover:text-ink" />}
+            render={
+              <Button variant="ghost" size="icon-lg" className="-mt-1 size-10 shrink-0 text-ink-muted hover:text-ink" />
+            }
           >
             <X aria-hidden="true" className="size-5" />
             <span className="sr-only">Close</span>
@@ -137,7 +150,10 @@ export default function MenuItemDetailModal({
                 <span className="font-semibold tabular-nums slashed-zero">{formatPeso(item.basePrice)}</span>
               </DetailRow>
               {item.servingDescription ? <DetailRow label="Serving">{item.servingDescription}</DetailRow> : null}
-              <DetailRow label="Recipe">{item.recipe}</DetailRow>
+              <DetailRow label="Recipe">
+                {item.recipe.name}
+                {item.recipe.active ? null : <span className="text-ink-muted"> (inactive)</span>}
+              </DetailRow>
             </dl>
 
             <OptionList
@@ -169,12 +185,20 @@ export default function MenuItemDetailModal({
           </div>
         ) : null}
 
-        {item ? (
+        {item && error ? (
+          <p role="alert" className="border-t border-hairline px-6 pt-3 text-sm leading-5 text-danger-ink">
+            {error}
+          </p>
+        ) : null}
+
+        {item && canManage ? (
           <DialogFooter className="mx-0 mb-0 border-hairline bg-transparent px-6 py-4 sm:justify-between">
             {!item.active ? (
               <>
-                <p className="hidden self-center text-sm text-ink-muted sm:block">Inactive items can&apos;t be edited.</p>
-                <Button size="lg" className={ACTION} onClick={() => onReactivate?.(item)}>
+                <p className="hidden self-center text-sm text-ink-muted sm:block">
+                  Inactive items can&apos;t be edited.
+                </p>
+                <Button size="lg" className={ACTION} disabled={busy} onClick={() => onReactivate?.(item)}>
                   <RotateCcw aria-hidden="true" />
                   Reactivate
                 </Button>
@@ -205,6 +229,7 @@ export default function MenuItemDetailModal({
                     variant="destructive"
                     size="lg"
                     className={ACTION}
+                    disabled={busy}
                     onClick={() => {
                       setConfirmingId(null);
                       onDeactivate?.(item);
@@ -217,7 +242,13 @@ export default function MenuItemDetailModal({
               </div>
             ) : (
               <>
-                <Button variant="destructive" size="lg" className={ACTION} onClick={() => setConfirmingId(item.id)}>
+                <Button
+                  variant="destructive"
+                  size="lg"
+                  className={ACTION}
+                  disabled={busy}
+                  onClick={() => setConfirmingId(item.id)}
+                >
                   <Ban aria-hidden="true" />
                   Deactivate
                 </Button>
