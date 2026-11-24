@@ -60,10 +60,10 @@ describe("toMenuItem", () => {
 
   test("lists every channel at the base price unless a delivery channel overrides it", () => {
     expect(item.channels).toEqual([
-      { channel: "DINE_IN", price: 189.5, available: true },
-      { channel: "TAKEAWAY", price: 189.5, available: true },
-      { channel: "GRABFOOD", price: 219, available: true },
-      { channel: "FOODPANDA", price: 189.5, available: false },
+      { channel: "DINE_IN", price: 189.5, available: true, overrideId: null },
+      { channel: "TAKEAWAY", price: 189.5, available: true, overrideId: null },
+      { channel: "GRABFOOD", price: 219, available: true, overrideId: "c-1" },
+      { channel: "FOODPANDA", price: 189.5, available: false, overrideId: "c-2" },
     ]);
   });
 
