@@ -86,6 +86,7 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
               duration: const Duration(milliseconds: 150),
               curve: Curves.easeOut,
               height: 40.0,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(KkfcRadius.sm),
@@ -142,15 +143,19 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
                           splashRadius: 16.0,
                         )
                       : (showTrailingBadge
-                          ? Padding(
-                              padding: const EdgeInsets.only(right: 10.0),
-                              child: Text(
-                                'Showing $visibleCount item${visibleCount == 1 ? '' : 's'}',
-                                style: const TextStyle(
-                                  fontFamily: KkfcFonts.ibmPlexSans,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: KkfcColors.ink3,
+                          ? Center(
+                              widthFactor: 1.0,
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 10.0),
+                                child: Text(
+                                  'Showing $visibleCount item${visibleCount == 1 ? '' : 's'}',
+                                  style: const TextStyle(
+                                    fontFamily: KkfcFonts.ibmPlexSans,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: KkfcColors.ink3,
+                                    height: 1.0,
+                                  ),
                                 ),
                               ),
                             )
