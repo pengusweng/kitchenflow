@@ -321,6 +321,9 @@ The structure above shows the key paths documented here, not necessarily every f
 
 ## Production Deployment and Security
 
+For the `development` -> `staging` -> `main` promotion flow, GitHub Actions
+variables, and Render Docker settings, follow [STAGING.md](STAGING.md).
+
 Before deploying:
 
 - Provision the required AWS resources and DNS records in the appropriate accounts.
