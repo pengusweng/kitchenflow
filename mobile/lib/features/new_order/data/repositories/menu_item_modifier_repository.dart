@@ -5,9 +5,9 @@ import 'package:mobile/features/new_order/data/models/menu_models.dart';
 
 /// Loads the add-ons assigned to a menu item.
 ///
-/// `GET /menu-item-modifiers/menu-item/:id` returns only the assignment rows
-/// (`menu_item_modifier_id`, `modifier_id`, `additional_price`), so each row's
-/// display name is resolved with `GET /menu-item-modifiers/:id`.
+/// `GET /menu-item-modifiers/menu-item/:id` returns each assignment row with
+/// its `modifier` record nested, so one request gives both the price and the
+/// display name.
 class MenuItemModifierRepository {
   MenuItemModifierRepository(this._dio);
 
@@ -22,38 +22,32 @@ class MenuItemModifierRepository {
       throw const FormatException('Invalid menu-item-modifiers response.');
     }
 
-    return Future.wait(
-      rows.map((row) async {
-        if (row is! Map<String, dynamic>) {
-          throw const FormatException(
-            'Invalid menu item modifier in response.',
-          );
-        }
-        final id = row['menu_item_modifier_id'];
-        final modifierId = row['modifier_id'];
-        final price = row['additional_price'];
-        if (id is! String || price == null) {
-          throw const FormatException('Menu item modifier is missing fields.');
-        }
-        return ModifierGroup.addOn(
+    final groups = <ModifierGroup>[];
+    for (final row in rows) {
+      if (row is! Map<String, dynamic>) {
+        throw const FormatException('Invalid menu item modifier in response.');
+      }
+      final id = row['menu_item_modifier_id'];
+      final modifierId = row['modifier_id'];
+      final price = row['additional_price'];
+      final modifier = row['modifier'];
+      final name = modifier is Map<String, dynamic> ? modifier['name'] : null;
+      if (id is! String || price == null || name is! String) {
+        throw const FormatException('Menu item modifier is missing fields.');
+      }
+      // A retired modifier can't be ordered, so it isn't offered.
+      if (modifier is Map<String, dynamic> && modifier['is_active'] == false) {
+        continue;
+      }
+      groups.add(
+        ModifierGroup.addOn(
           id: modifierId is String ? modifierId : id,
-          name: await _nameOf(id),
+          name: name,
           priceCentavos: decimalToCentavos(price),
-        );
-      }),
-    );
-  }
-
-  Future<String> _nameOf(String menuItemModifierId) async {
-    final response = await _dio.get<Map<String, dynamic>>(
-      '/menu-item-modifiers/$menuItemModifierId',
-    );
-    final details = response.data?['modifierDetails'];
-    final name = details is Map<String, dynamic> ? details['name'] : null;
-    if (name is! String) {
-      throw const FormatException('Modifier details are missing a name.');
+        ),
+      );
     }
-    return name;
+    return groups;
   }
 }
 
