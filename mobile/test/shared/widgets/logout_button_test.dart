@@ -105,7 +105,7 @@ void main() {
   );
 
   testWidgets(
-    'WT-MOB-LOGOUT-002 LogoutButton adapts to compact sizing on phone screens',
+    'WT-MOB-LOGOUT-003 LogoutButton adapts to compact sizing on phone screens',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
