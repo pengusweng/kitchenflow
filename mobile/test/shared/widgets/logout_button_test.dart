@@ -103,4 +103,28 @@ void main() {
       expect(onLoggedOutCalled, isTrue);
     },
   );
+
+  testWidgets(
+    'WT-MOB-LOGOUT-002 LogoutButton adapts to compact sizing on phone screens',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: LogoutButton(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final iconButton = tester.widget<IconButton>(find.byType(IconButton));
+      expect(iconButton.constraints?.minWidth, 32.0);
+      expect(iconButton.constraints?.minHeight, 32.0);
+      expect(iconButton.padding, EdgeInsets.zero);
+      expect(iconButton.iconSize, 18.0);
+    },
+  );
 }

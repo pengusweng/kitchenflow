@@ -18,6 +18,8 @@ class LogoutButton extends ConsumerWidget {
     this.onLoggedOut,
     this.constraints,
     this.padding,
+    this.iconSize,
+    this.compact,
   });
 
   /// Icon color. Defaults to [ColorScheme.onInverseSurface] when null.
@@ -34,6 +36,14 @@ class LogoutButton extends ConsumerWidget {
 
   /// Optional padding for the [IconButton].
   final EdgeInsetsGeometry? padding;
+
+  /// Optional icon size for the [IconButton].
+  final double? iconSize;
+
+  /// Whether to render in a compact layout (e.g. on mobile/phone screens).
+  ///
+  /// Defaults to detecting automatically when screen width < 600px.
+  final bool? compact;
 
   /// Signs out the current session and clears all order, cart, and search state.
   static void signOut(WidgetRef ref) {
@@ -88,12 +98,29 @@ class LogoutButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final effectiveColor =
         color ?? Theme.of(context).colorScheme.onInverseSurface;
+    final isCompact = compact ?? (MediaQuery.sizeOf(context).width < 600);
+
+    final effectiveConstraints = constraints ??
+        (isCompact
+            ? const BoxConstraints(minWidth: 32.0, minHeight: 32.0)
+            : null);
+    final effectivePadding = padding ?? (isCompact ? EdgeInsets.zero : null);
+    final effectiveIconSize = iconSize ?? (isCompact ? 18.0 : null);
 
     return IconButton(
       tooltip: tooltip,
-      constraints: constraints,
-      padding: padding,
-      icon: Icon(Icons.logout, color: effectiveColor),
+      constraints: effectiveConstraints,
+      padding: effectivePadding,
+      iconSize: effectiveIconSize,
+      visualDensity: isCompact ? VisualDensity.compact : null,
+      style: isCompact
+          ? IconButton.styleFrom(
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: effectivePadding ?? EdgeInsets.zero,
+              minimumSize: const Size(32.0, 32.0),
+            )
+          : null,
+      icon: Icon(Icons.logout, color: effectiveColor, size: effectiveIconSize),
       onPressed: () => _handlePressed(context, ref),
     );
   }

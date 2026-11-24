@@ -29,7 +29,12 @@ enum KkfcWorkspace {
 ///
 /// Renders nothing for roles that cannot switch workspaces.
 class WorkspaceSwitcher extends ConsumerWidget {
-  const WorkspaceSwitcher({super.key});
+  const WorkspaceSwitcher({super.key, this.compact});
+
+  /// Whether to render in a compact layout (e.g. on mobile/phone screens).
+  ///
+  /// Defaults to detecting automatically when screen width < 600px.
+  final bool? compact;
 
   KkfcWorkspace _currentWorkspace(BuildContext context) {
     final router = GoRouter.maybeOf(context);
@@ -46,10 +51,11 @@ class WorkspaceSwitcher extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    final isCompact = compact ?? (MediaQuery.sizeOf(context).width < 600);
     final current = _currentWorkspace(context);
 
     return Padding(
-      padding: const EdgeInsets.only(right: KkfcSpace.s8),
+      padding: EdgeInsets.only(right: isCompact ? KkfcSpace.s4 : KkfcSpace.s8),
       child: PopupMenuButton<KkfcWorkspace>(
         key: const ValueKey('workspace-switcher'),
         tooltip: 'Switch screen',
@@ -104,7 +110,10 @@ class WorkspaceSwitcher extends ConsumerWidget {
             ),
         ],
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 6 : 12,
+            vertical: isCompact ? 3 : 7,
+          ),
           decoration: BoxDecoration(
             color: KkfcColors.shellRoleBg,
             borderRadius: BorderRadius.circular(KkfcRadius.pill),
@@ -113,21 +122,21 @@ class WorkspaceSwitcher extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(current.icon, size: 16, color: Colors.white),
-              const SizedBox(width: 6),
+              Icon(current.icon, size: isCompact ? 13 : 16, color: Colors.white),
+              SizedBox(width: isCompact ? 3 : 6),
               Text(
                 current.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: KkfcFonts.ibmPlexSans,
-                  fontSize: KkfcTextSizes.textMd,
+                  fontSize: isCompact ? KkfcTextSizes.textXs : KkfcTextSizes.textMd,
                   fontWeight: KkfcFontWeights.medium,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 4),
-              const Icon(
+              SizedBox(width: isCompact ? 2 : 4),
+              Icon(
                 Icons.keyboard_arrow_down_rounded,
-                size: 18,
+                size: isCompact ? 13 : 18,
                 color: Colors.white,
               ),
             ],
