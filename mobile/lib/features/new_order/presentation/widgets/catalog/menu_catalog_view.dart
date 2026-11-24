@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/features/app_updates/optional_update_notice.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
-import 'package:mobile/features/new_order/presentation/widgets/brands/brand_switch_confirm_dialog.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_pagination_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_search_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_view_mode_toggle.dart';
@@ -97,19 +96,6 @@ class MenuCatalogView extends ConsumerWidget {
                               return;
                             }
                             if (!context.mounted) return;
-
-                            final cartCount = ref.read(cartCountProvider);
-                            if (cartCount > 0) {
-                              final confirmed = await showBrandSwitchConfirm(
-                                context,
-                                current: activeBrand,
-                                target: result.brand,
-                                cartCount: cartCount,
-                              );
-                              if (confirmed != true) return;
-                              if (!context.mounted) return;
-                              ref.read(cartProvider.notifier).clear();
-                            }
 
                             ref
                                 .read(activeBrandProvider.notifier)

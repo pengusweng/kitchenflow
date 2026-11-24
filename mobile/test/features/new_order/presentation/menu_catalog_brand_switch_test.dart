@@ -91,7 +91,7 @@ void main() {
   );
 
   testWidgets(
-    'WT-MOB-BRAND-SWITCH-002 Switching brand with populated cart shows confirmation; cancelling preserves cart and brand',
+    'WT-MOB-BRAND-SWITCH-002 Switching brand with populated cart switches immediately and preserves cart items for multi-brand order',
     (tester) async {
       final container = await _pumpMenuScreen(tester, withCartItem: true);
 
@@ -110,50 +110,13 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('switch-menu-button')));
       await tester.pumpAndSettle();
 
-      // Confirmation dialog must appear
-      expect(find.text('Switch to King Kungs Cafe?'), findsOneWidget);
-      expect(find.text('Keep current order'), findsOneWidget);
-      expect(find.text('Clear cart & switch'), findsOneWidget);
-
-      // Tap Keep current order
-      await tester.tap(find.text('Keep current order'));
-      await tester.pumpAndSettle();
-
-      // Brand and cart remain intact
-      expect(container.read(activeBrandProvider).id, _brandGc.id);
+      // No confirmation dialog appears; brand switches and existing cart items are preserved
+      expect(find.text('Switch to King Kungs Cafe?'), findsNothing);
+      expect(find.text('Keep current order'), findsNothing);
+      expect(find.text('Clear cart & switch'), findsNothing);
+      expect(container.read(activeBrandProvider).id, _brandKk.id);
       expect(container.read(cartCountProvider), 1);
       expect(container.read(cartProvider).single.brandName, _brandGc.name);
-    },
-  );
-
-  testWidgets(
-    'WT-MOB-BRAND-SWITCH-003 Switching brand with populated cart shows confirmation; confirming clears cart and switches brand',
-    (tester) async {
-      final container = await _pumpMenuScreen(tester, withCartItem: true);
-
-      expect(container.read(activeBrandProvider).id, _brandGc.id);
-      expect(container.read(cartCountProvider), 1);
-
-      // Tap provider card
-      await tester.tap(find.byType(CurrentMenuCard));
-      await tester.pumpAndSettle();
-
-      // Select King Kungs Cafe
-      await tester.tap(find.text('King Kungs Cafe'));
-      await tester.pumpAndSettle();
-
-      // Tap Switch provider
-      await tester.tap(find.byKey(const ValueKey('switch-menu-button')));
-      await tester.pumpAndSettle();
-
-      // Tap Clear cart & switch
-      await tester.tap(find.text('Clear cart & switch'));
-      await tester.pumpAndSettle();
-
-      // Brand switched and cart cleared
-      expect(container.read(activeBrandProvider).id, _brandKk.id);
-      expect(container.read(cartCountProvider), 0);
-      expect(container.read(cartProvider), isEmpty);
     },
   );
 }
