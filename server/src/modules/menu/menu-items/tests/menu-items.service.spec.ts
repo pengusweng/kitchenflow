@@ -101,13 +101,13 @@ describe('MenuItemsService mutations', () => {
       const result = await run(method);
       expect(menu.findOneMenuItemByUID.mock.calls[0]).toEqual(
         method === 'reactivateMenuItem'
-          ? [item.menu_item_id, false]
-          : [item.menu_item_id],
+          ? [item.menu_item_id, false, undefined]
+          : [item.menu_item_id, true, undefined],
       );
       expect(menu[method].mock.calls[0]).toEqual(
         method === 'updateMenuItem'
-          ? [item.menu_item_id, dto]
-          : [item.menu_item_id],
+          ? [item.menu_item_id, dto, undefined]
+          : [item.menu_item_id, undefined],
       );
       expect(result).toEqual(
         method === 'updateMenuItem'
@@ -172,17 +172,28 @@ describe('MenuItemsService mutations', () => {
         };
 
         await expect(service.findAll(query)).resolves.toEqual(expected);
-        expect(menu.findAll).toHaveBeenCalledWith(0, 2, {
-          status,
-          search: 'rice',
-        });
+        expect(menu.findAll).toHaveBeenCalledWith(
+          0,
+          2,
+          {
+            status,
+            search: 'rice',
+          },
+          undefined,
+        );
         await expect(
           service.findAllByBrand(query, brand.brand_id),
         ).resolves.toEqual(expected);
-        expect(menu.findAllByBrand).toHaveBeenCalledWith(brand.brand_id, 0, 2, {
-          status,
-          search: 'rice',
-        });
+        expect(menu.findAllByBrand).toHaveBeenCalledWith(
+          brand.brand_id,
+          0,
+          2,
+          {
+            status,
+            search: 'rice',
+          },
+          undefined,
+        );
       },
     );
 
@@ -199,17 +210,28 @@ describe('MenuItemsService mutations', () => {
       };
 
       await service.findAll(query);
-      expect(menu.findAll).toHaveBeenCalledWith(0, 10, {
-        status: 'all',
-        search: undefined,
-        recipe_id: recipeId,
-      });
+      expect(menu.findAll).toHaveBeenCalledWith(
+        0,
+        10,
+        {
+          status: 'all',
+          search: undefined,
+          recipe_id: recipeId,
+        },
+        undefined,
+      );
       await service.findAllByBrand(query, brand.brand_id);
-      expect(menu.findAllByBrand).toHaveBeenCalledWith(brand.brand_id, 0, 10, {
-        status: 'all',
-        search: undefined,
-        recipe_id: recipeId,
-      });
+      expect(menu.findAllByBrand).toHaveBeenCalledWith(
+        brand.brand_id,
+        0,
+        10,
+        {
+          status: 'all',
+          search: undefined,
+          recipe_id: recipeId,
+        },
+        undefined,
+      );
     });
   });
 
@@ -243,9 +265,21 @@ describe('MenuItemsService mutations', () => {
         await expect(
           service.updateAvailability(id, availability),
         ).resolves.toEqual(updated);
-        expect(menu.findOneMenuItemByUID).toHaveBeenCalledWith(id, true);
-        expect(brands.findOneBrand).toHaveBeenCalledWith(item.brand_id);
-        expect(menu.updateAvailability).toHaveBeenCalledWith(id, availability);
+        expect(menu.findOneMenuItemByUID).toHaveBeenCalledWith(
+          id,
+          true,
+          undefined,
+        );
+        expect(brands.findOneBrand).toHaveBeenCalledWith(
+          item.brand_id,
+          true,
+          undefined,
+        );
+        expect(menu.updateAvailability).toHaveBeenCalledWith(
+          id,
+          availability,
+          undefined,
+        );
       },
     );
 

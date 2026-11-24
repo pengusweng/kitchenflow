@@ -84,6 +84,7 @@ describe('MenuChannelsService listing and mutations', () => {
         10,
         activeOnly,
         OrderChannel.GRABFOOD,
+        undefined,
       );
     },
   );
@@ -96,7 +97,13 @@ describe('MenuChannelsService listing and mutations', () => {
       data: [],
       meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
     });
-    expect(repository.findAll).toHaveBeenCalledWith(0, 10, true, undefined);
+    expect(repository.findAll).toHaveBeenCalledWith(
+      0,
+      10,
+      true,
+      undefined,
+      undefined,
+    );
   });
 
   it('UT-MCH-010: rejects pagination overflow before querying', async () => {
@@ -114,15 +121,19 @@ describe('MenuChannelsService listing and mutations', () => {
       ...channel,
       price: new Prisma.Decimal(120),
     });
-    expect(repository.findOne).toHaveBeenCalledWith(channelId);
-    expect(repository.update).toHaveBeenCalledWith(channelId, dto);
+    expect(repository.findOne).toHaveBeenCalledWith(channelId, true, undefined);
+    expect(repository.update).toHaveBeenCalledWith(channelId, dto, undefined);
   });
 
   it('UT-MCH-012: reactivates an unavailable channel', async () => {
     repository.findOne.mockResolvedValue({ ...channel, is_available: false });
     await expect(service.reactivate(channelId)).resolves.toEqual(channel);
-    expect(repository.findOne).toHaveBeenCalledWith(channelId, false);
-    expect(repository.reactivate).toHaveBeenCalledWith(channelId);
+    expect(repository.findOne).toHaveBeenCalledWith(
+      channelId,
+      false,
+      undefined,
+    );
+    expect(repository.reactivate).toHaveBeenCalledWith(channelId, undefined);
   });
 
   it('UT-MCH-013: rejects reactivating an already available channel', async () => {
@@ -138,8 +149,8 @@ describe('MenuChannelsService listing and mutations', () => {
       ...channel,
       is_available: false,
     });
-    expect(repository.findOne).toHaveBeenCalledWith(channelId);
-    expect(repository.delete).toHaveBeenCalledWith(channelId);
+    expect(repository.findOne).toHaveBeenCalledWith(channelId, true, undefined);
+    expect(repository.delete).toHaveBeenCalledWith(channelId, undefined);
   });
 
   const mutations = [
@@ -213,8 +224,12 @@ describe('Menu channel creation and lookup (UT-MCH)', () => {
     async (order_channel) => {
       const dto = { menu_item_id: itemId, order_channel, price: 120 };
       await expect(service.create(dto)).resolves.toEqual(channel);
-      expect(menu.findOneMenuItemByUID).toHaveBeenCalledWith(itemId);
-      expect(repository.create).toHaveBeenCalledWith(dto);
+      expect(menu.findOneMenuItemByUID).toHaveBeenCalledWith(
+        itemId,
+        true,
+        undefined,
+      );
+      expect(repository.create).toHaveBeenCalledWith(dto, undefined);
     },
   );
 
@@ -250,7 +265,11 @@ describe('Menu channel creation and lookup (UT-MCH)', () => {
       await expect(service.findOne(channelId, activeOnly)).resolves.toEqual(
         channel,
       );
-      expect(repository.findOne).toHaveBeenCalledWith(channelId, activeOnly);
+      expect(repository.findOne).toHaveBeenCalledWith(
+        channelId,
+        activeOnly,
+        undefined,
+      );
       repository.findOne.mockResolvedValue(null);
       await expect(
         service.findOne(channelId, activeOnly),
@@ -271,6 +290,7 @@ describe('Menu channel creation and lookup (UT-MCH)', () => {
         itemId,
         activeOnly,
         OrderChannel.FOODPANDA,
+        undefined,
       );
     },
   );

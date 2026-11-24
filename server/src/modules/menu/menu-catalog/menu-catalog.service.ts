@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { assertExists } from '../../../shared/assertions/assert-exists';
 import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
 import { StorageService } from '../../../shared/storage/storage.service';
@@ -19,27 +20,34 @@ export class MenuCatalogService {
     private readonly storage: StorageService,
   ) {}
 
-  async create(dto: MenuCatalogSetupDTO) {
+  async create(dto: MenuCatalogSetupDTO, tx?: Prisma.TransactionClient) {
     this.logger.debug(`Creating menu catalog entry for ${dto.menu_item.name}`);
 
     for (const { modifier_id } of dto.menu_item_modifier) {
-      const modifier =
-        await this.modifiersRepository.findOneModifierByUID(modifier_id);
+      const modifier = await this.modifiersRepository.findOneModifierByUID(
+        modifier_id,
+        true,
+        tx,
+      );
       assertExists(modifier, 'Modifier', modifier_id, this.logger);
     }
 
-    const menuItem = await this.menuCatalogRepository.create(dto);
+    const menuItem = await this.menuCatalogRepository.create(dto, tx);
 
     this.logger.log(`Created menu catalog entry ${menuItem.menu_item_id}`);
     return this.withImageUrl(menuItem);
   }
 
-  async findAll(brandId: string, { page, limit, search }: MenuItemSearchDTO) {
+  async findAll(
+    brandId: string,
+    { page, limit, search }: MenuItemSearchDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
     this.logger.debug(
       `Listing menu catalog: brand=${brandId}, page=${page}, limit=${limit}, search=${search ? 'yes' : 'no'}`,
     );
 
-    const brand = await this.brandsRepository.findOneBrand(brandId);
+    const brand = await this.brandsRepository.findOneBrand(brandId, true, tx);
     assertExists(brand, 'Brand', brandId, this.logger);
 
     const skip = (page - 1) * limit;
@@ -50,6 +58,7 @@ export class MenuCatalogService {
       skip,
       limit,
       search,
+      tx,
     );
 
     this.logger.log(

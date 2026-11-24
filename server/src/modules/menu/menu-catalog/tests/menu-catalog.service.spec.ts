@@ -92,16 +92,20 @@ describe('MenuCatalogService operations', () => {
       expect(modifiers.findOneModifierByUID).toHaveBeenNthCalledWith(
         1,
         'modifier-id',
+        true,
+        undefined,
       );
       expect(modifiers.findOneModifierByUID).toHaveBeenNthCalledWith(
         2,
         'second-modifier-id',
+        true,
+        undefined,
       );
       return Promise.resolve(menuItem);
     });
 
     await expect(service.create(dto)).resolves.toEqual(menuItem);
-    expect(repository.create).toHaveBeenCalledWith(dto);
+    expect(repository.create).toHaveBeenCalledWith(dto, undefined);
     expect(repository.create).toHaveBeenCalledTimes(1);
   });
 
@@ -121,7 +125,7 @@ describe('MenuCatalogService operations', () => {
     const withoutModifiers = { ...dto, menu_item_modifier: [] };
     await expect(service.create(withoutModifiers)).resolves.toEqual(menuItem);
     expect(modifiers.findOneModifierByUID).not.toHaveBeenCalled();
-    expect(repository.create).toHaveBeenCalledWith(withoutModifiers);
+    expect(repository.create).toHaveBeenCalledWith(withoutModifiers, undefined);
   });
 
   it('UT-MCAT-005: preserves creation errors for the application exception filters', async () => {
@@ -144,11 +148,16 @@ describe('MenuCatalogService operations', () => {
       data: [menuItem],
       meta: { page: 2, limit: 10, total: 21, totalPages: 3 },
     });
-    expect(brands.findOneBrand).toHaveBeenCalledWith('brand-id');
+    expect(brands.findOneBrand).toHaveBeenCalledWith(
+      'brand-id',
+      true,
+      undefined,
+    );
     expect(repository.findMany).toHaveBeenCalledWith(
       'brand-id',
       10,
       10,
+      undefined,
       undefined,
     );
   });
@@ -176,6 +185,7 @@ describe('MenuCatalogService operations', () => {
       'brand-id',
       0,
       10,
+      undefined,
       undefined,
     );
   });
@@ -205,7 +215,13 @@ describe('MenuCatalogService operations', () => {
 
   it('UT-MCAT-015: forwards the search to the catalog query', async () => {
     await service.findAll('brand-id', { page: 1, limit: 10, search: 'rice' });
-    expect(repository.findMany).toHaveBeenCalledWith('brand-id', 0, 10, 'rice');
+    expect(repository.findMany).toHaveBeenCalledWith(
+      'brand-id',
+      0,
+      10,
+      'rice',
+      undefined,
+    );
   });
 
   it('UT-MCAT-011: preserves catalog lookup errors', async () => {
