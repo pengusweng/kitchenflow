@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/app/theme/brand_colors.dart';
+import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/core/models/brand_models.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
@@ -102,8 +103,8 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                   width: 38.0,
                   height: 4.0,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2.0),
+                    color: KkfcColors.border,
+                    borderRadius: BorderRadius.circular(KkfcRadius.sm),
                   ),
                 ),
               ),
@@ -120,10 +121,10 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                         vertical: 4.0,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(100.0),
+                        color: KkfcColors.neutralBg,
+                        borderRadius: BorderRadius.circular(KkfcRadius.pill),
                         border: Border.all(
-                          color: const Color(0xFFCBD5E1),
+                          color: KkfcColors.border,
                           width: 1.0,
                         ),
                       ),
@@ -133,7 +134,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                           const Icon(
                             Icons.storefront_outlined,
                             size: 13.0,
-                            color: Color(0xFF475569),
+                            color: KkfcColors.ink2,
                           ),
                           const SizedBox(width: 5.0),
                           Flexible(
@@ -146,7 +147,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                 fontSize: 11.0,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,
-                                color: Color(0xFF475569),
+                                color: KkfcColors.ink2,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -161,7 +162,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                         fontFamily: KkfcFonts.ibmPlexSans,
                         fontSize: 20.0,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF19293E),
+                        color: KkfcColors.ink,
                       ),
                     ),
                     const SizedBox(height: 4.0),
@@ -172,7 +173,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                       style: const TextStyle(
                         fontFamily: KkfcFonts.ibmPlexSans,
                         fontSize: 13.5,
-                        color: Color(0xFF586579),
+                        color: KkfcColors.ink3,
                       ),
                     ),
                   ],
@@ -217,9 +218,10 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                             ));
                           },
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2B4A77),
+                            backgroundColor: KkfcColors.shell,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10.0),
+                              borderRadius:
+                                  BorderRadius.circular(KkfcRadius.md),
                             ),
                           ),
                           child: Text(
@@ -250,11 +252,12 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                           style: OutlinedButton.styleFrom(
                             backgroundColor: Colors.white,
                             side: const BorderSide(
-                              color: Color(0xFFDDD6C9),
+                              color: KkfcColors.border,
                               width: 1.0,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10.0),
+                              borderRadius:
+                                  BorderRadius.circular(KkfcRadius.md),
                             ),
                           ),
                           child: const Text(
@@ -263,7 +266,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                               fontFamily: KkfcFonts.ibmPlexSans,
                               fontSize: 15.0,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF19293E),
+                              color: KkfcColors.ink,
                             ),
                           ),
                         ),
@@ -311,7 +314,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
             border: Border.all(
               color: selected
                   ? const Color(0xFF2563EB)
-                  : const Color(0xFFE2E8F0),
+                  : KkfcColors.border,
               width: selected ? 2.0 : 1.0,
             ),
             boxShadow: selected
@@ -416,8 +419,8 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                             color: selected
                                                 ? Colors.white
                                                 : (isAuthorized
-                                                    ? const Color(0xFF0F172A)
-                                                    : const Color(0xFF94A3B8)),
+                                                    ? KkfcColors.ink
+                                                    : KkfcColors.borderStrong),
                                           ),
                                         ),
                                       ),
@@ -455,7 +458,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                                 ? Colors.white
                                                 : (isAuthorized
                                                     ? brandColor
-                                                    : const Color(0xFF94A3B8)),
+                                                    : KkfcColors.borderStrong),
                                           ),
                                         ),
                                       ),
@@ -493,7 +496,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                                   : FontWeight.w400,
                                               color: selected
                                                   ? const Color(0xFF93C5FD)
-                                                  : const Color(0xFF64748B),
+                                                  : KkfcColors.ink3,
                                             ),
                                           ),
                                         ),
@@ -506,7 +509,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                         Icon(
                                           Icons.lock_outline,
                                           size: 13.0,
-                                          color: Color(0xFF94A3B8),
+                                          color: KkfcColors.borderStrong,
                                         ),
                                         SizedBox(width: 4.0),
                                         Flexible(
@@ -517,7 +520,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                             style: TextStyle(
                                               fontFamily: KkfcFonts.ibmPlexSans,
                                               fontSize: 12.0,
-                                              color: Color(0xFF94A3B8),
+                                              color: KkfcColors.borderStrong,
                                             ),
                                           ),
                                         ),
@@ -563,7 +566,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                             if (!isAuthorized)
                               const Icon(
                                 Icons.lock_outline,
-                                color: Color(0xFF94A3B8),
+                                color: KkfcColors.borderStrong,
                                 size: 22.0,
                               )
                             else if (selected)
@@ -587,7 +590,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: const Color(0xFF94A3B8),
+                                    color: KkfcColors.borderStrong,
                                     width: 1.5,
                                   ),
                                 ),
@@ -623,12 +626,12 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
       margin: const EdgeInsets.only(bottom: 12.0),
       padding: const EdgeInsets.fromLTRB(14.0, 12.0, 14.0, 10.0),
       decoration: BoxDecoration(
-        color: isBrandActive ? brandTint : const Color(0xFFF8FAFC),
+        color: isBrandActive ? brandTint : KkfcColors.surfaceSubtle,
         borderRadius: BorderRadius.circular(12.0),
         border: Border.all(
           color: isBrandActive
               ? brandColor.withValues(alpha: 0.6)
-              : const Color(0xFFE2E8F0),
+              : KkfcColors.border,
           width: isBrandActive ? 1.5 : 1.0,
         ),
         boxShadow: isBrandActive
@@ -651,7 +654,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                 width: 3.5,
                 height: 24.0,
                 decoration: BoxDecoration(
-                  color: isAuthorized ? brandColor : const Color(0xFFCBD5E1),
+                  color: isAuthorized ? brandColor : KkfcColors.border,
                   borderRadius: BorderRadius.circular(2.0),
                 ),
               ),
@@ -664,7 +667,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(6.0),
                   border: Border.all(
-                    color: const Color(0xFFE2E8F0),
+                    color: KkfcColors.border,
                     width: 1.0,
                   ),
                 ),
@@ -695,7 +698,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                     fontFamily: KkfcFonts.ibmPlexSans,
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF19293E),
+                    color: KkfcColors.ink,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -745,7 +748,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                   Icon(
                     Icons.lock_outline,
                     size: 16.0,
-                    color: Color(0xFF64748B),
+                    color: KkfcColors.ink3,
                   ),
                   SizedBox(width: 8.0),
                   Expanded(
@@ -755,7 +758,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                         fontFamily: KkfcFonts.ibmPlexSans,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF64748B),
+                        color: KkfcColors.ink3,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -798,7 +801,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? brandColor : const Color(0xFF94A3B8),
+                    color: isSelected ? brandColor : KkfcColors.borderStrong,
                     width: isSelected ? 2.0 : 1.5,
                   ),
                   color: isSelected ? brandColor : Colors.transparent,
@@ -828,8 +831,8 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                     fontSize: 14.0,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     color: isSelected
-                        ? const Color(0xFF19293E)
-                        : const Color(0xFF475569),
+                        ? KkfcColors.ink
+                        : KkfcColors.ink2,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
