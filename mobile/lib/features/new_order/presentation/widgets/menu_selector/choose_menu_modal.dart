@@ -57,7 +57,6 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final isTablet = mediaQuery.size.width >= 600.0;
     final maxHeight = mediaQuery.size.height * 0.88;
     final selectedBrandColor = KkfcBrand.colorFor(
       _selectedBrand.code,
@@ -68,25 +67,11 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
       _selectedBrand.name,
     );
 
-    final modalBody = Container(
-      constraints: BoxConstraints(
-        maxHeight: maxHeight,
-        maxWidth: isTablet ? 560.0 : double.infinity,
-      ),
-      decoration: BoxDecoration(
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: isTablet
-            ? BorderRadius.circular(20.0)
-            : const BorderRadius.vertical(top: Radius.circular(20.0)),
-        boxShadow: isTablet
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  blurRadius: 28.0,
-                  offset: const Offset(0, 10),
-                ),
-              ]
-            : null,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
       ),
       child: SafeArea(
         top: false,
@@ -239,20 +224,8 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
         ),
       ),
     );
-
-    return Align(
-      alignment: isTablet ? Alignment.center : Alignment.bottomCenter,
-      child: Padding(
-        padding: isTablet
-            ? const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0)
-            : EdgeInsets.zero,
-        child: Material(
-          color: Colors.transparent,
-          child: modalBody,
-        ),
-      ),
-    );
   }
+
   Widget _buildBrandCard(AssignedBrand brand) {
     final brandColor = KkfcBrand.colorFor(brand.code, brand.name);
     final brandTint = KkfcBrand.tintFor(brand.code, brand.name);
