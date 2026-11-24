@@ -1,5 +1,9 @@
 # Render Free demo deployment
 
+For ongoing staging deployments using `Dockerfile.render`, follow
+[STAGING.md](STAGING.md). The Node-runtime instructions below describe the
+original demo bootstrap, not the current staging configuration.
+
 Demo: **12 November 2026 (Asia/Singapore)**. This guide uses the existing NestJS API in `server/`, Render Free PostgreSQL, and the Android and web clients already in this repository.
 
 **Read the status labels carefully: DONE means prepared in this repository. TODO means you still need to perform or verify the step. No Render deployment or remote database changes have been performed by the code preparation.**

@@ -1,6 +1,6 @@
 # Android builds and optional updates
 
-The **Android APK** workflow runs on pushes to `development` and `main` that
+The **Android APK** workflow runs on pushes to `development`, `staging`, and `main` that
 change `mobile/**` (excluding Markdown documentation), the Android APK workflow,
 or its signing/publishing scripts. Backend-only, web-only and documentation-only
 pushes do not generate new APKs or update notices.
@@ -9,10 +9,12 @@ It can also be started from GitHub Actions with **Run workflow**, regardless of
 which files changed. Use this after changing build variables or signing secrets
 when a rebuild is needed. It tests the mobile app, builds a signed universal APK,
 and saves it as an Actions artifact.
-No local backend is needed. Builds use the hosted API at
-`https://kkfc-demo-api.onrender.com/api` by default.
+No local backend is needed. All branches use the same `ANDROID_API_URL`, defaulting
+to `https://kkfc-demo-api.onrender.com/api`. The URL must use HTTPS and include
+`/api`. The API version available at that URL is determined by the branch deployed
+on Render, independently of the branch used to build the APK.
 
-For now, **development publishes in-app updates**. Set the repository Actions
+For now, **staging publishes in-app updates**. Set the repository Actions
 variable `ANDROID_UPDATE_BRANCH` to `main` when production is ready. The next
 successful qualifying build on that branch publishes the update. Other branches only
 produce manually downloadable APKs, with automatic update checking disabled.
@@ -54,12 +56,18 @@ Optional **repository variables**:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `ANDROID_UPDATE_BRANCH` | `development` | Branch whose APK becomes the optional update; change to `main` for production |
-| `ANDROID_API_URL` | `https://kkfc-demo-api.onrender.com/api` | Hosted HTTPS API URL, including `/api` |
+| `ANDROID_UPDATE_BRANCH` | `staging` | Branch whose APK becomes the optional update; remove any existing `development` override or set it to `staging` |
+| `ANDROID_API_URL` | `https://kkfc-demo-api.onrender.com/api` | Shared hosted HTTPS API URL for all branches, including `/api` |
+
+The app currently reads one shared GitHub Releases update feed. Staging updates
+are published as the latest release for testers. Before production rollout, set
+`ANDROID_UPDATE_BRANCH=main`; existing staging installations with updates enabled
+will also see that feed. Separate simultaneous production and staging update
+feeds require additional app and release-channel work.
 
 ## Download and install
 
-1. Push to `development`, or manually run **Actions → Android APK** on that branch.
+1. Merge into `staging`, or manually run **Actions → Android APK** on that branch.
 2. Wait for **Test and build signed APK** and **Publish optional app update**.
 3. Open the repository's **Releases** page and download **kkfc-pos.apk** on Android.
 4. Open the downloaded file and approve Android's install/update prompt. Android
