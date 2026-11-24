@@ -9,10 +9,6 @@ import {
 } from 'class-validator';
 
 export class CreateMenuItemModifierDTO {
-  @IsUUID('all', { message: 'Menu item ID must be a valid UUID.' })
-  @ApiProperty({ format: 'uuid' })
-  menu_item_id!: string;
-
   @IsUUID('all', { message: 'Modifier ID must be a valid UUID.' })
   @ApiProperty({ format: 'uuid' })
   modifier_id!: string;

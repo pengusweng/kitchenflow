@@ -73,7 +73,7 @@ describe('ModifiersService operations', () => {
   it('UT-MOD-002: creates a modifier', async () => {
     const dto = { code: 'EXTRA', name: 'Extra' };
     await expect(service.create(dto)).resolves.toEqual(modifier);
-    expect(repository.createModifier).toHaveBeenCalledWith(dto);
+    expect(repository.createModifier).toHaveBeenCalledWith(dto, undefined);
   });
 
   it.each([
@@ -114,13 +114,17 @@ describe('ModifiersService operations', () => {
         ...modifier,
         menu_item_modifiers_modifier: uses,
       });
-      expect(repository[method]).toHaveBeenCalledWith(value, activeOnly);
+      expect(repository[method]).toHaveBeenCalledWith(
+        value,
+        activeOnly,
+        undefined,
+      );
       expect(
         repository.findOneModifierByUID.mock.calls.length +
           repository.findOneModifierByCode.mock.calls.length,
       ).toBe(1);
       // Uses are looked up by the found modifier's id, even when found by code.
-      expect(repository.findUses).toHaveBeenCalledWith(modifierId);
+      expect(repository.findUses).toHaveBeenCalledWith(modifierId, undefined);
     },
   );
 
@@ -149,13 +153,18 @@ describe('ModifiersService operations', () => {
         data: [modifier],
         meta: { page: 2, limit: 10, total, totalPages, counts },
       });
-      expect(repository.findAll).toHaveBeenCalledWith(10, 10, {
-        status,
-        search: undefined,
-        brand_id: undefined,
-        sortBy: undefined,
-        sortOrder: undefined,
-      });
+      expect(repository.findAll).toHaveBeenCalledWith(
+        10,
+        10,
+        {
+          status,
+          search: undefined,
+          brand_id: undefined,
+          sortBy: undefined,
+          sortOrder: undefined,
+        },
+        undefined,
+      );
     },
   );
 
@@ -166,13 +175,18 @@ describe('ModifiersService operations', () => {
       data: [],
       meta: { page: 1, limit: 10, total: 0, totalPages: 0, counts: none },
     });
-    expect(repository.findAll).toHaveBeenCalledWith(0, 10, {
-      status: 'active',
-      search: undefined,
-      brand_id: undefined,
-      sortBy: undefined,
-      sortOrder: undefined,
-    });
+    expect(repository.findAll).toHaveBeenCalledWith(
+      0,
+      10,
+      {
+        status: 'active',
+        search: undefined,
+        brand_id: undefined,
+        sortBy: undefined,
+        sortOrder: undefined,
+      },
+      undefined,
+    );
   });
 
   it('UT-MOD-027: forwards the search, brand and sort to the repository', async () => {
@@ -184,7 +198,7 @@ describe('ModifiersService operations', () => {
       sortOrder: 'desc',
     } as const;
     await service.findAll({ page: 1, limit: 20, ...filters });
-    expect(repository.findAll).toHaveBeenCalledWith(0, 20, filters);
+    expect(repository.findAll).toHaveBeenCalledWith(0, 20, filters, undefined);
   });
 
   it('UT-MOD-011: rejects pagination overflow before querying', async () => {
@@ -203,8 +217,16 @@ describe('ModifiersService operations', () => {
       ...modifier,
       name: 'Updated',
     });
-    expect(repository.findOneModifierByUID).toHaveBeenCalledWith(modifierId);
-    expect(repository.updateModifier).toHaveBeenCalledWith(modifierId, dto);
+    expect(repository.findOneModifierByUID).toHaveBeenCalledWith(
+      modifierId,
+      true,
+      undefined,
+    );
+    expect(repository.updateModifier).toHaveBeenCalledWith(
+      modifierId,
+      dto,
+      undefined,
+    );
   });
 
   it('UT-MOD-015: reactivates an inactive modifier', async () => {
@@ -216,8 +238,12 @@ describe('ModifiersService operations', () => {
     expect(repository.findOneModifierByUID).toHaveBeenCalledWith(
       modifierId,
       false,
+      undefined,
     );
-    expect(repository.reactivateModifier).toHaveBeenCalledWith(modifierId);
+    expect(repository.reactivateModifier).toHaveBeenCalledWith(
+      modifierId,
+      undefined,
+    );
   });
 
   it('UT-MOD-016: rejects reactivating an already-active modifier', async () => {
@@ -233,8 +259,15 @@ describe('ModifiersService operations', () => {
       ...modifier,
       is_active: false,
     });
-    expect(repository.findOneModifierByUID).toHaveBeenCalledWith(modifierId);
-    expect(repository.deleteModifier).toHaveBeenCalledWith(modifierId);
+    expect(repository.findOneModifierByUID).toHaveBeenCalledWith(
+      modifierId,
+      true,
+      undefined,
+    );
+    expect(repository.deleteModifier).toHaveBeenCalledWith(
+      modifierId,
+      undefined,
+    );
   });
 
   const mutations = [

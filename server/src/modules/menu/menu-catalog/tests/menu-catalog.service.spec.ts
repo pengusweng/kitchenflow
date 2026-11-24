@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { Prisma } from '@prisma/client';
 import { AppModule } from '../../../../app.module';
 import { PaginationDTO } from '../../../../shared/dto/pagination.dto';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
@@ -381,4 +382,40 @@ describe('MenuCatalogService transactional creation', () => {
       });
     },
   );
+
+  it('UT-MCAT-016: joins a caller transaction instead of opening its own', async () => {
+    const menuItem = { ...dto.menu_item, menu_item_id: 'menu-id' };
+    const tx = {
+      menuItem: {
+        create: jest.fn().mockResolvedValue(menuItem),
+        findMany: jest.fn().mockResolvedValue([menuItem]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      menuItemChannel: {
+        create: jest.fn().mockResolvedValue({}),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      menuItemModifier: {
+        create: jest.fn().mockResolvedValue({}),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const runTransaction = jest.fn();
+    const prisma = { $transaction: runTransaction } as unknown as PrismaService;
+    const repository = new MenuCatalogRepository(
+      prisma,
+      new MenuItemsRepository(prisma),
+      new MenuChannelsRepository(prisma),
+      {} as ModifiersRepository,
+      new MenuItemModifiersRepository(prisma),
+    );
+    const client = tx as unknown as Prisma.TransactionClient;
+
+    await repository.create(dto, client);
+    await repository.findMany('brand-id', 0, 10, undefined, client);
+
+    expect(runTransaction).not.toHaveBeenCalled();
+    expect(tx.menuItem.create).toHaveBeenCalledTimes(1);
+    expect(tx.menuItem.findMany).toHaveBeenCalledTimes(1);
+  });
 });

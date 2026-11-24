@@ -8,11 +8,19 @@ import { UpdateMenuItemModifierDTO } from './dto/update-menu-item-modifier.dto';
 export class MenuItemModifiersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    dto: CreateMenuItemModifierDTO,
+  async createMany(
+    menuItemId: string,
+    modifiers: CreateMenuItemModifierDTO[],
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
-    return tx.menuItemModifier.create({ data: dto });
+    return tx.menuItemModifier.createManyAndReturn({
+      data: modifiers.map((modifier) => ({
+        menu_item_id: menuItemId,
+        modifier_id: modifier.modifier_id,
+        additional_price: modifier.additional_price,
+        is_available: modifier.is_available,
+      })),
+    });
   }
 
   async findOne(
@@ -25,6 +33,20 @@ export class MenuItemModifiersRepository {
         menu_item_modifier_id: menuItemModifierId,
         is_available: activeOnly ? true : undefined,
       },
+    });
+  }
+
+  async findOneWithModifier(
+    menuItemModifierId: string,
+    activeOnly = true,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    return tx.menuItemModifier.findUnique({
+      where: {
+        menu_item_modifier_id: menuItemModifierId,
+        is_available: activeOnly ? true : undefined,
+      },
+      include: { modifier: true },
     });
   }
 
@@ -45,7 +67,6 @@ export class MenuItemModifiersRepository {
     });
     const totalQuery = tx.menuItemModifier.count({ where });
 
-    // Prisma transaction clients can expose $transaction too.
     const [menuItemModifiers, total] =
       tx === this.prisma
         ? await this.prisma.$transaction([itemsQuery, totalQuery], {
@@ -88,29 +109,14 @@ export class MenuItemModifiersRepository {
     });
   }
 
-  async reactivate(
-    menuItemModifierId: string,
-    tx: Prisma.TransactionClient | PrismaService = this.prisma,
-  ) {
-    return tx.menuItemModifier.update({
-      where: {
-        menu_item_modifier_id: menuItemModifierId,
-        is_available: false,
-      },
-      data: { is_available: true, modified_at: new Date() },
-    });
-  }
-
   async delete(
     menuItemModifierId: string,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
-    return tx.menuItemModifier.update({
+    return tx.menuItemModifier.delete({
       where: {
         menu_item_modifier_id: menuItemModifierId,
-        is_available: true,
       },
-      data: { is_available: false, modified_at: new Date() },
     });
   }
 }

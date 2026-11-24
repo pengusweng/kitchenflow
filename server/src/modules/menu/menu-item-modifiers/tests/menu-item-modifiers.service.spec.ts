@@ -102,9 +102,17 @@ describe('MenuItemModifiersService operations', () => {
 
   it('UT-MIM-002: creates an assignment after checking the active menu item and modifier', async () => {
     await expect(service.create(create)).resolves.toEqual(assignment);
-    expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith('menu-id');
-    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith('modifier-id');
-    expect(repository.create).toHaveBeenCalledWith(create);
+    expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith(
+      'menu-id',
+      true,
+      undefined,
+    );
+    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith(
+      'modifier-id',
+      true,
+      undefined,
+    );
+    expect(repository.create).toHaveBeenCalledWith(create, undefined);
   });
 
   it('UT-MIM-003: rejects creation when the menu item is missing or inactive', async () => {
@@ -147,10 +155,12 @@ describe('MenuItemModifiersService operations', () => {
       expect(repository.findOne).toHaveBeenCalledWith(
         'assignment-id',
         activeOnly ?? true,
+        undefined,
       );
       expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith(
         'modifier-id',
         activeOnly ?? true,
+        undefined,
       );
     },
   );
@@ -172,7 +182,12 @@ describe('MenuItemModifiersService operations', () => {
         data: [assignment],
         meta: { page: 2, limit: 10, total: 21, totalPages: 3 },
       });
-      expect(repository.findAll).toHaveBeenCalledWith(10, 10, activeOnly);
+      expect(repository.findAll).toHaveBeenCalledWith(
+        10,
+        10,
+        activeOnly,
+        undefined,
+      );
     },
   );
 
@@ -184,7 +199,7 @@ describe('MenuItemModifiersService operations', () => {
       data: [],
       meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
     });
-    expect(repository.findAll).toHaveBeenCalledWith(0, 10, true);
+    expect(repository.findAll).toHaveBeenCalledWith(0, 10, true, undefined);
   });
 
   it('UT-MIM-010: rejects pagination overflow before querying', async () => {
@@ -203,10 +218,15 @@ describe('MenuItemModifiersService operations', () => {
       await expect(
         service.findManyForMenuItem('menu-id', activeOnly),
       ).resolves.toEqual([assignment]);
-      expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith('menu-id');
+      expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith(
+        'menu-id',
+        true,
+        undefined,
+      );
       expect(repository.findManyForMenuItem).toHaveBeenCalledWith(
         'menu-id',
         activeOnly ?? true,
+        undefined,
       );
     },
   );
@@ -229,12 +249,28 @@ describe('MenuItemModifiersService operations', () => {
     await expect(
       service.update('assignment-id', { additional_price: 25 }),
     ).resolves.toEqual({ ...assignment, additional_price: 25 });
-    expect(repository.findOne).toHaveBeenCalledWith('assignment-id');
-    expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith('menu-id');
-    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith('modifier-id');
-    expect(repository.update).toHaveBeenCalledWith('assignment-id', {
-      additional_price: 25,
-    });
+    expect(repository.findOne).toHaveBeenCalledWith(
+      'assignment-id',
+      true,
+      undefined,
+    );
+    expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith(
+      'menu-id',
+      true,
+      undefined,
+    );
+    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith(
+      'modifier-id',
+      true,
+      undefined,
+    );
+    expect(repository.update).toHaveBeenCalledWith(
+      'assignment-id',
+      {
+        additional_price: 25,
+      },
+      undefined,
+    );
   });
 
   it('UT-MIM-015: validates a replacement modifier instead of the previous modifier', async () => {
@@ -242,9 +278,15 @@ describe('MenuItemModifiersService operations', () => {
     await service.update('assignment-id', dto);
     expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith(
       'replacement-id',
+      true,
+      undefined,
     );
     expect(modifiers.findOneModifierByUID).toHaveBeenCalledTimes(1);
-    expect(repository.update).toHaveBeenCalledWith('assignment-id', dto);
+    expect(repository.update).toHaveBeenCalledWith(
+      'assignment-id',
+      dto,
+      undefined,
+    );
   });
 
   it('UT-MIM-016: reactivates an unavailable assignment after checking its active references', async () => {
@@ -255,10 +297,25 @@ describe('MenuItemModifiersService operations', () => {
     await expect(service.reactivate('assignment-id')).resolves.toEqual(
       assignment,
     );
-    expect(repository.findOne).toHaveBeenCalledWith('assignment-id', false);
-    expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith('menu-id');
-    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith('modifier-id');
-    expect(repository.reactivate).toHaveBeenCalledWith('assignment-id');
+    expect(repository.findOne).toHaveBeenCalledWith(
+      'assignment-id',
+      false,
+      undefined,
+    );
+    expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith(
+      'menu-id',
+      true,
+      undefined,
+    );
+    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith(
+      'modifier-id',
+      true,
+      undefined,
+    );
+    expect(repository.reactivate).toHaveBeenCalledWith(
+      'assignment-id',
+      undefined,
+    );
   });
 
   it('UT-MIM-017: rejects reactivation of an already-available assignment before checking references', async () => {
@@ -278,7 +335,7 @@ describe('MenuItemModifiersService operations', () => {
       ...assignment,
       is_available: false,
     });
-    expect(repository.delete).toHaveBeenCalledWith('assignment-id');
+    expect(repository.delete).toHaveBeenCalledWith('assignment-id', undefined);
     expect(menuItems.findOneMenuItemByUID).not.toHaveBeenCalled();
     expect(modifiers.findOneModifierByUID).not.toHaveBeenCalled();
   });
