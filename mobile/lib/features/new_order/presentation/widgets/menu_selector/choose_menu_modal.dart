@@ -58,14 +58,6 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final maxHeight = mediaQuery.size.height * 0.88;
-    final selectedBrandColor = KkfcBrand.colorFor(
-      _selectedBrand.code,
-      _selectedBrand.name,
-    );
-    final selectedBrandTint = KkfcBrand.tintFor(
-      _selectedBrand.code,
-      _selectedBrand.name,
-    );
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
@@ -327,7 +319,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                           }
                         : null,
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 76.0),
+                      constraints: const BoxConstraints(minHeight: 80.0),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16.0,
@@ -476,8 +468,8 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                 ),
                                 child: Container(
                                   constraints: const BoxConstraints(
-                                    maxHeight: 42.0,
-                                    maxWidth: 110.0,
+                                    maxHeight: 52.0,
+                                    maxWidth: 135.0,
                                   ),
                                   child: Image.asset(
                                     logoAsset,
@@ -487,7 +479,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                     semanticLabel: brand.name,
                                     errorBuilder: (_, _, _) => BrandLogo(
                                       brand: brand,
-                                      height: 26.0,
+                                      height: 32.0,
                                     ),
                                   ),
                                 ),
@@ -497,7 +489,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10.0,
                                 ),
-                                child: BrandLogo(brand: brand, height: 26.0),
+                                child: BrandLogo(brand: brand, height: 32.0),
                               ),
 
                             // Right: Selection Indicator (Checkmark / Radio outline)
