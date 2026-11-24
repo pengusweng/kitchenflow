@@ -32,8 +32,6 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
-/reports/
-/.fixtures/
 
 # Symbolication related
 app.*.symbols
@@ -48,8 +46,3 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
-
-# Alchemist: track CI golden baselines only
-test/**/goldens/**/*.*
-test/**/failures/**/*.*
-!test/**/goldens/ci/*.png

@@ -1,36 +1,7 @@
 import { Module } from '@nestjs/common';
-import { HealthController } from './health.controller';
 import { ConfigModule } from '@nestjs/config';
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { AuditContextGuard } from './shared/audit/audit-context.guard';
-import { AuditLogModule } from './shared/audit/audit-log.module';
-import { AuditInterceptor } from './shared/audit/audit.interceptor';
-import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
-import { PrismaExceptionFilter } from './shared/filters/prisma-exception.filter';
 import { PrismaModule } from './shared/prisma/prisma.module';
-import { StorageModule } from './shared/storage/storage.module';
-import { UsersModule } from './modules/users/users.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { PinModule } from './modules/pin/pin.module';
-import { BrandsModule } from './modules/brands/brands.module';
-import { AuditModule } from './modules/audit/audit.module';
-import { OrdersModule } from './modules/orders/orders/orders.module';
-import { MenuItemsModule } from './modules/menu/menu-items/menu-items.module';
-import { MenuChannelsModule } from './modules/menu/menu-channels/menu-channels.module';
-import { ModifiersModule } from './modules/menu/modifiers/modifiers.module';
-import { AssetsModule } from './modules/assets/assets.module';
-import { RecipesModule } from './modules/recipe/recipes/recipes.module';
-import { RecipeIngredientsModule } from './modules/recipe/recipe-ingredients/recipe-ingredients.module';
-import { RecipeStepsModule } from './modules/recipe/recipe-steps/recipe-steps.module';
-import { RecipeHistoriesModule } from './modules/recipe/recipe-histories/recipe-histories.module';
-import { RecipeAuthoringModule } from './modules/recipe/recipe-authoring/recipe-authoring.module';
-import { UnitsModule } from './modules/units/units.module';
-import { MenuItemModifiersModule } from './modules/menu/menu-item-modifiers/menu-item-modifiers.module';
-import { MenuCatalogModule } from './modules/menu/menu-catalog/menu-catalog.module';
-import { KitchenTicketModule } from './modules/kitchen/kitchen-ticket/kitchen-ticket.module';
-import { KitchenQcModule } from './modules/kitchen/kitchen-qc/kitchen-qc.module';
-import { HandoffModule } from './modules/kitchen/handoff/handoff.module';
-import { KitchenFulfillmentModule } from './modules/kitchen/kitchen-fulfillment/kitchen-fulfillment.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -43,38 +14,9 @@ import { KitchenFulfillmentModule } from './modules/kitchen/kitchen-fulfillment/
       ],
     }),
     PrismaModule,
-    AuditLogModule,
     StorageModule,
-    UsersModule,
-    AuthModule,
-    PinModule,
-    BrandsModule,
-    AuditModule,
-    OrdersModule,
-    MenuItemsModule,
-    MenuChannelsModule,
-    ModifiersModule,
-    AssetsModule,
-    RecipesModule,
-    RecipeIngredientsModule,
-    RecipeStepsModule,
-    RecipeHistoriesModule,
-    RecipeAuthoringModule,
-    UnitsModule,
-    MenuItemModifiersModule,
-    MenuCatalogModule,
-    KitchenTicketModule,
-    KitchenQcModule,
-    HandoffModule,
-    KitchenFulfillmentModule,
   ],
-  controllers: [HealthController],
-  providers: [
-    { provide: APP_FILTER, useClass: AllExceptionsFilter },
-    { provide: APP_FILTER, useClass: PrismaExceptionFilter },
-    // Runs before every controller guard so denials can be audited.
-    { provide: APP_GUARD, useClass: AuditContextGuard },
-    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
-  ],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
