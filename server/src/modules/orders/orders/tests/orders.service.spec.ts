@@ -94,7 +94,6 @@ describe('OrdersService', () => {
           menu_item_modifiers_menu_item: [
             {
               modifier_id: 'extra',
-              is_available: true,
               additional_price: new Prisma.Decimal(2),
               modifier: { name: 'Extra', is_active: true },
             },
@@ -483,12 +482,12 @@ describe('OrdersService', () => {
       run: () => service.confirm('brand', 'order', 'actor', payment),
     },
   ])(
-    'UT-ORD-016: $name rejects an unavailable menu modifier before writing',
+    'UT-ORD-016: $name rejects an inactive menu modifier before writing',
     async ({ run }) => {
       const menu = (await tx.menuItem.findFirst()) as {
-        menu_item_modifiers_menu_item: { is_available: boolean }[];
+        menu_item_modifiers_menu_item: { modifier: { is_active: boolean } }[];
       };
-      menu.menu_item_modifiers_menu_item[0].is_available = false;
+      menu.menu_item_modifiers_menu_item[0].modifier.is_active = false;
       tx.menuItem.findFirst.mockResolvedValue(menu);
 
       await expect(run()).rejects.toThrow(

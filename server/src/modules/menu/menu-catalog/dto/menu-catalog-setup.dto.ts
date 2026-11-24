@@ -11,11 +11,7 @@ import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { CreateMenuChannelDTO } from '../../menu-channels/dto/create-menu-channel.dto';
 import { CreateMenuItemModifierDTO } from '../../menu-item-modifiers/dto/create-menu-item-modifier.dto';
 
-class MenuChannelSetupDTO extends OmitType(CreateMenuChannelDTO, [
-  'menu_item_id',
-] as const) {}
-
-class MenuItemModifierDTO extends OmitType(CreateMenuItemModifierDTO, [
+export class MenuChannelSetupDTO extends OmitType(CreateMenuChannelDTO, [
   'menu_item_id',
 ] as const) {}
 
@@ -38,13 +34,13 @@ export class MenuCatalogSetupDTO {
   menu_channel!: MenuChannelSetupDTO[];
 
   @IsArray()
-  @ArrayUnique((modifier: MenuItemModifierDTO) => modifier.modifier_id)
+  @ArrayUnique((modifier: CreateMenuItemModifierDTO) => modifier.modifier_id)
   @ValidateNested({ each: true })
-  @Type(() => MenuItemModifierDTO)
+  @Type(() => CreateMenuItemModifierDTO)
   @ApiProperty({
-    type: [MenuItemModifierDTO],
+    type: [CreateMenuItemModifierDTO],
     description:
       'Existing modifiers to assign. Use an empty array when none are needed.',
   })
-  menu_item_modifier!: MenuItemModifierDTO[];
+  menu_item_modifier!: CreateMenuItemModifierDTO[];
 }

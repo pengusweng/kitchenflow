@@ -109,7 +109,7 @@ export function FindOneModifierDocs() {
     ApiOperation({
       summary: 'Get a modifier by code or UUID.',
       description:
-        "UUID-shaped identifiers are treated as modifier IDs; other identifiers are codes. activeOnly defaults to true; false permits inactive modifiers. menu_item_modifiers_modifier lists every menu item that offers the modifier, by item name, with that item's additional_price and is_available.",
+        "UUID-shaped identifiers are treated as modifier IDs; other identifiers are codes. activeOnly defaults to true; false permits inactive modifiers. menu_item_modifiers_modifier lists every menu item that offers the modifier, by item name, with that item's additional_price.",
     }),
     ApiParam({
       name: 'id',
@@ -134,7 +134,6 @@ export function FindOneModifierDocs() {
               {
                 menu_item_modifier_id: '00000000-0000-4000-8000-000000000002',
                 additional_price: '35',
-                is_available: true,
                 menu_item: {
                   menu_item_id: '00000000-0000-4000-8000-000000000003',
                   brand_id: '00000000-0000-4000-8000-000000000004',

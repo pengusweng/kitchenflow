@@ -8,6 +8,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { MenuCatalogSetupDTO } from '../dto/menu-catalog-setup.dto';
+import { UpdateMenuCatalogDTO } from '../dto/update-menu-catalog.dto';
 
 const menuItemExample = {
   menu_item_id: '00000000-0000-4000-8000-000000000001',
@@ -44,7 +45,6 @@ const menuCatalogItemExample = {
       menu_item_id: menuItemExample.menu_item_id,
       modifier_id: '00000000-0000-4000-8000-000000000006',
       additional_price: '20',
-      is_available: true,
       created_at: menuItemExample.created_at,
       modified_at: menuItemExample.modified_at,
       modifier: {
@@ -85,7 +85,7 @@ export function CreateMenuCatalogDocs() {
     ApiOperation({
       summary: 'Create a menu item with channels and modifiers (superadmin).',
       description:
-        "Superadmins can create entries across brands. Supply menu_item with brand_id, recipe_id, img_url, a unique code, name, and base_price. menu_channel and menu_item_modifier are required arrays; use empty arrays when none are needed. Channel entries contain order_channel, price, and optional is_available; each channel must be unique. Modifier assignments contain an existing active modifier_id, optional additional_price (default 0), and optional is_available (default true); each modifier_id must be unique. Child entries omit menu_item_id because it is assigned from the new item. The item, channel overrides, and assignments are created in one transaction; any failed write rolls back the creation. Returns the created menu item with menuChannels and menuItemModifiers, including each assignment's modifier record and name. All created children are returned, including those with is_available set to false; omitted children are represented by empty arrays.",
+        "Superadmins can create entries across brands. Supply menu_item with brand_id, recipe_id, img_url, a unique code, name, and base_price. menu_channel and menu_item_modifier are required arrays; use empty arrays when none are needed. Channel entries contain order_channel, price, and optional is_available; each channel must be unique. Modifier assignments contain an existing active modifier_id and optional additional_price (default 0); each modifier_id must be unique. Child entries omit menu_item_id because it is assigned from the new item. The item, channel overrides, and assignments are created in one transaction; any failed write rolls back the creation. Returns the created menu item with menuChannels and menuItemModifiers, including each assignment's modifier record and name. All created children are returned, including channels with is_available set to false; omitted children are represented by empty arrays.",
     }),
     ApiBody({ type: MenuCatalogSetupDTO }),
     ApiResponse({
@@ -149,6 +149,42 @@ export function FindAllMenuCatalogDocs() {
     ApiResponse({
       status: 404,
       description: 'Brand not found or inactive (BRAND_NOT_FOUND).',
+    }),
+  );
+}
+
+export function UpdateMenuCatalogDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary:
+        'Edit a menu item with its channel and modifier changes in one call (superadmin). Does not deactivate the item.',
+      description:
+        'Same shape as the create payload, with every part optional. menu_item holds the item fields to change; the brand cannot be changed. menu_channel and menu_item_modifier each take create, update and delete lists. Channel create entries are new GRABFOOD or FOODPANDA overrides; update entries take menu_item_channel_id with price and/or is_available; delete removes the override entirely, so that channel can be added again. Modifier create entries assign an active modifier_id with an optional additional_price; update entries take menu_item_modifier_id with additional_price and/or a replacement modifier_id; delete removes the assignment. Each ID can be updated or deleted once per request, and every ID must belong to this menu item. Afterwards each order channel and each modifier can appear at most once. Deletes run before updates and creates, and everything runs in one transaction; any failure rolls back the whole edit. Returns the menu item with all its menuChannels (including unavailable ones) and menuItemModifiers.',
+    }),
+    ApiParam({ name: 'id', format: 'uuid', description: 'Menu item ID.' }),
+    ApiBody({ type: UpdateMenuCatalogDTO }),
+    ApiResponse({
+      status: 200,
+      description:
+        'Menu item updated, returned with its channels and modifier assignments.',
+      content: {
+        'application/json': { example: menuCatalogItemExample },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description:
+        'Menu item not found or inactive (MENU_ITEM_NOT_FOUND); a channel or modifier assignment ID does not belong to it (MENU_ITEM_CHANNEL_NOT_FOUND, MENU_ITEM_MODIFIER_NOT_FOUND); or a recipe or modifier being assigned is missing or inactive (RECIPE_NOT_FOUND, MODIFIER_NOT_FOUND).',
+    }),
+    ApiResponse({
+      status: 400,
+      description:
+        'Invalid request; no changes sent (NO_MENU_CATALOG_CHANGES); an ID targeted twice (CONFLICTING_CHANNEL_MUTATIONS, CONFLICTING_MODIFIER_MUTATIONS); a non-delivery channel added (INVALID_ORDER_CHANNEL); or the edit would repeat an order channel or modifier (DUPLICATE_ORDER_CHANNEL, DUPLICATE_MENU_ITEM_MODIFIER).',
+    }),
+    ApiResponse({
+      status: 409,
+      description:
+        'Menu item code or another unique value already exists (DUPLICATE_RESOURCE).',
     }),
   );
 }

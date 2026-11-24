@@ -9,6 +9,8 @@ import {
 } from './dto/find-all-modifiers.dto';
 import { type SortOrder } from '../../users/dto/find-users.dto';
 
+type ModifierUniqueKey = { modifier_id: string } | { code: string };
+
 @Injectable()
 export class ModifiersRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -22,27 +24,14 @@ export class ModifiersRepository {
     });
   }
 
-  async findOneModifierByUID(
-    modifierId: string,
+  async findOne(
+    key: ModifierUniqueKey,
     activeOnly = true,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
     return tx.modifier.findUnique({
       where: {
-        modifier_id: modifierId,
-        is_active: activeOnly ? true : undefined,
-      },
-    });
-  }
-
-  async findOneModifierByCode(
-    code: string,
-    activeOnly = true,
-    tx: Prisma.TransactionClient | PrismaService = this.prisma,
-  ) {
-    return tx.modifier.findUnique({
-      where: {
-        code,
+        ...key,
         is_active: activeOnly ? true : undefined,
       },
     });
@@ -63,7 +52,6 @@ export class ModifiersRepository {
     >,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
-    // Everything except status, which the per-status counts below vary.
     const matchesFilters: Prisma.ModifierWhereInput = {
       ...this.searchWhere(search),
       ...(brand_id
@@ -153,7 +141,6 @@ export class ModifiersRepository {
       select: {
         menu_item_modifier_id: true,
         additional_price: true,
-        is_available: true,
         menu_item: {
           select: {
             menu_item_id: true,

@@ -1,4 +1,4 @@
-import { Ban, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "cn";
 import SkeletonBar from "@/src/components/ui/atoms/skeleton-bar";
@@ -106,22 +106,13 @@ function UsedOnBody({ modifier, uses, error, brands, count }: UsedOnListProps & 
                     </span>
                     <span className="font-mono text-xs break-words text-ink-muted">{use.itemCode}</span>
                   </span>
-                  <span className="flex shrink-0 flex-col items-end gap-0.5 text-right">
-                    <span
-                      className={cn(
-                        "text-sm tabular-nums slashed-zero",
-                        retired || !use.available ? "text-ink-muted" : "text-ink",
-                        use.available && !retired && use.price === 0 && "text-ink-muted",
-                      )}
-                    >
-                      {formatUsePrice(use.price)}
-                    </span>
-                    {!use.available && !retired ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-danger-ink">
-                        <Ban aria-hidden="true" className="size-3" strokeWidth={2.5} />
-                        Off on this item
-                      </span>
-                    ) : null}
+                  <span
+                    className={cn(
+                      "shrink-0 text-right text-sm tabular-nums slashed-zero",
+                      retired || use.price === 0 ? "text-ink-muted" : "text-ink",
+                    )}
+                  >
+                    {formatUsePrice(use.price)}
                   </span>
                 </li>
               ))}

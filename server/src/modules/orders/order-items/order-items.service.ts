@@ -40,8 +40,7 @@ export class OrderItemsService {
         this.validatePrice(price);
         const modifiers = (line.modifier_ids ?? []).map((id) => {
           const link = menu.menu_item_modifiers_menu_item.find(
-            (m) =>
-              m.modifier_id === id && m.is_available && m.modifier.is_active,
+            (m) => m.modifier_id === id && m.modifier.is_active,
           );
           if (!link)
             throw new BadRequestException(

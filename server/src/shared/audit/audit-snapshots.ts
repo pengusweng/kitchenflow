@@ -92,7 +92,7 @@ export const SNAPSHOT_CONFIGS: Readonly<Record<string, SnapshotConfig>> = {
   menu_item_modifiers: {
     model: 'menuItemModifier',
     key: 'menu_item_modifier_id',
-    fields: ['menu_item_id', 'modifier_id', 'additional_price', 'is_available'],
+    fields: ['menu_item_id', 'modifier_id', 'additional_price'],
   },
   kitchen_tickets: {
     model: 'kitchenTicket',

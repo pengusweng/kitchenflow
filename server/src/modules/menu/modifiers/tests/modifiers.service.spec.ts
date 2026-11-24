@@ -33,15 +33,14 @@ describe('ModifiersService operations', () => {
   const modifier = { modifier_id: modifierId, code: 'EXTRA', is_active: true };
   let repository: {
     createModifier: jest.Mock;
-    findOneModifierByUID: jest.Mock;
-    findOneModifierByCode: jest.Mock;
+    findOne: jest.Mock;
     findAll: jest.Mock;
     findUses: jest.Mock;
     updateModifier: jest.Mock;
     reactivateModifier: jest.Mock;
     deleteModifier: jest.Mock;
   };
-  const uses = [{ menu_item_modifier_id: 'link', is_available: true }];
+  const uses = [{ menu_item_modifier_id: 'link' }];
   const counts = { all: 30, active: 21, inactive: 9 };
   let service: ModifiersService;
 
@@ -51,8 +50,7 @@ describe('ModifiersService operations', () => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     repository = {
       createModifier: jest.fn().mockResolvedValue(modifier),
-      findOneModifierByUID: jest.fn().mockResolvedValue(modifier),
-      findOneModifierByCode: jest.fn().mockResolvedValue(modifier),
+      findOne: jest.fn().mockResolvedValue(modifier),
       findAll: jest.fn().mockResolvedValue({ modifiers: [modifier], counts }),
       findUses: jest.fn().mockResolvedValue(uses),
       updateModifier: jest
@@ -73,62 +71,49 @@ describe('ModifiersService operations', () => {
   it('UT-MOD-002: creates a modifier', async () => {
     const dto = { code: 'EXTRA', name: 'Extra' };
     await expect(service.create(dto)).resolves.toEqual(modifier);
-    expect(repository.createModifier).toHaveBeenCalledWith(dto);
+    expect(repository.createModifier).toHaveBeenCalledWith(dto, undefined);
   });
 
   it.each([
     {
       identifier: modifierId,
-      method: 'findOneModifierByUID',
-      value: modifierId,
+      key: { modifier_id: modifierId },
       activeOnly: true,
     },
-    {
-      identifier: 'EXTRA',
-      method: 'findOneModifierByCode',
-      value: 'EXTRA',
-      activeOnly: true,
-    },
+    { identifier: 'EXTRA', key: { code: 'EXTRA' }, activeOnly: true },
     {
       identifier: { modifier_id: 'explicit-id' },
-      method: 'findOneModifierByUID',
-      value: 'explicit-id',
+      key: { modifier_id: 'explicit-id' },
       activeOnly: false,
     },
     {
       identifier: modifierId,
-      method: 'findOneModifierByUID',
-      value: modifierId,
+      key: { modifier_id: modifierId },
       activeOnly: false,
     },
-    {
-      identifier: 'EXTRA',
-      method: 'findOneModifierByCode',
-      value: 'EXTRA',
-      activeOnly: false,
-    },
+    { identifier: 'EXTRA', key: { code: 'EXTRA' }, activeOnly: false },
   ] as const)(
-    'UT-MOD-005: finds $value using $method with activeOnly=$activeOnly',
-    async ({ identifier, method, value, activeOnly }) => {
+    'UT-MOD-005: finds $identifier by $key with activeOnly=$activeOnly',
+    async ({ identifier, key, activeOnly }) => {
       await expect(service.findOne(identifier, activeOnly)).resolves.toEqual({
         ...modifier,
         menu_item_modifiers_modifier: uses,
       });
-      expect(repository[method]).toHaveBeenCalledWith(value, activeOnly);
-      expect(
-        repository.findOneModifierByUID.mock.calls.length +
-          repository.findOneModifierByCode.mock.calls.length,
-      ).toBe(1);
+      expect(repository.findOne).toHaveBeenCalledWith(
+        key,
+        activeOnly,
+        undefined,
+      );
+      expect(repository.findOne).toHaveBeenCalledTimes(1);
       // Uses are looked up by the found modifier's id, even when found by code.
-      expect(repository.findUses).toHaveBeenCalledWith(modifierId);
+      expect(repository.findUses).toHaveBeenCalledWith(modifierId, undefined);
     },
   );
 
   it.each([modifierId, 'MISSING'])(
     'UT-MOD-006: rejects a missing modifier identified by %s',
     async (identifier) => {
-      repository.findOneModifierByUID.mockResolvedValue(null);
-      repository.findOneModifierByCode.mockResolvedValue(null);
+      repository.findOne.mockResolvedValue(null);
       await expect(service.findOne(identifier)).rejects.toMatchObject({
         status: 404,
         response: { code: 'MODIFIER_NOT_FOUND' },
@@ -149,13 +134,18 @@ describe('ModifiersService operations', () => {
         data: [modifier],
         meta: { page: 2, limit: 10, total, totalPages, counts },
       });
-      expect(repository.findAll).toHaveBeenCalledWith(10, 10, {
-        status,
-        search: undefined,
-        brand_id: undefined,
-        sortBy: undefined,
-        sortOrder: undefined,
-      });
+      expect(repository.findAll).toHaveBeenCalledWith(
+        10,
+        10,
+        {
+          status,
+          search: undefined,
+          brand_id: undefined,
+          sortBy: undefined,
+          sortOrder: undefined,
+        },
+        undefined,
+      );
     },
   );
 
@@ -166,13 +156,18 @@ describe('ModifiersService operations', () => {
       data: [],
       meta: { page: 1, limit: 10, total: 0, totalPages: 0, counts: none },
     });
-    expect(repository.findAll).toHaveBeenCalledWith(0, 10, {
-      status: 'active',
-      search: undefined,
-      brand_id: undefined,
-      sortBy: undefined,
-      sortOrder: undefined,
-    });
+    expect(repository.findAll).toHaveBeenCalledWith(
+      0,
+      10,
+      {
+        status: 'active',
+        search: undefined,
+        brand_id: undefined,
+        sortBy: undefined,
+        sortOrder: undefined,
+      },
+      undefined,
+    );
   });
 
   it('UT-MOD-027: forwards the search, brand and sort to the repository', async () => {
@@ -184,7 +179,7 @@ describe('ModifiersService operations', () => {
       sortOrder: 'desc',
     } as const;
     await service.findAll({ page: 1, limit: 20, ...filters });
-    expect(repository.findAll).toHaveBeenCalledWith(0, 20, filters);
+    expect(repository.findAll).toHaveBeenCalledWith(0, 20, filters, undefined);
   });
 
   it('UT-MOD-011: rejects pagination overflow before querying', async () => {
@@ -203,21 +198,33 @@ describe('ModifiersService operations', () => {
       ...modifier,
       name: 'Updated',
     });
-    expect(repository.findOneModifierByUID).toHaveBeenCalledWith(modifierId);
-    expect(repository.updateModifier).toHaveBeenCalledWith(modifierId, dto);
+    expect(repository.findOne).toHaveBeenCalledWith(
+      { modifier_id: modifierId },
+      true,
+      undefined,
+    );
+    expect(repository.updateModifier).toHaveBeenCalledWith(
+      modifierId,
+      dto,
+      undefined,
+    );
   });
 
   it('UT-MOD-015: reactivates an inactive modifier', async () => {
-    repository.findOneModifierByUID.mockResolvedValue({
+    repository.findOne.mockResolvedValue({
       ...modifier,
       is_active: false,
     });
     await expect(service.reactivate(modifierId)).resolves.toEqual(modifier);
-    expect(repository.findOneModifierByUID).toHaveBeenCalledWith(
-      modifierId,
+    expect(repository.findOne).toHaveBeenCalledWith(
+      { modifier_id: modifierId },
       false,
+      undefined,
     );
-    expect(repository.reactivateModifier).toHaveBeenCalledWith(modifierId);
+    expect(repository.reactivateModifier).toHaveBeenCalledWith(
+      modifierId,
+      undefined,
+    );
   });
 
   it('UT-MOD-016: rejects reactivating an already-active modifier', async () => {
@@ -233,8 +240,15 @@ describe('ModifiersService operations', () => {
       ...modifier,
       is_active: false,
     });
-    expect(repository.findOneModifierByUID).toHaveBeenCalledWith(modifierId);
-    expect(repository.deleteModifier).toHaveBeenCalledWith(modifierId);
+    expect(repository.findOne).toHaveBeenCalledWith(
+      { modifier_id: modifierId },
+      true,
+      undefined,
+    );
+    expect(repository.deleteModifier).toHaveBeenCalledWith(
+      modifierId,
+      undefined,
+    );
   });
 
   const mutations = [
@@ -249,7 +263,7 @@ describe('ModifiersService operations', () => {
   it.each(mutations)(
     'UT-MOD-018: $name rejects missing modifiers without writing',
     async ({ run }) => {
-      repository.findOneModifierByUID.mockResolvedValue(null);
+      repository.findOne.mockResolvedValue(null);
       await expect(run()).rejects.toMatchObject({
         status: 404,
         response: { code: 'MODIFIER_NOT_FOUND' },
@@ -263,7 +277,7 @@ describe('ModifiersService operations', () => {
   it.each(mutations)(
     'UT-MOD-019: $name preserves repository failures',
     async ({ name, run }) => {
-      repository.findOneModifierByUID.mockResolvedValue({
+      repository.findOne.mockResolvedValue({
         ...modifier,
         is_active: false,
       });
@@ -319,12 +333,12 @@ describe('Modifiers persistence', () => {
     async (activeOnly) => {
       const is_active = activeOnly === false ? undefined : true;
 
-      await repository.findOneModifierByUID('modifier-id', activeOnly);
+      await repository.findOne({ modifier_id: 'modifier-id' }, activeOnly);
       expect(prisma.modifier.findUnique).toHaveBeenLastCalledWith({
         where: { modifier_id: 'modifier-id', is_active },
       });
 
-      await repository.findOneModifierByCode('EXTRA', activeOnly);
+      await repository.findOne({ code: 'EXTRA' }, activeOnly);
       expect(prisma.modifier.findUnique).toHaveBeenLastCalledWith({
         where: { code: 'EXTRA', is_active },
       });
@@ -422,7 +436,6 @@ describe('Modifiers persistence', () => {
       select: {
         menu_item_modifier_id: true,
         additional_price: true,
-        is_available: true,
         menu_item: {
           select: {
             menu_item_id: true,

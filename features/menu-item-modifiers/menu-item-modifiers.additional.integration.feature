@@ -22,11 +22,12 @@ Feature: Additional menu item modifiers integration coverage
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.http.spec.ts
   # Context: Menu item modifiers HTTP endpoints
   @IT-MIM-002
-  Scenario: Documents every guarded route and preserves the create/update contracts
+  Scenario: Documents every guarded route and preserves the update contract
     Test Case ID: IT-MIM-002
     Given the generated assignment OpenAPI document
     When guarded routes and request schemas are inspected
-    Then security, response schemas, and create and update contracts are documented
+    Then security, response schemas, and the update contract are documented
+    And no create or reactivate route is documented
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.http.spec.ts
   # Context: Menu item modifiers HTTP endpoints
@@ -99,15 +100,6 @@ Feature: Additional menu item modifiers integration coverage
     Given the assignment service raises a lookup error
     When a guarded assignment endpoint is requested
     Then the response is 500 rather than a successful result
-
-  # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.http.spec.ts
-  # Context: Menu item modifiers HTTP endpoints
-  @IT-MIM-011
-  Scenario: Resolves unavailable assignments so their owner can reactivate them
-    Test Case ID: IT-MIM-011
-    Given an unavailable modifier assignment
-    When an authorized superadmin requests reactivation
-    Then the assignment remains resolvable and reactivation returns 200
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.http.spec.ts
   # Context: Menu item modifiers HTTP endpoints
@@ -184,8 +176,8 @@ Feature: Additional menu item modifiers integration coverage
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.http.spec.ts
   # Context: Menu item modifiers HTTP endpoints
   @IT-MIM-020
-  Scenario: Preserves reactivation conflicts
+  Scenario: Removed create and reactivate routes are not routed
     Test Case ID: IT-MIM-020
-    Given the service reports an already-available assignment
-    When reactivation is requested
-    Then the response is 409 with MENU_ITEM_MODIFIER_ALREADY_ACTIVE
+    Given an authenticated superadmin
+    When POST /menu-item-modifiers or PATCH /menu-item-modifiers/reactivate/:id is requested
+    Then the response is 404 without calling the service

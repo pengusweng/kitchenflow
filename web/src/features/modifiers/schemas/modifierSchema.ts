@@ -40,7 +40,6 @@ export const modifiersPageSchema = z.object({
 export const modifierUseRecordSchema = z.object({
   menu_item_modifier_id: z.uuid(),
   additional_price: priceSchema,
-  is_available: z.boolean(),
   menu_item: z.object({
     menu_item_id: z.uuid(),
     brand_id: z.uuid(),

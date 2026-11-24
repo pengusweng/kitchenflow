@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { Prisma } from '@prisma/client';
 import { AppModule } from '../../../../app.module';
 import { PaginationDTO } from '../../../../shared/dto/pagination.dto';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
@@ -9,6 +10,7 @@ import { ModifiersRepository } from '../../modifiers/modifiers.repository';
 import { MenuChannelsRepository } from '../../menu-channels/menu-channels.repository';
 import { MenuItemModifiersRepository } from '../../menu-item-modifiers/menu-item-modifiers.repository';
 import { MenuItemsRepository } from '../../menu-items/menu-items.repository';
+import { RecipesRepository } from '../../../recipe/recipes/recipes.repository';
 import { MenuCatalogSetupDTO } from '../dto/menu-catalog-setup.dto';
 import { MenuCatalogRepository } from '../menu-catalog.repository';
 import { MenuCatalogService } from '../menu-catalog.service';
@@ -54,7 +56,7 @@ describe('MenuCatalogService operations', () => {
   };
   let repository: { create: jest.Mock; findMany: jest.Mock };
   let brands: { findOneBrand: jest.Mock };
-  let modifiers: { findOneModifierByUID: jest.Mock };
+  let modifiers: { findOne: jest.Mock };
   let service: MenuCatalogService;
 
   beforeEach(() => {
@@ -71,7 +73,7 @@ describe('MenuCatalogService operations', () => {
       findOneBrand: jest.fn().mockResolvedValue({ brand_id: 'brand-id' }),
     };
     modifiers = {
-      findOneModifierByUID: jest.fn().mockResolvedValue({ is_active: true }),
+      findOne: jest.fn().mockResolvedValue({ is_active: true }),
     };
     service = new MenuCatalogService(
       repository as unknown as MenuCatalogRepository,
@@ -82,6 +84,11 @@ describe('MenuCatalogService operations', () => {
           Promise.resolve(`https://files.example.test/${key}`),
         ),
       } as unknown as StorageService,
+      {} as PrismaService,
+      {} as MenuItemsRepository,
+      {} as MenuChannelsRepository,
+      {} as MenuItemModifiersRepository,
+      {} as RecipesRepository,
     );
   });
 
@@ -89,24 +96,28 @@ describe('MenuCatalogService operations', () => {
 
   it('UT-MCAT-002: checks every active modifier before creating the catalog entry', async () => {
     repository.create.mockImplementation(() => {
-      expect(modifiers.findOneModifierByUID).toHaveBeenNthCalledWith(
+      expect(modifiers.findOne).toHaveBeenNthCalledWith(
         1,
-        'modifier-id',
+        { modifier_id: 'modifier-id' },
+        true,
+        undefined,
       );
-      expect(modifiers.findOneModifierByUID).toHaveBeenNthCalledWith(
+      expect(modifiers.findOne).toHaveBeenNthCalledWith(
         2,
-        'second-modifier-id',
+        { modifier_id: 'second-modifier-id' },
+        true,
+        undefined,
       );
       return Promise.resolve(menuItem);
     });
 
     await expect(service.create(dto)).resolves.toEqual(menuItem);
-    expect(repository.create).toHaveBeenCalledWith(dto);
+    expect(repository.create).toHaveBeenCalledWith(dto, undefined);
     expect(repository.create).toHaveBeenCalledTimes(1);
   });
 
   it('UT-MCAT-003: rejects a missing or inactive later modifier without creating anything', async () => {
-    modifiers.findOneModifierByUID
+    modifiers.findOne
       .mockResolvedValueOnce({ is_active: true })
       .mockResolvedValueOnce(null);
 
@@ -120,8 +131,8 @@ describe('MenuCatalogService operations', () => {
   it('UT-MCAT-004: allows creation without modifier assignments', async () => {
     const withoutModifiers = { ...dto, menu_item_modifier: [] };
     await expect(service.create(withoutModifiers)).resolves.toEqual(menuItem);
-    expect(modifiers.findOneModifierByUID).not.toHaveBeenCalled();
-    expect(repository.create).toHaveBeenCalledWith(withoutModifiers);
+    expect(modifiers.findOne).not.toHaveBeenCalled();
+    expect(repository.create).toHaveBeenCalledWith(withoutModifiers, undefined);
   });
 
   it('UT-MCAT-005: preserves creation errors for the application exception filters', async () => {
@@ -132,7 +143,7 @@ describe('MenuCatalogService operations', () => {
 
   it('UT-MCAT-006: does not create anything when a modifier lookup fails', async () => {
     const error = new Error('Database unavailable');
-    modifiers.findOneModifierByUID.mockRejectedValueOnce(error);
+    modifiers.findOne.mockRejectedValueOnce(error);
     await expect(service.create(dto)).rejects.toBe(error);
     expect(repository.create).not.toHaveBeenCalled();
   });
@@ -144,11 +155,16 @@ describe('MenuCatalogService operations', () => {
       data: [menuItem],
       meta: { page: 2, limit: 10, total: 21, totalPages: 3 },
     });
-    expect(brands.findOneBrand).toHaveBeenCalledWith('brand-id');
+    expect(brands.findOneBrand).toHaveBeenCalledWith(
+      'brand-id',
+      true,
+      undefined,
+    );
     expect(repository.findMany).toHaveBeenCalledWith(
       'brand-id',
       10,
       10,
+      undefined,
       undefined,
     );
   });
@@ -176,6 +192,7 @@ describe('MenuCatalogService operations', () => {
       'brand-id',
       0,
       10,
+      undefined,
       undefined,
     );
   });
@@ -205,7 +222,13 @@ describe('MenuCatalogService operations', () => {
 
   it('UT-MCAT-015: forwards the search to the catalog query', async () => {
     await service.findAll('brand-id', { page: 1, limit: 10, search: 'rice' });
-    expect(repository.findMany).toHaveBeenCalledWith('brand-id', 0, 10, 'rice');
+    expect(repository.findMany).toHaveBeenCalledWith(
+      'brand-id',
+      0,
+      10,
+      'rice',
+      undefined,
+    );
   });
 
   it('UT-MCAT-011: preserves catalog lookup errors', async () => {
@@ -282,9 +305,7 @@ describe('MenuCatalogService transactional creation', () => {
     menu_channel: [
       { order_channel: 'GRABFOOD', price: 120, is_available: false },
     ],
-    menu_item_modifier: [
-      { modifier_id: 'modifier-id', additional_price: 20, is_available: false },
-    ],
+    menu_item_modifier: [{ modifier_id: 'modifier-id', additional_price: 20 }],
   };
 
   it.each([true, false])(
@@ -313,7 +334,7 @@ describe('MenuCatalogService transactional creation', () => {
           findMany: jest.fn().mockResolvedValue(menuChannels),
         },
         menuItemModifier: {
-          create: jest.fn().mockResolvedValue(menuItemModifiers[0]),
+          createManyAndReturn: jest.fn().mockResolvedValue(menuItemModifiers),
           findMany: jest.fn().mockResolvedValue(menuItemModifiers),
         },
       };
@@ -324,7 +345,7 @@ describe('MenuCatalogService transactional creation', () => {
         $transaction: runTransaction,
       } as unknown as PrismaService;
       const modifiers = {
-        findOneModifierByUID: jest.fn().mockResolvedValue(modifier),
+        findOne: jest.fn().mockResolvedValue(modifier),
       } as unknown as ModifiersRepository;
       const repository = new MenuCatalogRepository(
         prisma,
@@ -338,6 +359,11 @@ describe('MenuCatalogService transactional creation', () => {
         {} as BrandsRepository,
         modifiers,
         {} as StorageService,
+        prisma,
+        {} as MenuItemsRepository,
+        {} as MenuChannelsRepository,
+        {} as MenuItemModifiersRepository,
+        {} as RecipesRepository,
       );
 
       await expect(service.create(input)).resolves.toEqual({
@@ -349,8 +375,8 @@ describe('MenuCatalogService transactional creation', () => {
       expect(tx.menuItemChannel.create).toHaveBeenCalledTimes(
         input.menu_channel.length,
       );
-      expect(tx.menuItemModifier.create).toHaveBeenCalledTimes(
-        input.menu_item_modifier.length,
+      expect(tx.menuItemModifier.createManyAndReturn).toHaveBeenCalledTimes(
+        input.menu_item_modifier.length > 0 ? 1 : 0,
       );
       expect(tx.menuItemChannel.findMany).toHaveBeenCalledWith({
         where: {
@@ -361,8 +387,44 @@ describe('MenuCatalogService transactional creation', () => {
       });
       expect(tx.menuItemModifier.findMany).toHaveBeenCalledWith({
         include: { modifier: true },
-        where: { menu_item_id: menuItem.menu_item_id, is_available: undefined },
+        where: { menu_item_id: menuItem.menu_item_id },
       });
     },
   );
+
+  it('UT-MCAT-016: joins a caller transaction instead of opening its own', async () => {
+    const menuItem = { ...dto.menu_item, menu_item_id: 'menu-id' };
+    const tx = {
+      menuItem: {
+        create: jest.fn().mockResolvedValue(menuItem),
+        findMany: jest.fn().mockResolvedValue([menuItem]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      menuItemChannel: {
+        create: jest.fn().mockResolvedValue({}),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      menuItemModifier: {
+        createManyAndReturn: jest.fn().mockResolvedValue([]),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const runTransaction = jest.fn();
+    const prisma = { $transaction: runTransaction } as unknown as PrismaService;
+    const repository = new MenuCatalogRepository(
+      prisma,
+      new MenuItemsRepository(prisma),
+      new MenuChannelsRepository(prisma),
+      {} as ModifiersRepository,
+      new MenuItemModifiersRepository(prisma),
+    );
+    const client = tx as unknown as Prisma.TransactionClient;
+
+    await repository.create(dto, client);
+    await repository.findMany('brand-id', 0, 10, undefined, client);
+
+    expect(runTransaction).not.toHaveBeenCalled();
+    expect(tx.menuItem.create).toHaveBeenCalledTimes(1);
+    expect(tx.menuItem.findMany).toHaveBeenCalledTimes(1);
+  });
 });

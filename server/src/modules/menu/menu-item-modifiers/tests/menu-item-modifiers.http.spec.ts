@@ -1,6 +1,5 @@
 import {
   INestApplication,
-  ConflictException,
   NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
@@ -21,7 +20,7 @@ describe('Menu item modifiers HTTP endpoints', () => {
   const modifierId = '00000000-0000-4000-8000-000000000003';
   const brandId = '00000000-0000-4000-8000-000000000004';
   const otherBrandId = '00000000-0000-4000-8000-000000000005';
-  const create = {
+  const assignmentFields = {
     menu_item_id: menuItemId,
     modifier_id: modifierId,
     additional_price: 20,
@@ -31,12 +30,10 @@ describe('Menu item modifiers HTTP endpoints', () => {
     'Content-Type': 'application/json',
   };
   const service = {
-    create: jest.fn(),
     findOne: jest.fn(),
     findAll: jest.fn(),
     findManyForMenuItem: jest.fn(),
     update: jest.fn(),
-    reactivate: jest.fn(),
     delete: jest.fn(),
   };
   const auth = { validateSession: jest.fn() };
@@ -51,20 +48,12 @@ describe('Menu item modifiers HTTP endpoints', () => {
 
   const routes = [
     {
-      method: 'POST',
-      path: '',
-      body: create,
-      status: 201,
-      handler: 'create',
-      args: [create],
-    },
-    {
       method: 'GET',
       path: '',
       body: undefined,
       status: 200,
       handler: 'findAll',
-      args: [{ page: 1, limit: 10, activeOnly: true }],
+      args: [{ page: 1, limit: 10 }],
     },
     {
       method: 'GET',
@@ -72,7 +61,7 @@ describe('Menu item modifiers HTTP endpoints', () => {
       body: undefined,
       status: 200,
       handler: 'findOne',
-      args: [assignmentId, true],
+      args: [assignmentId],
     },
     {
       method: 'GET',
@@ -80,7 +69,7 @@ describe('Menu item modifiers HTTP endpoints', () => {
       body: undefined,
       status: 200,
       handler: 'findManyForMenuItem',
-      args: [menuItemId, true],
+      args: [menuItemId],
     },
     {
       method: 'PATCH',
@@ -89,14 +78,6 @@ describe('Menu item modifiers HTTP endpoints', () => {
       status: 200,
       handler: 'update',
       args: [assignmentId, { modifier_id: modifierId, additional_price: 0 }],
-    },
-    {
-      method: 'PATCH',
-      path: `/reactivate/${assignmentId}`,
-      body: undefined,
-      status: 200,
-      handler: 'reactivate',
-      args: [assignmentId],
     },
     {
       method: 'DELETE',
@@ -109,7 +90,7 @@ describe('Menu item modifiers HTTP endpoints', () => {
   ] as const;
 
   const assignmentRoutes = routes.filter(({ handler }) =>
-    ['findOne', 'update', 'reactivate', 'delete'].includes(handler),
+    ['findOne', 'update', 'delete'].includes(handler),
   );
 
   beforeAll(async () => {
@@ -161,21 +142,24 @@ describe('Menu item modifiers HTTP endpoints', () => {
     ).toEqual([Authenticated, RolesGuard]);
   });
 
-  it('IT-MIM-002: documents every guarded route and preserves the create/update contracts', () => {
+  it('IT-MIM-002: documents every guarded route and preserves the update contract', () => {
     const document = SwaggerModule.createDocument(
       app,
       new DocumentBuilder().addBearerAuth().build(),
     );
     const operations = [
-      document.paths['/api/menu-item-modifiers']?.post,
       document.paths['/api/menu-item-modifiers']?.get,
       document.paths['/api/menu-item-modifiers/{id}']?.get,
       document.paths['/api/menu-item-modifiers/{id}']?.patch,
       document.paths['/api/menu-item-modifiers/{id}']?.delete,
       document.paths['/api/menu-item-modifiers/menu-item/{menuItemId}']?.get,
-      document.paths['/api/menu-item-modifiers/reactivate/{id}']?.patch,
     ];
-    for (const [index, operation] of operations.entries()) {
+    // Assignments are created through PATCH /menu-catalog/:id and hard deleted.
+    expect(document.paths['/api/menu-item-modifiers']?.post).toBeUndefined();
+    expect(
+      document.paths['/api/menu-item-modifiers/reactivate/{id}'],
+    ).toBeUndefined();
+    for (const operation of operations) {
       expect(typeof operation?.summary).toBe('string');
       expect(typeof operation?.description).toBe('string');
       expect(operation?.tags).toEqual(['Menu item modifiers']);
@@ -183,46 +167,35 @@ describe('Menu item modifiers HTTP endpoints', () => {
       expect(operation?.responses).toHaveProperty('400.description');
       expect(operation?.responses).toHaveProperty('401.description');
       expect(operation?.responses).toHaveProperty('403.description');
-      expect(operation?.responses[index === 0 ? '201' : '200']).toHaveProperty(
+      expect(operation?.responses['200']).toHaveProperty(
         'content.application/json',
       );
     }
-    expect(operations[2]?.responses['200']).toHaveProperty(
+    expect(operations[1]?.responses['200']).toHaveProperty(
       'content.application/json.example.menuItemModifier.additional_price',
       '20',
     );
-    expect(operations[2]?.responses['200']).toHaveProperty(
+    expect(operations[1]?.responses['200']).toHaveProperty(
       'content.application/json.example.modifierDetails.name',
       'Extra Cheese',
     );
-    expect(operations[1]?.responses['200']).toHaveProperty(
+    expect(operations[0]?.responses['200']).toHaveProperty(
       'content.application/json.examples.empty.value',
       {
         data: [],
         meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
       },
     );
-    expect(operations[5]?.responses['200']).toHaveProperty(
+    expect(operations[4]?.responses['200']).toHaveProperty(
       'content.application/json.examples.empty.value',
       [],
     );
-    expect(operations[4]?.responses['200']).toHaveProperty(
-      'content.application/json.example.is_available',
-      false,
+    expect(operations[3]?.responses['200']).toHaveProperty(
+      'content.application/json.example.menu_item_modifier_id',
     );
-    expect(operations[6]?.responses['200']).toHaveProperty(
+    expect(operations[3]?.responses['200']).not.toHaveProperty(
       'content.application/json.example.is_available',
-      true,
     );
-    expect(
-      document.components?.schemas?.CreateMenuItemModifierDTO,
-    ).toMatchObject({
-      required: ['menu_item_id', 'modifier_id'],
-      properties: {
-        additional_price: { default: 0 },
-        is_available: { default: true },
-      },
-    });
     const update = document.components?.schemas?.UpdateMenuItemModifierDTO;
     expect(update).toHaveProperty('properties.additional_price');
     expect(update).toHaveProperty('properties.modifier_id');
@@ -236,9 +209,8 @@ describe('Menu item modifiers HTTP endpoints', () => {
     const payload = {
       menuItemModifier: {
         menu_item_modifier_id: assignmentId,
-        ...create,
+        ...assignmentFields,
         additional_price: '20',
-        is_available: true,
         created_at: timestamp,
         modified_at: timestamp,
       },
@@ -382,21 +354,6 @@ describe('Menu item modifiers HTTP endpoints', () => {
     },
   );
 
-  it('IT-MIM-011: resolves unavailable assignments so their owner can reactivate them', async () => {
-    role = UserRole.SUPERADMIN;
-    callerBrand = brandId;
-    prisma.menuItemModifier.findUnique.mockResolvedValue({
-      menu_item: { brand_id: brandId },
-      is_available: false,
-    });
-    const response = await fetch(`${url}/reactivate/${assignmentId}`, {
-      method: 'PATCH',
-      headers,
-    });
-    expect(response.status).toBe(200);
-    expect(service.reactivate).toHaveBeenCalledWith(assignmentId);
-  });
-
   it('IT-MIM-012: rejects a spoofed body brand that conflicts with the stored assignment brand', async () => {
     role = UserRole.SUPERADMIN;
     callerBrand = otherBrandId;
@@ -470,42 +427,13 @@ describe('Menu item modifiers HTTP endpoints', () => {
     },
   );
 
-  it.each([
-    {
-      path: '?page=2&limit=5&activeOnly=false',
-      handler: 'findAll',
-      args: [{ page: 2, limit: 5, activeOnly: false }],
-    },
-    {
-      path: `/${assignmentId}?activeOnly=false`,
-      handler: 'findOne',
-      args: [assignmentId, false],
-    },
-    {
-      path: `/menu-item/${menuItemId}?activeOnly=false`,
-      handler: 'findManyForMenuItem',
-      args: [menuItemId, false],
-    },
-  ] as const)(
-    'IT-MIM-017: parses query filters for $handler',
-    async ({ path, handler, args }) => {
-      const response = await fetch(url + path, { headers });
-      expect(response.status).toBe(200);
-      expect(service[handler]).toHaveBeenCalledWith(...args);
-    },
-  );
+  it('IT-MIM-017: parses pagination for findAll', async () => {
+    const response = await fetch(`${url}?page=2&limit=5`, { headers });
+    expect(response.status).toBe(200);
+    expect(service.findAll).toHaveBeenCalledWith({ page: 2, limit: 5 });
+  });
 
   it.each([
-    { method: 'POST', path: '', body: { menu_item_id: menuItemId } },
-    { method: 'POST', path: '', body: { ...create, modifier_id: 'invalid' } },
-    { method: 'POST', path: '', body: { ...create, additional_price: -1 } },
-    { method: 'POST', path: '', body: { ...create, additional_price: 1.001 } },
-    {
-      method: 'POST',
-      path: '',
-      body: { ...create, additional_price: 10000000000 },
-    },
-    { method: 'POST', path: '', body: { ...create, is_available: null } },
     {
       method: 'PATCH',
       path: `/${assignmentId}`,
@@ -525,13 +453,10 @@ describe('Menu item modifiers HTTP endpoints', () => {
     { method: 'GET', path: '/invalid' },
     { method: 'GET', path: '/menu-item/invalid' },
     { method: 'PATCH', path: '/invalid', body: { additional_price: 20 } },
-    { method: 'PATCH', path: '/reactivate/invalid' },
     { method: 'DELETE', path: '/invalid' },
     { method: 'GET', path: '?page=0' },
     { method: 'GET', path: '?limit=101' },
-    { method: 'GET', path: '?activeOnly=invalid' },
-    { method: 'GET', path: `/${assignmentId}?activeOnly=invalid` },
-    { method: 'GET', path: `/menu-item/${menuItemId}?activeOnly=invalid` },
+    { method: 'GET', path: '?activeOnly=false' },
   ] as const)(
     'IT-MIM-018: $method $path rejects invalid input before calling the service',
     async (route) => {
@@ -561,20 +486,20 @@ describe('Menu item modifiers HTTP endpoints', () => {
     });
   });
 
-  it('IT-MIM-020: preserves reactivation conflicts', async () => {
-    service.reactivate.mockRejectedValueOnce(
-      new ConflictException({
-        code: 'MENU_ITEM_MODIFIER_ALREADY_ACTIVE',
-        message: 'Menu item modifier is still active',
-      }),
-    );
-    const response = await fetch(`${url}/reactivate/${assignmentId}`, {
-      method: 'PATCH',
-      headers,
-    });
-    expect(response.status).toBe(409);
-    expect(await response.json()).toMatchObject({
-      code: 'MENU_ITEM_MODIFIER_ALREADY_ACTIVE',
-    });
-  });
+  it.each([
+    { method: 'POST', path: '', body: assignmentFields },
+    { method: 'PATCH', path: `/reactivate/${assignmentId}`, body: undefined },
+  ])(
+    'IT-MIM-020: $method $path is no longer routed',
+    async ({ method, path, body }) => {
+      const response = await fetch(url + path, {
+        method,
+        headers,
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(404);
+      for (const handler of Object.values(service))
+        expect(handler).not.toHaveBeenCalled();
+    },
+  );
 });

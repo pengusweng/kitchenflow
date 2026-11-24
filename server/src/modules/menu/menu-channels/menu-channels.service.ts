@@ -8,7 +8,7 @@ import { MenuChannelsRepository } from './menu-channels.repository';
 import { MenuItemsRepository } from '../menu-items/menu-items.repository';
 import { CreateMenuChannelDTO } from './dto/create-menu-channel.dto';
 import { assertExists } from '../../../shared/assertions/assert-exists';
-import { OrderChannel } from '@prisma/client';
+import { OrderChannel, Prisma } from '@prisma/client';
 import { FindMenuItemChannelsDTO } from './dto/find-menu-item-channels.dto';
 import { FindAllMenuChannelsDTO } from './dto/find-all-menu-channels.dto';
 import { UpdateMenuItemChannelDTO } from './dto/update-menu-item-channel.dto';
@@ -22,7 +22,7 @@ export class MenuChannelsService {
     private readonly menuItemsRepository: MenuItemsRepository,
   ) {}
 
-  async create(dto: CreateMenuChannelDTO) {
+  async create(dto: CreateMenuChannelDTO, tx?: Prisma.TransactionClient) {
     const allowedChannels: OrderChannel[] = [
       OrderChannel.FOODPANDA,
       OrderChannel.GRABFOOD,
@@ -43,11 +43,13 @@ export class MenuChannelsService {
 
     const menuItem = await this.menuItemsRepository.findOneMenuItemByUID(
       dto.menu_item_id,
+      true,
+      tx,
     );
 
     assertExists(menuItem, 'MenuItem', dto.menu_item_id, this.logger);
 
-    const menuItemChannel = await this.menuChannelsRepository.create(dto);
+    const menuItemChannel = await this.menuChannelsRepository.create(dto, tx);
 
     this.logger.log(
       `Created menu item channel for ${menuItem.menu_item_id} with id ${menuItemChannel.menu_item_channel_id} orderchannel ${menuItemChannel.order_channel}`,
@@ -55,12 +57,17 @@ export class MenuChannelsService {
     return menuItemChannel;
   }
 
-  async findOne(menuItemChannelId: string, activeOnly = true) {
+  async findOne(
+    menuItemChannelId: string,
+    activeOnly = true,
+    tx?: Prisma.TransactionClient,
+  ) {
     this.logger.debug(`Finding menu item channel ${menuItemChannelId}`);
 
     const menuItemChannel = await this.menuChannelsRepository.findOne(
       menuItemChannelId,
       activeOnly,
+      tx,
     );
 
     assertExists(
@@ -74,13 +81,20 @@ export class MenuChannelsService {
     return menuItemChannel;
   }
 
-  async findManyByMenuItem(menuItemId: string, dto: FindMenuItemChannelsDTO) {
+  async findManyByMenuItem(
+    menuItemId: string,
+    dto: FindMenuItemChannelsDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
     this.logger.debug(
       `Finding menu item channels for ${menuItemId} activeOnly: ${dto.activeOnly} orderChannel: ${dto.orderChannel},`,
     );
 
-    const menuItem =
-      await this.menuItemsRepository.findOneMenuItemByUID(menuItemId);
+    const menuItem = await this.menuItemsRepository.findOneMenuItemByUID(
+      menuItemId,
+      true,
+      tx,
+    );
 
     assertExists(menuItem, 'MenuItem', menuItemId, this.logger);
 
@@ -88,6 +102,7 @@ export class MenuChannelsService {
       menuItemId,
       dto.activeOnly,
       dto.orderChannel,
+      tx,
     );
 
     this.logger.log(
@@ -97,12 +112,10 @@ export class MenuChannelsService {
     return menuChannels;
   }
 
-  async findAll({
-    page,
-    limit,
-    activeOnly,
-    orderChannel,
-  }: FindAllMenuChannelsDTO) {
+  async findAll(
+    { page, limit, activeOnly, orderChannel }: FindAllMenuChannelsDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
     this.logger.debug(
       `Listing menu item channels: page=${page}, limit=${limit}, activeOnly=${activeOnly}, orderChannel=${orderChannel}`,
     );
@@ -116,6 +129,7 @@ export class MenuChannelsService {
         limit,
         activeOnly,
         orderChannel,
+        tx,
       );
 
     this.logger.log(
@@ -133,11 +147,18 @@ export class MenuChannelsService {
     };
   }
 
-  async update(menuItemChannelId: string, dto: UpdateMenuItemChannelDTO) {
+  async update(
+    menuItemChannelId: string,
+    dto: UpdateMenuItemChannelDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
     this.logger.debug(`Updating menu item channel ${menuItemChannelId}`);
 
-    const menuItemChannel =
-      await this.menuChannelsRepository.findOne(menuItemChannelId);
+    const menuItemChannel = await this.menuChannelsRepository.findOne(
+      menuItemChannelId,
+      true,
+      tx,
+    );
     assertExists(
       menuItemChannel,
       'MenuItemChannel',
@@ -148,18 +169,20 @@ export class MenuChannelsService {
     const updated = await this.menuChannelsRepository.update(
       menuItemChannel.menu_item_channel_id,
       dto,
+      tx,
     );
 
     this.logger.log(`Updated menu item channel ${menuItemChannelId}`);
     return updated;
   }
 
-  async reactivate(menuItemChannelId: string) {
+  async reactivate(menuItemChannelId: string, tx?: Prisma.TransactionClient) {
     this.logger.debug(`Reactivating menu item channel ${menuItemChannelId}`);
 
     const menuItemChannel = await this.menuChannelsRepository.findOne(
       menuItemChannelId,
       false,
+      tx,
     );
     assertExists(
       menuItemChannel,
@@ -181,17 +204,21 @@ export class MenuChannelsService {
 
     const reactivated = await this.menuChannelsRepository.reactivate(
       menuItemChannel.menu_item_channel_id,
+      tx,
     );
 
     this.logger.log(`Reactivated menu item channel ${menuItemChannelId}`);
     return reactivated;
   }
 
-  async delete(menuItemChannelId: string) {
+  async delete(menuItemChannelId: string, tx?: Prisma.TransactionClient) {
     this.logger.debug(`Deactivating menu item channel ${menuItemChannelId}`);
 
-    const menuItemChannel =
-      await this.menuChannelsRepository.findOne(menuItemChannelId);
+    const menuItemChannel = await this.menuChannelsRepository.findOne(
+      menuItemChannelId,
+      true,
+      tx,
+    );
     assertExists(
       menuItemChannel,
       'MenuItemChannel',
@@ -201,6 +228,7 @@ export class MenuChannelsService {
 
     const deleted = await this.menuChannelsRepository.delete(
       menuItemChannel.menu_item_channel_id,
+      tx,
     );
 
     this.logger.log(`Deactivated menu item channel ${menuItemChannelId}`);

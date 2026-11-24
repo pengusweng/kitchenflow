@@ -1,4 +1,5 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { MenuItemModifiersRepository } from './menu-item-modifiers.repository';
 import { MenuItemsRepository } from '../menu-items/menu-items.repository';
 import { ModifiersRepository } from '../modifiers/modifiers.repository';
@@ -17,29 +18,53 @@ export class MenuItemModifiersService {
     private readonly menuItemsRepository: MenuItemsRepository,
     private readonly modifiersRepository: ModifiersRepository,
   ) {}
-
-  async create(dto: CreateMenuItemModifierDTO) {
+  async createMany(
+    menuItemId: string,
+    modifiers: CreateMenuItemModifierDTO[],
+    tx?: Prisma.TransactionClient,
+  ) {
     this.logger.debug(
-      `Creating modifier assignment for menu item ${dto.menu_item_id}`,
+      `Creating ${modifiers.length} modifiers for menu item ${menuItemId}`,
     );
 
-    await this.assertActiveReferences(dto.menu_item_id, dto.modifier_id);
-
-    const menuItemModifier = await this.menuItemModifiersRepository.create(dto);
-
-    this.logger.log(
-      `Created menu item modifier ${menuItemModifier.menu_item_modifier_id}`,
+    const menuItem = await this.menuItemsRepository.findOneMenuItemByUID(
+      menuItemId,
+      true,
+      tx,
     );
-    return menuItemModifier;
+
+    assertExists(menuItem, 'MenuItem', menuItemId, this.logger);
+
+    // validate each modifier
+    for (const mod of modifiers) {
+      const modifier = await this.modifiersRepository.findOne(
+        { modifier_id: mod.modifier_id },
+        true,
+        tx,
+      );
+
+      assertExists(modifier, 'Modifier', mod.modifier_id, this.logger);
+    }
+
+    const menuItemModifiers = await this.menuItemModifiersRepository.createMany(
+      menuItemId,
+      modifiers,
+      tx,
+    );
+
+    this.logger.log(`Created ${menuItemModifiers.length} for ${menuItemId}`);
+
+    return menuItemModifiers;
   }
 
-  async findOne(menuItemModifierId: string, activeOnly = true) {
+  async findOne(menuItemModifierId: string, tx?: Prisma.TransactionClient) {
     this.logger.debug(`Finding menu item modifier ${menuItemModifierId}`);
 
-    const menuItemModifier = await this.menuItemModifiersRepository.findOne(
-      menuItemModifierId,
-      activeOnly,
-    );
+    const menuItemModifier =
+      await this.menuItemModifiersRepository.findOneWithModifier(
+        menuItemModifierId,
+        tx,
+      );
 
     assertExists(
       menuItemModifier,
@@ -48,32 +73,45 @@ export class MenuItemModifiersService {
       this.logger,
     );
 
-    const modifierDetails = await this.modifiersRepository.findOneModifierByUID(
-      menuItemModifier.modifier_id,
-      activeOnly,
-    );
-
-    assertExists(
-      modifierDetails,
-      'Modifier',
-      menuItemModifier.modifier_id,
-      this.logger,
-    );
-
     this.logger.log(`Found menu item modifier ${menuItemModifierId}`);
-    return { menuItemModifier, modifierDetails };
+    return menuItemModifier;
   }
 
-  async findAll({ page, limit, activeOnly }: FindAllMenuItemModifiersDTO) {
+  async findManyForMenuItem(menuItemId: string, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Finding modifiers for menu item ${menuItemId}`);
+
+    const menuItem = await this.menuItemsRepository.findOneMenuItemByUID(
+      menuItemId,
+      true,
+      tx,
+    );
+    assertExists(menuItem, 'MenuItem', menuItemId, this.logger);
+
+    const menuItemModifiers =
+      await this.menuItemModifiersRepository.findManyForMenuItem(
+        menuItemId,
+        tx,
+      );
+
+    this.logger.log(
+      `Found ${menuItemModifiers.length} modifier assignments for menu item ${menuItemId}`,
+    );
+    return menuItemModifiers;
+  }
+
+  async findAll(
+    { page, limit }: FindAllMenuItemModifiersDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
     this.logger.debug(
-      `Listing menu item modifiers: page=${page}, limit=${limit}, activeOnly=${activeOnly}`,
+      `Listing menu item modifiers: page=${page}, limit=${limit}`,
     );
 
     const skip = (page - 1) * limit;
     assertValidPagination(skip, this.logger);
 
     const { menuItemModifiers, total } =
-      await this.menuItemModifiersRepository.findAll(skip, limit, activeOnly);
+      await this.menuItemModifiersRepository.findAll(skip, limit, tx);
 
     this.logger.log(
       `Listed menu item modifiers: page=${page}, returned=${menuItemModifiers.length}, total=${total}`,
@@ -85,32 +123,18 @@ export class MenuItemModifiersService {
     };
   }
 
-  async findManyForMenuItem(menuItemId: string, activeOnly = true) {
-    this.logger.debug(
-      `Finding modifiers for menu item ${menuItemId}, activeOnly=${activeOnly}`,
-    );
-
-    const menuItem =
-      await this.menuItemsRepository.findOneMenuItemByUID(menuItemId);
-    assertExists(menuItem, 'MenuItem', menuItemId, this.logger);
-
-    const menuItemModifiers =
-      await this.menuItemModifiersRepository.findManyForMenuItem(
-        menuItemId,
-        activeOnly,
-      );
-
-    this.logger.log(
-      `Found ${menuItemModifiers.length} modifier assignments for menu item ${menuItemId}`,
-    );
-    return menuItemModifiers;
-  }
-
-  async update(menuItemModifierId: string, dto: UpdateMenuItemModifierDTO) {
+  async update(
+    menuItemModifierId: string,
+    dto: UpdateMenuItemModifierDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
     this.logger.debug(`Updating menu item modifier ${menuItemModifierId}`);
 
-    const menuItemModifier =
-      await this.menuItemModifiersRepository.findOne(menuItemModifierId);
+    const menuItemModifier = await this.menuItemModifiersRepository.findOne(
+      menuItemModifierId,
+      tx,
+    );
+
     assertExists(
       menuItemModifier,
       'MenuItemModifier',
@@ -118,63 +142,30 @@ export class MenuItemModifiersService {
       this.logger,
     );
 
+    // A replacement modifier must be active; otherwise recheck the current one.
     await this.assertActiveReferences(
       menuItemModifier.menu_item_id,
       dto.modifier_id ?? menuItemModifier.modifier_id,
+      tx,
     );
 
     const updated = await this.menuItemModifiersRepository.update(
       menuItemModifier.menu_item_modifier_id,
       dto,
+      tx,
     );
 
     this.logger.log(`Updated menu item modifier ${menuItemModifierId}`);
     return updated;
   }
 
-  async reactivate(menuItemModifierId: string) {
-    this.logger.debug(`Reactivating menu item modifier ${menuItemModifierId}`);
+  async delete(menuItemModifierId: string, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Deactivating menu item modifier ${menuItemModifierId}`);
 
     const menuItemModifier = await this.menuItemModifiersRepository.findOne(
       menuItemModifierId,
-      false,
+      tx,
     );
-    assertExists(
-      menuItemModifier,
-      'MenuItemModifier',
-      menuItemModifierId,
-      this.logger,
-    );
-
-    if (menuItemModifier.is_available) {
-      this.logger.debug(
-        `Menu item modifier ${menuItemModifierId} is already active.`,
-      );
-
-      throw new ConflictException({
-        code: 'MENU_ITEM_MODIFIER_ALREADY_ACTIVE',
-        message: 'Menu item modifier is still active',
-      });
-    }
-
-    await this.assertActiveReferences(
-      menuItemModifier.menu_item_id,
-      menuItemModifier.modifier_id,
-    );
-
-    const reactivated = await this.menuItemModifiersRepository.reactivate(
-      menuItemModifier.menu_item_modifier_id,
-    );
-
-    this.logger.log(`Reactivated menu item modifier ${menuItemModifierId}`);
-    return reactivated;
-  }
-
-  async delete(menuItemModifierId: string) {
-    this.logger.debug(`Deactivating menu item modifier ${menuItemModifierId}`);
-
-    const menuItemModifier =
-      await this.menuItemModifiersRepository.findOne(menuItemModifierId);
     assertExists(
       menuItemModifier,
       'MenuItemModifier',
@@ -184,19 +175,30 @@ export class MenuItemModifiersService {
 
     const deleted = await this.menuItemModifiersRepository.delete(
       menuItemModifier.menu_item_modifier_id,
+      tx,
     );
 
     this.logger.log(`Deactivated menu item modifier ${menuItemModifierId}`);
     return deleted;
   }
 
-  private async assertActiveReferences(menuItemId: string, modifierId: string) {
-    const menuItem =
-      await this.menuItemsRepository.findOneMenuItemByUID(menuItemId);
+  private async assertActiveReferences(
+    menuItemId: string,
+    modifierId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const menuItem = await this.menuItemsRepository.findOneMenuItemByUID(
+      menuItemId,
+      true,
+      tx,
+    );
     assertExists(menuItem, 'MenuItem', menuItemId, this.logger);
 
-    const modifier =
-      await this.modifiersRepository.findOneModifierByUID(modifierId);
+    const modifier = await this.modifiersRepository.findOne(
+      { modifier_id: modifierId },
+      true,
+      tx,
+    );
     assertExists(modifier, 'Modifier', modifierId, this.logger);
   }
 }

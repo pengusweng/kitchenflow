@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { MenuItemsRepository } from '../menu-items/menu-items.repository';
 import { MenuChannelsRepository } from '../menu-channels/menu-channels.repository';
@@ -16,8 +17,8 @@ export class MenuCatalogRepository {
     private readonly menuItemsModifiersRepository: MenuItemModifiersRepository,
   ) {}
 
-  async create(dto: MenuCatalogSetupDTO) {
-    return this.prisma.$transaction(async (tx) => {
+  async create(dto: MenuCatalogSetupDTO, tx?: Prisma.TransactionClient) {
+    return this.inTransaction(tx, async (tx) => {
       const menuItem = await this.menuItemsRepository.createMenuItem(
         dto.menu_item,
         tx,
@@ -30,9 +31,10 @@ export class MenuCatalogRepository {
         );
       }
 
-      for (const modifier of dto.menu_item_modifier) {
-        await this.menuItemsModifiersRepository.create(
-          { ...modifier, menu_item_id: menuItem.menu_item_id },
+      if (dto.menu_item_modifier.length > 0) {
+        await this.menuItemsModifiersRepository.createMany(
+          menuItem.menu_item_id,
+          dto.menu_item_modifier,
           tx,
         );
       }
@@ -46,7 +48,6 @@ export class MenuCatalogRepository {
       const menuItemModifiers =
         await this.menuItemsModifiersRepository.findManyForMenuItem(
           menuItem.menu_item_id,
-          false,
           tx,
         );
 
@@ -54,8 +55,14 @@ export class MenuCatalogRepository {
     });
   }
 
-  async findMany(brandId: string, skip: number, take: number, search?: string) {
-    return this.prisma.$transaction(async (tx) => {
+  async findMany(
+    brandId: string,
+    skip: number,
+    take: number,
+    search?: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    return this.inTransaction(tx, async (tx) => {
       const { menuItems, counts } =
         await this.menuItemsRepository.findAllByBrand(
           brandId,
@@ -77,7 +84,6 @@ export class MenuCatalogRepository {
           const menuItemModifiers =
             await this.menuItemsModifiersRepository.findManyForMenuItem(
               menuItem.menu_item_id,
-              true,
               tx,
             );
 
@@ -87,5 +93,13 @@ export class MenuCatalogRepository {
 
       return { menuItems: items, total: counts.active };
     });
+  }
+
+  // Joins the caller's transaction when given; otherwise opens its own.
+  private inTransaction<T>(
+    tx: Prisma.TransactionClient | undefined,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ) {
+    return tx ? fn(tx) : this.prisma.$transaction(fn);
   }
 }

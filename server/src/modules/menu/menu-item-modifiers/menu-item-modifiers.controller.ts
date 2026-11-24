@@ -1,8 +1,4 @@
-import {
-  Audit,
-  fromParam,
-  fromResult,
-} from '../../../shared/audit/audit.decorator';
+import { Audit, fromParam } from '../../../shared/audit/audit.decorator';
 import { UseInterceptors as UseMenuInterceptors } from '@nestjs/common';
 import { SafeMenuInterceptor } from '../safe-menu.interceptor';
 import {
@@ -13,25 +9,20 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
-  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { MenuItemModifiersService } from './menu-item-modifiers.service';
 import { Authenticated } from '../../auth/auth.guard';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
-import { CreateMenuItemModifierDTO } from './dto/create-menu-item-modifier.dto';
 import { UpdateMenuItemModifierDTO } from './dto/update-menu-item-modifier.dto';
 import { FindAllMenuItemModifiersDTO } from './dto/find-all-menu-item-modifiers.dto';
-import { FindMenuItemModifierDTO } from './dto/find-menu-item-modifier.dto';
 import {
   MenuItemModifiersDocs,
-  CreateMenuItemModifierDocs,
   FindAllMenuItemModifiersDocs,
   FindMenuItemModifiersForMenuItemDocs,
   FindOneMenuItemModifierDocs,
   UpdateMenuItemModifierDocs,
-  ReactivateMenuItemModifierDocs,
   DeleteMenuItemModifierDocs,
 } from './docs/menu-item-modifiers.docs';
 import { Roles } from '../../../shared/decorators/roles.decorator';
@@ -46,19 +37,6 @@ export class MenuItemModifiersController {
     private readonly menuItemModifiersService: MenuItemModifiersService,
   ) {}
 
-  @Post()
-  @Audit({
-    action: 'MENU_ITEM_MODIFIER_CREATED',
-    snapshot: 'create',
-    entity: 'menu_item_modifiers',
-    id: fromResult('menu_item_modifier_id'),
-  })
-  @Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
-  @CreateMenuItemModifierDocs()
-  async create(@Body() dto: CreateMenuItemModifierDTO) {
-    return this.menuItemModifiersService.create(dto);
-  }
-
   @Get()
   @FindAllMenuItemModifiersDocs()
   @Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
@@ -71,24 +49,14 @@ export class MenuItemModifiersController {
   @Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
   async findManyForMenuItem(
     @Param('menuItemId', ParseUUIDPipe) menuItemId: string,
-    @Query() query: FindMenuItemModifierDTO,
   ) {
-    return this.menuItemModifiersService.findManyForMenuItem(
-      menuItemId,
-      query.activeOnly,
-    );
+    return this.menuItemModifiersService.findManyForMenuItem(menuItemId);
   }
 
   @Get(':id')
   @FindOneMenuItemModifierDocs()
-  async findOne(
-    @Param('id', ParseUUIDPipe) menuItemModifierId: string,
-    @Query() query: FindMenuItemModifierDTO,
-  ) {
-    return this.menuItemModifiersService.findOne(
-      menuItemModifierId,
-      query.activeOnly,
-    );
+  async findOne(@Param('id', ParseUUIDPipe) menuItemModifierId: string) {
+    return this.menuItemModifiersService.findOne(menuItemModifierId);
   }
 
   @Patch(':id')
@@ -105,19 +73,6 @@ export class MenuItemModifiersController {
     @Body() dto: UpdateMenuItemModifierDTO,
   ) {
     return this.menuItemModifiersService.update(menuItemModifierId, dto);
-  }
-
-  @Patch('reactivate/:id')
-  @Audit({
-    action: 'MENU_ITEM_MODIFIER_REACTIVATED',
-    snapshot: 'update',
-    entity: 'menu_item_modifiers',
-    id: fromParam('id'),
-  })
-  @ReactivateMenuItemModifierDocs()
-  @Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
-  async reactivate(@Param('id', ParseUUIDPipe) menuItemModifierId: string) {
-    return this.menuItemModifiersService.reactivate(menuItemModifierId);
   }
 
   @Delete(':id')

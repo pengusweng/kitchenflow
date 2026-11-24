@@ -12,7 +12,6 @@ const assignmentExample = {
   menu_item_id: '00000000-0000-4000-8000-000000000002',
   modifier_id: '00000000-0000-4000-8000-000000000003',
   additional_price: '20',
-  is_available: true,
   created_at: '2026-10-31T08:00:00.000Z',
   modified_at: '2026-10-31T08:00:00.000Z',
 };
@@ -43,36 +42,12 @@ export function MenuItemModifiersDocs() {
   );
 }
 
-export function CreateMenuItemModifierDocs() {
-  return applyDecorators(
-    ApiOperation({
-      summary: 'Assign a modifier to a menu item.',
-      description:
-        'Available to managers, recipe managers, and superadmins across brands. The menu item and modifier must be active. Additional price defaults to zero and availability defaults to true. Each menu item and modifier pair must be unique.',
-    }),
-    ApiResponse({
-      status: 201,
-      description:
-        'Created assignment. Decimal prices are serialized as strings.',
-      content: { 'application/json': { example: assignmentExample } },
-    }),
-    ApiResponse({
-      status: 404,
-      description: 'Menu item or modifier not found or inactive.',
-    }),
-    ApiResponse({
-      status: 409,
-      description: 'Modifier is already assigned to this menu item.',
-    }),
-  );
-}
-
 export function FindAllMenuItemModifiersDocs() {
   return applyDecorators(
     ApiOperation({
       summary: 'List menu item modifier assignments.',
       description:
-        'Available to recipe managers and superadmins. Supports page, limit, and activeOnly. Returns data and pagination meta. activeOnly defaults to true; false includes unavailable assignments.',
+        'Available to recipe managers and superadmins. Supports page and limit. Returns data and pagination meta.',
     }),
     ApiResponse({
       status: 200,
@@ -107,7 +82,7 @@ export function FindMenuItemModifiersForMenuItemDocs() {
     ApiOperation({
       summary: 'List modifier assignments for a menu item.',
       description:
-        'Available to managers, recipe managers, and superadmins. Requires an active menu item. activeOnly defaults to true; false includes unavailable assignments. Returns an empty array when no assignments match.',
+        'Available to managers, recipe managers, and superadmins. Requires an active menu item. Returns an empty array when the item has no assignments.',
     }),
     ApiParam({
       name: 'menuItemId',
@@ -140,7 +115,7 @@ export function FindOneMenuItemModifierDocs() {
     ApiOperation({
       summary: 'Get a menu item modifier assignment.',
       description:
-        'Available to any authenticated user across brands. Looks up an assignment by its UUID. activeOnly defaults to true; false permits unavailable assignments.',
+        'Available to any authenticated user across brands. Looks up an assignment by its UUID.',
     }),
     ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } }),
     ApiResponse({
@@ -157,7 +132,7 @@ export function FindOneMenuItemModifierDocs() {
     }),
     ApiResponse({
       status: 404,
-      description: 'Assignment not found under the activeOnly filter.',
+      description: 'Assignment not found.',
     }),
   );
 }
@@ -167,7 +142,7 @@ export function UpdateMenuItemModifierDocs() {
     ApiOperation({
       summary: 'Update a menu item modifier assignment.',
       description:
-        'Available to managers, recipe managers, and superadmins across brands. Only additional_price and modifier_id can change. The assignment must be available, and its menu item and resulting modifier must be active.',
+        'Available to managers, recipe managers, and superadmins across brands. Only additional_price and modifier_id can change. The menu item and the resulting modifier (the replacement when modifier_id is sent) must be active. To add assignments, use PATCH /menu-catalog/:id.',
     }),
     ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } }),
     ApiResponse({
@@ -196,62 +171,24 @@ export function UpdateMenuItemModifierDocs() {
   );
 }
 
-export function ReactivateMenuItemModifierDocs() {
-  return applyDecorators(
-    ApiOperation({
-      summary: 'Reactivate a menu item modifier assignment.',
-      description:
-        'Available to managers, recipe managers, and superadmins across brands. Sets an unavailable assignment back to available after validating its active menu item and modifier.',
-    }),
-    ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } }),
-    ApiResponse({
-      status: 200,
-      description: 'Reactivated assignment with is_available set to true.',
-      content: {
-        'application/json': {
-          example: {
-            ...assignmentExample,
-            is_available: true,
-            modified_at: '2026-10-31T09:00:00.000Z',
-          },
-        },
-      },
-    }),
-    ApiResponse({
-      status: 404,
-      description: 'Assignment or active menu item/modifier not found.',
-    }),
-    ApiResponse({
-      status: 409,
-      description: 'Assignment is already available.',
-    }),
-  );
-}
-
 export function DeleteMenuItemModifierDocs() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Deactivate a menu item modifier assignment.',
+      summary: 'Delete a menu item modifier assignment.',
       description:
-        'Available to managers, recipe managers, and superadmins across brands. Soft deletes an available assignment by setting is_available to false. Existing references are preserved, and inactive parent records do not prevent cleanup.',
+        'Available to managers, recipe managers, and superadmins across brands. Permanently removes the assignment; past orders keep their own copy of the modifier name and price. Inactive parent records do not prevent cleanup.',
     }),
     ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } }),
     ApiResponse({
       status: 200,
-      description: 'Preserved assignment with is_available set to false.',
+      description: 'The deleted assignment.',
       content: {
-        'application/json': {
-          example: {
-            ...assignmentExample,
-            is_available: false,
-            modified_at: '2026-10-31T09:00:00.000Z',
-          },
-        },
+        'application/json': { example: assignmentExample },
       },
     }),
     ApiResponse({
       status: 404,
-      description: 'Assignment not found or unavailable.',
+      description: 'Assignment not found.',
     }),
   );
 }

@@ -93,6 +93,28 @@ export class MenuChannelsRepository {
     });
   }
 
+  /** Changes price or availability of any override, available or not. */
+  async updateOverride(
+    menuItemChannelId: string,
+    data: { price?: number; is_available?: boolean },
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    return tx.menuItemChannel.update({
+      where: { menu_item_channel_id: menuItemChannelId },
+      data: { ...data, modified_at: new Date() },
+    });
+  }
+
+  /** Removes the override; unlike delete, this frees the channel slot. */
+  async deletePermanently(
+    menuItemChannelId: string,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    return tx.menuItemChannel.delete({
+      where: { menu_item_channel_id: menuItemChannelId },
+    });
+  }
+
   async reactivate(
     menuItemId: string,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,

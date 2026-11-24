@@ -123,7 +123,6 @@ async function check() {
           ),
         );
         assert(Number(args.create.additional_price) >= 0);
-        assert.equal(typeof args.create.is_available, 'boolean');
         assert.equal(args.create.menu_item_modifier_id, undefined);
         return upsert(
           menuItemModifiers,
@@ -278,9 +277,6 @@ async function check() {
   assert.equal(menuItemChannels.size, 50);
   assert.equal(modifiers.size, 14);
   assert.equal(menuItemModifiers.size, 34);
-  assert(
-    [...menuItemModifiers.values()].every((row) => row.is_available === true),
-  );
   assert.equal(
     new Set(
       [...menuItemModifiers.values()].map((row) => row.menu_item_modifier_id),
@@ -363,7 +359,6 @@ async function check() {
   modifiers.get('MOD-EXTRA-RICE').name = 'Existing extra rice';
   modifiers.get('MOD-EXTRA-RICE').is_active = false;
   [...menuItemModifiers.values()][0].additional_price = 99;
-  [...menuItemModifiers.values()][0].is_available = false;
   const firstChannel = [...menuItemChannels.values()][0];
   firstChannel.is_available = false;
   firstChannel.price = 0;
