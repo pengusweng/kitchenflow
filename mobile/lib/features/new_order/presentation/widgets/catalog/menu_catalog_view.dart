@@ -52,82 +52,98 @@ class MenuCatalogView extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 isWide ? KkfcSpace.s20 : KkfcSpace.s16,
-                KkfcSpace.s16,
-                isWide ? KkfcSpace.s20 : KkfcSpace.s16,
                 KkfcSpace.s12,
+                isWide ? KkfcSpace.s20 : KkfcSpace.s16,
+                KkfcSpace.s8,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const OptionalUpdateNotice(),
-                  // Provider selection; channels are selected in order details.
-                  CurrentMenuCard(
-                    brand: activeBrand,
-                    channel: selectedChannel,
-                    showChannel: false,
-                    onTap: () async {
-                      final result = await showChooseMenuModal(
-                        context,
-                        brands: assignedBrands,
-                        currentBrand: activeBrand,
-                        currentChannel: selectedChannel,
-                        showChannels: false,
-                      );
-                      if (result == null ||
-                          result.brand.id == activeBrand.id ||
-                          (result.brand.code.isNotEmpty &&
-                              result.brand.code.toUpperCase() ==
-                                  activeBrand.code.toUpperCase())) {
-                        return;
-                      }
-                      if (!context.mounted) return;
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isSingleRow = constraints.maxWidth >= 720.0;
 
-                      final cartCount = ref.read(cartCountProvider);
-                      if (cartCount > 0) {
-                        final confirmed = await showBrandSwitchConfirm(
-                          context,
-                          current: activeBrand,
-                          target: result.brand,
-                          cartCount: cartCount,
-                        );
-                        if (confirmed != true) return;
-                        if (!context.mounted) return;
-                        ref.read(cartProvider.notifier).clear();
-                      }
-
-                      ref
-                          .read(activeBrandProvider.notifier)
-                          .select(result.brand);
-                    },
-                  ),
-                  const SizedBox(height: KkfcSpace.s12),
-
-                  // 2. Search field + Unavailable button with tactile press feedback
-                  const CatalogSearchBar(),
-                  Padding(
-                    padding: const EdgeInsets.only(top: KkfcSpace.s8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: visibleCount != null
-                              ? Text(
-                                  'Showing $visibleCount item${visibleCount == 1 ? '' : 's'}',
-                                  style: const TextStyle(
-                                    fontFamily: KkfcFonts.text,
-                                    fontSize: 13,
-                                    color: Color(0xFF586579),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                )
-                              : const SizedBox.shrink(),
+                      final menuSelector = ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: 140.0,
+                          maxWidth: 220.0,
                         ),
-                        const SizedBox(width: KkfcSpace.s8),
-                        const CatalogViewModeToggle(),
-                      ],
-                    ),
+                        child: CurrentMenuCard(
+                          brand: activeBrand,
+                          channel: selectedChannel,
+                          showChannel: false,
+                          compact: true,
+                          onTap: () async {
+                            final result = await showChooseMenuModal(
+                              context,
+                              brands: assignedBrands,
+                              currentBrand: activeBrand,
+                              currentChannel: selectedChannel,
+                              showChannels: false,
+                            );
+                            if (result == null ||
+                                result.brand.id == activeBrand.id ||
+                                (result.brand.code.isNotEmpty &&
+                                    result.brand.code.toUpperCase() ==
+                                        activeBrand.code.toUpperCase())) {
+                              return;
+                            }
+                            if (!context.mounted) return;
+
+                            final cartCount = ref.read(cartCountProvider);
+                            if (cartCount > 0) {
+                              final confirmed = await showBrandSwitchConfirm(
+                                context,
+                                current: activeBrand,
+                                target: result.brand,
+                                cartCount: cartCount,
+                              );
+                              if (confirmed != true) return;
+                              if (!context.mounted) return;
+                              ref.read(cartProvider.notifier).clear();
+                            }
+
+                            ref
+                                .read(activeBrandProvider.notifier)
+                                .select(result.brand);
+                          },
+                        ),
+                      );
+
+                      if (isSingleRow) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            menuSelector,
+                            const SizedBox(width: 8.0),
+                            const Expanded(child: CatalogSearchBar()),
+                            const SizedBox(width: 8.0),
+                            const CatalogViewModeToggle(),
+                          ],
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: menuSelector,
+                                ),
+                              ),
+                              const SizedBox(width: 8.0),
+                              const CatalogViewModeToggle(),
+                            ],
+                          ),
+                          const SizedBox(height: 8.0),
+                          const CatalogSearchBar(),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),

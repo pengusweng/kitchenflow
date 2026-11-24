@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/app/theme/tokens.dart';
-import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 
-/// Segmented view mode toggle allowing the cashier to switch seamlessly between
-/// Grid view and List view for the menu catalog.
+/// Icon-only segmented view mode toggle allowing the cashier to switch seamlessly
+/// between Grid view and List view for the menu catalog.
 class CatalogViewModeToggle extends ConsumerWidget {
   const CatalogViewModeToggle({super.key});
 
@@ -15,7 +14,7 @@ class CatalogViewModeToggle extends ConsumerWidget {
     final viewMode = ref.watch(menuViewModeProvider);
 
     return Container(
-      height: 36.0,
+      height: 40.0,
       decoration: BoxDecoration(
         color: const Color(0xFFF0EAE1),
         borderRadius: BorderRadius.circular(KkfcRadius.sm),
@@ -24,13 +23,12 @@ class CatalogViewModeToggle extends ConsumerWidget {
           width: 1.0,
         ),
       ),
-      padding: const EdgeInsets.all(2.5),
+      padding: const EdgeInsets.all(3.0),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _ToggleSegment(
             key: const ValueKey('menu-view-mode-grid'),
-            label: 'Grid',
             icon: Icons.grid_view_rounded,
             isSelected: viewMode == MenuViewMode.grid,
             tooltip: 'Grid view',
@@ -43,10 +41,9 @@ class CatalogViewModeToggle extends ConsumerWidget {
               }
             },
           ),
-          const SizedBox(width: 2.0),
+          const SizedBox(width: 3.0),
           _ToggleSegment(
             key: const ValueKey('menu-view-mode-list'),
-            label: 'List',
             icon: Icons.view_list_rounded,
             isSelected: viewMode == MenuViewMode.list,
             tooltip: 'List view',
@@ -68,14 +65,12 @@ class CatalogViewModeToggle extends ConsumerWidget {
 class _ToggleSegment extends StatelessWidget {
   const _ToggleSegment({
     super.key,
-    required this.label,
     required this.icon,
     required this.isSelected,
     required this.tooltip,
     required this.onTap,
   });
 
-  final String label;
   final IconData icon;
   final bool isSelected;
   final String tooltip;
@@ -101,7 +96,8 @@ class _ToggleSegment extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+              width: 34.0,
+              height: 34.0,
               decoration: BoxDecoration(
                 color: isSelected ? selectedBg : Colors.transparent,
                 borderRadius: BorderRadius.circular(KkfcRadius.sm - 2),
@@ -116,26 +112,10 @@ class _ToggleSegment extends StatelessWidget {
                     : null,
               ),
               child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      icon,
-                      size: 16.0,
-                      color: isSelected ? selectedFg : unselectedFg,
-                    ),
-                    const SizedBox(width: 5.0),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontFamily: KkfcFonts.ibmPlexSans,
-                        fontSize: 12.5,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w600,
-                        color: isSelected ? selectedFg : unselectedFg,
-                      ),
-                    ),
-                  ],
+                child: Icon(
+                  icon,
+                  size: 18.0,
+                  color: isSelected ? selectedFg : unselectedFg,
                 ),
               ),
             ),
