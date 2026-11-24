@@ -1,0 +1,280 @@
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { MenuItemsRepository } from './menu-items.repository';
+import { BrandsRepository } from '../../brands/brands.repository';
+import { CreateMenuItemDTO } from './dto/create-menu-item.dto';
+import { UpdateMenuItemDTO } from './dto/update-menu-item.dto';
+import { assertExists } from '../../../shared/assertions/assert-exists';
+import { isUUID } from 'class-validator';
+import {
+  FindAllMenuItemsDTO,
+  MenuItemStatusFilter,
+} from './dto/find-all-menu-items.dto';
+import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
+import { RecipesRepository } from '../../recipe/recipes/recipes.repository';
+import { StorageService } from '../../../shared/storage/storage.service';
+
+@Injectable()
+export class MenuItemsService {
+  private readonly logger = new Logger(MenuItemsService.name);
+
+  constructor(
+    private readonly menuItemsRepository: MenuItemsRepository,
+    private readonly brandsRepository: BrandsRepository,
+    private readonly recipesRepository: RecipesRepository,
+    private readonly storage: StorageService,
+  ) {}
+
+  async createMenuItem(dto: CreateMenuItemDTO, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Creating menu item ${dto.name} with code ${dto.code}.`);
+    const brand = await this.brandsRepository.findOneBrand(
+      dto.brand_id,
+      true,
+      tx,
+    );
+    const recipe = await this.recipesRepository.findOne(
+      dto.recipe_id,
+      true,
+      false,
+      tx,
+    );
+
+    assertExists(brand, 'Brand', dto.brand_id, this.logger);
+    assertExists(recipe, 'Recipe', dto.recipe_id, this.logger);
+
+    return this.withImageUrl(
+      await this.menuItemsRepository.createMenuItem(dto, tx),
+    );
+  }
+
+  async findOneMenuItem(
+    codeOrMenuId: string | { menu_item_id: string },
+    activeOnly = true,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const identifier =
+      typeof codeOrMenuId === 'string'
+        ? codeOrMenuId
+        : codeOrMenuId.menu_item_id;
+
+    const menuItem =
+      typeof codeOrMenuId === 'string' && !isUUID(identifier)
+        ? await this.menuItemsRepository.findOneMenuItemByCode(
+            identifier,
+            activeOnly,
+            tx,
+          )
+        : await this.menuItemsRepository.findOneMenuItemByUID(
+            identifier,
+            activeOnly,
+            tx,
+          );
+
+    assertExists(menuItem, 'MenuItem', identifier, this.logger);
+
+    const brand = await this.brandsRepository.findOneBrand(
+      menuItem.brand_id,
+      true,
+      tx,
+    );
+    assertExists(brand, 'Brand', menuItem.brand_id, this.logger);
+
+    this.logger.log(`MenuItem ${menuItem.menu_item_id} found`);
+    return this.withImageUrl(menuItem);
+  }
+
+  async findAll(
+    { page, limit, activeOnly, status, search, recipe_id }: FindAllMenuItemsDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const effectiveStatus = this.effectiveStatus(status, activeOnly);
+    this.logger.debug(
+      `Listing menu items: page=${page}, limit=${limit}, status=${effectiveStatus}, search=${search ? 'yes' : 'no'}, recipe=${recipe_id ?? 'any'}`,
+    );
+
+    const skip = (page - 1) * limit;
+    assertValidPagination(skip, this.logger);
+
+    const { menuItems, counts } = await this.menuItemsRepository.findAll(
+      skip,
+      limit,
+      { status: effectiveStatus, search, recipe_id },
+      tx,
+    );
+
+    return this.page(menuItems, counts, effectiveStatus, page, limit);
+  }
+
+  async findAllByBrand(
+    { page, limit, activeOnly, status, search, recipe_id }: FindAllMenuItemsDTO,
+    brandId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const effectiveStatus = this.effectiveStatus(status, activeOnly);
+    this.logger.debug(
+      `Listing menu items: brand=${brandId}, page=${page}, limit=${limit}, status=${effectiveStatus}, search=${search ? 'yes' : 'no'}, recipe=${recipe_id ?? 'any'}`,
+    );
+    const brand = await this.brandsRepository.findOneBrand(brandId, true, tx);
+    assertExists(brand, 'Brand', brandId, this.logger);
+
+    const skip = (page - 1) * limit;
+    assertValidPagination(skip, this.logger);
+
+    const { menuItems, counts } = await this.menuItemsRepository.findAllByBrand(
+      brand.brand_id,
+      skip,
+      limit,
+      { status: effectiveStatus, search, recipe_id },
+      tx,
+    );
+
+    return this.page(menuItems, counts, effectiveStatus, page, limit);
+  }
+
+  async updateMenuItem(
+    menuItemId: string,
+    dto: UpdateMenuItemDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
+    this.logger.debug(`Updating menu item ${menuItemId}`);
+
+    const menuItem = await this.menuItemsRepository.findOneMenuItemByUID(
+      menuItemId,
+      true,
+      tx,
+    );
+    assertExists(menuItem, 'MenuItem', menuItemId, this.logger);
+
+    const updated = await this.menuItemsRepository.updateMenuItem(
+      menuItem.menu_item_id,
+      dto,
+      tx,
+    );
+
+    this.logger.log(`Updated menu item ${menuItem.menu_item_id}`);
+    return this.withImageUrl(updated);
+  }
+
+  async reactivateMenuItem(menuItemId: string, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Reactivating menu item ${menuItemId}`);
+
+    const menuItem = await this.menuItemsRepository.findOneMenuItemByUID(
+      menuItemId,
+      false,
+      tx,
+    );
+
+    assertExists(menuItem, 'MenuItem', menuItemId, this.logger);
+
+    if (menuItem.is_active) {
+      this.logger.debug(`Menu item ${menuItemId} is already active.`);
+
+      throw new ConflictException({
+        code: 'MENU_ITEM_ALREADY_ACTIVE',
+        message: 'Menu item is still active',
+      });
+    }
+
+    const reactivated = await this.menuItemsRepository.reactivateMenuItem(
+      menuItem.menu_item_id,
+      tx,
+    );
+
+    this.logger.log(`Reactivated menu item ${menuItem.menu_item_id}`);
+    return this.withImageUrl(reactivated);
+  }
+
+  async updateAvailability(
+    menuItemId: string,
+    availability: boolean,
+    tx?: Prisma.TransactionClient,
+  ) {
+    this.logger.debug(`Updating availability for menu item ${menuItemId}`);
+
+    const menuItem = await this.findOneMenuItem(menuItemId, true, tx);
+    assertExists(menuItem, 'MenuItem', menuItemId, this.logger);
+
+    if (menuItem.is_available === availability) {
+      this.logger.warn(`Menu item availability is already ${availability}`);
+
+      throw new ConflictException({
+        code: 'AVAILABILITY_CONFLICT',
+        message: `Availability already set to ${availability}`,
+      });
+    }
+
+    const updatedMenuItem = await this.menuItemsRepository.updateAvailability(
+      menuItemId,
+      availability,
+      tx,
+    );
+
+    this.logger.debug(
+      `Availability for menu item ${menuItem.menu_item_id} set to ${availability}`,
+    );
+
+    return this.withImageUrl(updatedMenuItem);
+  }
+
+  async deleteMenuItem(menuItemId: string, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Deactivating menu item ${menuItemId}`);
+    const menuItem = await this.menuItemsRepository.findOneMenuItemByUID(
+      menuItemId,
+      true,
+      tx,
+    );
+    assertExists(menuItem, 'MenuItem', menuItemId, this.logger);
+
+    const deleted = await this.menuItemsRepository.deleteMenuItem(
+      menuItem.menu_item_id,
+      tx,
+    );
+
+    this.logger.log(`Deactivated menu item ${menuItem.menu_item_id}`);
+    return this.withImageUrl(deleted);
+  }
+
+  // status wins when given; otherwise activeOnly keeps its original meaning.
+  private effectiveStatus(
+    status: MenuItemStatusFilter | undefined,
+    activeOnly: boolean,
+  ): MenuItemStatusFilter {
+    return status ?? (activeOnly ? 'active' : 'all');
+  }
+
+  private async page<T extends { img_url: string }>(
+    menuItems: T[],
+    counts: Record<MenuItemStatusFilter, number>,
+    status: MenuItemStatusFilter,
+    page: number,
+    limit: number,
+  ) {
+    const total = counts[status];
+    this.logger.log(
+      `Listed menu items: page=${page}, returned=${menuItems.length}, total=${total}`,
+    );
+
+    return {
+      data: await Promise.all(
+        menuItems.map((menuItem) => this.withImageUrl(menuItem)),
+      ),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        counts,
+      },
+    };
+  }
+
+  /** Swaps a stored upload key for a download URL; external URLs pass through. */
+  private async withImageUrl<T extends { img_url: string }>(menuItem: T) {
+    return {
+      ...menuItem,
+      img_url: menuItem.img_url.startsWith('uploads/')
+        ? await this.storage.createDownloadUrl(menuItem.img_url, false)
+        : menuItem.img_url,
+    };
+  }
+}

@@ -1,0 +1,215 @@
+name: CI
+
+# Keep this workflow free of path filters so every PR gets the required CI check.
+on:
+  push:
+    branches:
+      - main
+      - development
+      - staging
+  pull_request:
+    branches:
+      - main
+      - development
+      - staging
+
+permissions:
+  contents: read
+
+jobs:
+  automation-tests:
+    name: CI automation tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test failure issue reporting
+        run: node --test .github/scripts/*.test.cjs
+      - name: Test Android signing configuration
+        run: python3 .github/scripts/configure_android_signing_test.py
+
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select required pipelines
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # On pushes, compare with the previous commit on the same branch.
+          # PRs use the pull request's base automatically.
+          base: ${{ github.ref }}
+          filters: |
+            backend:
+              - 'server/**'
+              - 'robot/**'
+              - 'features/!(mobile)/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/required-ci.yml'
+            frontend:
+              - 'mobile/**'
+              - 'features/mobile/**'
+              - '.github/workflows/flutter-ci.yml'
+              - '.github/workflows/flutter-api-ci.yml'
+              - '.github/workflows/required-ci.yml'
+            web:
+              - 'web/**'
+              - '.github/workflows/web-ci.yml'
+              - '.github/workflows/required-ci.yml'
+
+  backend:
+    name: Backend
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  frontend:
+    name: Flutter
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/flutter-ci.yml
+
+  web:
+    name: Web
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web == 'true'
+    uses: ./.github/workflows/web-ci.yml
+
+  report-failures:
+    name: Report CI failures
+    needs: [automation-tests, detect-changes, backend, frontend, web]
+    if: >-
+      always() && !cancelled() && contains(needs.*.result, 'failure') &&
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      pull-requests: read
+    concurrency:
+      group: ci-issues-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    steps:
+      # Only same-repository PRs and branch pushes reach this write-enabled job.
+      - name: Checkout reporting code from this CI revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Create or update assigned failure issues
+        uses: actions/github-script@v7
+        env:
+          CI_BACKEND_ASSIGNEES: ${{ vars.CI_BACKEND_ASSIGNEES }}
+          CI_FLUTTER_ASSIGNEES: ${{ vars.CI_FLUTTER_ASSIGNEES }}
+          CI_WEB_ASSIGNEES: ${{ vars.CI_WEB_ASSIGNEES }}
+          CI_DEFAULT_ASSIGNEES: ${{ vars.CI_DEFAULT_ASSIGNEES }}
+          CI_JOB_RESULTS: ${{ toJSON(needs) }}
+        with:
+          script: |
+            const report = require('./.github/scripts/report-ci-failure.cjs');
+            await report({ github, context, core,
+              dependencyResults: JSON.parse(process.env.CI_JOB_RESULTS) });
+
+  resolve-failures:
+    name: Resolve recovered CI issues
+    needs: [ci, automation-tests, detect-changes, backend, frontend, web]
+    if: >-
+      always() && !cancelled() && needs.ci.result == 'success' &&
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      pull-requests: read
+    concurrency:
+      group: ci-issues-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout reporting code from this CI revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Close issues after verified CI recovery
+        uses: actions/github-script@v7
+        env:
+          CI_JOB_RESULTS: ${{ toJSON(needs) }}
+        with:
+          script: |
+            const report = require('./.github/scripts/report-ci-failure.cjs');
+            await report({ github, context, core, recover: true,
+              dependencyResults: JSON.parse(process.env.CI_JOB_RESULTS) });
+
+  ci:
+    name: CI
+    needs:
+      [automation-tests, detect-changes, backend, frontend, web, report-failures]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required pipelines
+        env:
+          AUTOMATION_RESULT: ${{ needs.automation-tests.result }}
+          DETECTION_RESULT: ${{ needs.detect-changes.result }}
+          BACKEND_REQUIRED: ${{ needs.detect-changes.outputs.backend }}
+          FRONTEND_REQUIRED: ${{ needs.detect-changes.outputs.frontend }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          WEB_REQUIRED: ${{ needs.detect-changes.outputs.web }}
+          WEB_RESULT: ${{ needs.web.result }}
+          REPORT_RESULT: ${{ needs.report-failures.result }}
+        run: |
+          if [ "$REPORT_RESULT" = "failure" ]; then
+            echo "CI failure issue reporting failed. Inspect the Report CI failures job."
+            exit 1
+          fi
+
+          if [ "$AUTOMATION_RESULT" != "success" ]; then
+            echo "CI automation tests did not succeed."
+            exit 1
+          fi
+
+          if [ "$DETECTION_RESULT" != "success" ]; then
+            echo "Change detection did not succeed."
+            exit 1
+          fi
+
+          check_pipeline() {
+            local name="$1" required="$2" result="$3"
+            case "$required:$result" in
+              true:success|false:skipped)
+                echo "$name: $result"
+                ;;
+              *)
+                echo "$name did not complete as expected (required=$required, result=$result)."
+                return 1
+                ;;
+            esac
+          }
+
+          check_pipeline Backend "$BACKEND_REQUIRED" "$BACKEND_RESULT"
+          check_pipeline Flutter "$FRONTEND_REQUIRED" "$FRONTEND_RESULT"
+          check_pipeline Web "$WEB_REQUIRED" "$WEB_RESULT"
+          echo "All required pipelines passed."

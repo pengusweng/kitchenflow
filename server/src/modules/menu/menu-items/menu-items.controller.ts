@@ -1,0 +1,200 @@
+import {
+  Audit,
+  fromParam,
+  fromResult,
+} from '../../../shared/audit/audit.decorator';
+import { UseInterceptors as UseMenuInterceptors } from '@nestjs/common';
+import { SafeMenuInterceptor } from '../safe-menu.interceptor';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Delete,
+  Get,
+  Param,
+  ParseBoolPipe,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { MenuItemsService } from './menu-items.service';
+import {
+  Authenticated,
+  type AuthenticatedRequest,
+} from '../../auth/auth.guard';
+import { RolesGuard } from '../../../shared/guards/roles.guard';
+import { CreateMenuItemDTO } from './dto/create-menu-item.dto';
+import { UserRole } from '@prisma/client';
+import { Roles } from '../../../shared/decorators/roles.decorator';
+import { FindAllMenuItemsDTO } from './dto/find-all-menu-items.dto';
+import { UpdateMenuItemDTO } from './dto/update-menu-item.dto';
+import {
+  MenuItemsDocs,
+  CreateMenuItemDocs,
+  FindOneMenuItemDocs,
+  FindAllMenuItemsDocs,
+  FindMenuItemsByBrandDocs,
+  UpdateMenuItemDocs,
+  ReactivateMenuItemDocs,
+  DeleteMenuItemDocs,
+  UpdateMenuItemAvailabilityDocs,
+} from './docs/menu-items.docs';
+import { UpdateMenuItemAvailabilityDTO } from './dto/update-menu-item-availability.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  AssetsService,
+  type AssetUpload,
+  MAX_ASSET_BYTES,
+} from '../../assets/assets.service';
+
+@UseMenuInterceptors(SafeMenuInterceptor)
+@Controller('menu-items')
+@MenuItemsDocs()
+@UseGuards(Authenticated, RolesGuard)
+export class MenuItemsController {
+  constructor(
+    private readonly menuItemsService: MenuItemsService,
+    private readonly assetsService: AssetsService,
+  ) {}
+
+  @Post()
+  @Audit({
+    action: 'MENU_ITEM_CREATED',
+    snapshot: 'create',
+    entity: 'menu_items',
+    id: fromResult('menu_item_id'),
+  })
+  @CreateMenuItemDocs()
+  @Roles(UserRole.SUPERADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_ASSET_BYTES, files: 1 },
+    }),
+  )
+  async create(
+    @Body() dto: CreateMenuItemDTO,
+    @UploadedFile() file: AssetUpload,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    if (file) {
+      const asset = await this.assetsService.upload(
+        request.session.user.user_id,
+        file,
+      );
+
+      dto = { ...dto, img_url: asset.key };
+    }
+
+    return this.menuItemsService.createMenuItem(dto);
+  }
+
+  @Get(':id')
+  @FindOneMenuItemDocs()
+  async findOne(
+    @Param('id') codeOrMenuId: string,
+    @Query('activeOnly', new DefaultValuePipe(true), ParseBoolPipe)
+    activeOnly: boolean,
+  ) {
+    return this.menuItemsService.findOneMenuItem(codeOrMenuId, activeOnly);
+  }
+
+  @Get()
+  @FindAllMenuItemsDocs()
+  async findAll(@Query() query: FindAllMenuItemsDTO) {
+    return this.menuItemsService.findAll(query);
+  }
+
+  @Get('brand/:brandId')
+  @FindMenuItemsByBrandDocs()
+  async findAllByBrand(
+    @Param('brandId', ParseUUIDPipe) brandId: string,
+    @Query() query: FindAllMenuItemsDTO,
+  ) {
+    return this.menuItemsService.findAllByBrand(query, brandId);
+  }
+
+  @Patch(':id')
+  @Audit({
+    action: 'MENU_ITEM_UPDATED',
+    snapshot: 'update',
+    entity: 'menu_items',
+    id: fromParam('id'),
+  })
+  @UpdateMenuItemDocs()
+  @Roles(UserRole.SUPERADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_ASSET_BYTES, files: 1 },
+    }),
+  )
+  async update(
+    @Param('id', ParseUUIDPipe) menuItemId: string,
+    @Body() dto: UpdateMenuItemDTO,
+    @UploadedFile() file: AssetUpload | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    if (file) {
+      await this.menuItemsService.findOneMenuItem(menuItemId);
+      const asset = await this.assetsService.upload(
+        request.session.user.user_id,
+        file,
+      );
+      dto = { ...dto, img_url: asset.key };
+    }
+    return this.menuItemsService.updateMenuItem(menuItemId, dto);
+  }
+
+  @Patch('availability/:id')
+  @Audit({
+    action: 'MENU_ITEM_AVAILABILITY_CHANGED',
+    snapshot: 'update',
+    entity: 'menu_items',
+    id: fromParam('id'),
+  })
+  @UpdateMenuItemAvailabilityDocs()
+  @Roles(
+    UserRole.SUPERADMIN,
+    UserRole.RECIPE_MANAGER,
+    UserRole.SUPERVISOR,
+    UserRole.KITCHEN_HEAD,
+    UserRole.KITCHEN_STAFF,
+    UserRole.INVENTORY_STAFF,
+  )
+  async updateAvailability(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateMenuItemAvailabilityDTO,
+  ) {
+    return this.menuItemsService.updateAvailability(id, dto.availability);
+  }
+
+  @Patch('reactivate/:id')
+  @Audit({
+    action: 'MENU_ITEM_REACTIVATED',
+    snapshot: 'update',
+    entity: 'menu_items',
+    id: fromParam('id'),
+  })
+  @ReactivateMenuItemDocs()
+  @Roles(UserRole.SUPERADMIN)
+  async reactivate(@Param('id', ParseUUIDPipe) menuItemId: string) {
+    return this.menuItemsService.reactivateMenuItem(menuItemId);
+  }
+
+  @Delete(':id')
+  @Audit({
+    action: 'MENU_ITEM_DEACTIVATED',
+    snapshot: 'update',
+    entity: 'menu_items',
+    id: fromParam('id'),
+  })
+  @DeleteMenuItemDocs()
+  @Roles(UserRole.SUPERADMIN)
+  async delete(@Param('id', ParseUUIDPipe) menuItemId: string) {
+    return this.menuItemsService.deleteMenuItem(menuItemId);
+  }
+}

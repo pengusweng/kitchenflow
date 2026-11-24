@@ -1,0 +1,537 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:mobile/app/theme/theme.dart';
+import 'package:mobile/app/theme/typography.dart';
+import 'package:mobile/core/auth/token_store.dart';
+import 'package:mobile/core/models/user_role.dart';
+import 'package:mobile/features/auth/data/repository/auth_repository.dart';
+import 'package:mobile/features/auth/data/models/login_status.dart';
+import 'package:mobile/features/auth/providers/session_provider.dart';
+import 'package:mobile/features/auth/presentation/pages/login_screen.dart';
+import 'package:mobile/features/auth/presentation/widgets/brand_panel.dart';
+import 'package:mobile/features/auth/presentation/widgets/login_form_card.dart';
+import 'package:mobile/features/auth/presentation/widgets/login_notice.dart';
+import 'package:mobile/features/auth/presentation/widgets/login_password_field.dart';
+import 'package:mobile/shared/widgets/kkfc_loading_button.dart';
+import 'package:mobile/shared/widgets/pin_confirmation/pin_confirmation.dart';
+import 'package:mobile/features/auth/presentation/widgets/session_expired/session_expired_copy.dart';
+import 'package:mobile/features/auth/presentation/widgets/session_expired/session_expired_dialog.dart';
+
+// Tall surfaces so nothing needs scrolling to be tapped.
+const _phone = Size(412, 1400);
+const _desktop = Size(1280, 1000);
+
+/// Stands in for the real repository so widget tests never hit the network.
+class _FakeAuthRepository extends AuthRepository {
+  _FakeAuthRepository(this.onLogin) : super(Dio(), TokenStore());
+
+  final Future<String> Function(String username, String password) onLogin;
+  int callCount = 0;
+  String? lastPin;
+
+  @override
+  Future<String> login({
+    required String username,
+    required String password,
+    String? pin,
+  }) {
+    callCount++;
+    lastPin = pin;
+    return onLogin(username, password);
+  }
+}
+
+Future<ProviderContainer> _pumpLogin(
+  WidgetTester tester, {
+  Size size = _phone,
+  double textScale = 1,
+  AuthRepository? authRepository,
+  bool sessionExpired = false,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+
+  final container = ProviderContainer(
+    overrides: [
+      if (authRepository != null)
+        authRepositoryProvider.overrideWithValue(authRepository),
+    ],
+  );
+  addTearDown(container.dispose);
+
+  // The 401 interceptor flags the expiry before the router lands here.
+  if (sessionExpired) {
+    container.read(sessionExpiredProvider.notifier).set(true);
+  }
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: counterTheme,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+        home: const LoginScreen(),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle(); // finishes the entrance animations
+  return container;
+}
+
+Finder get _username => find.byType(TextField).first;
+
+Finder get _password => find.descendant(
+  of: find.byType(LoginPasswordField),
+  matching: find.byType(TextField),
+);
+
+LoginStatus _status(WidgetTester tester) =>
+    tester.widget<LoginNotice>(find.byType(LoginNotice)).status;
+
+Future<void> _tapSignIn(WidgetTester tester) async {
+  await tester.tap(find.byType(KkfcLoadingButton));
+  await tester.pump();
+}
+
+/// Lets the in-flight sign-in future resolve and the notice animate in.
+Future<void> _finishSignIn(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
+/// The dialog's CTA, distinguished from the login form's submit button.
+Finder get _dialogSignIn => find.descendant(
+  of: find.byType(SessionExpiredCard),
+  matching: find.byType(FilledButton),
+);
+
+void main() {
+  testWidgets(
+    'WT-MOB-LOGIN-019 shows and clears the login notice with animations disabled',
+    (tester) async {
+      Future<void> show(LoginStatus status) => tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: Scaffold(body: LoginNotice(status: status)),
+          ),
+        ),
+      );
+
+      final message = find.text(LoginStatus.invalidCredentials.noticeMessage);
+      await show(LoginStatus.idle);
+      expect(message, findsNothing);
+      await show(LoginStatus.invalidCredentials);
+      expect(tester.takeException(), isNull);
+      expect(message, findsOneWidget);
+      await show(LoginStatus.idle);
+      expect(tester.takeException(), isNull);
+      expect(message, findsNothing);
+    },
+  );
+
+  group('LoginScreen layout', () {
+    testWidgets(
+      'WT-MOB-LOGIN-001 shows both fields, the form card and the submit button',
+      (tester) async {
+        await _pumpLogin(tester);
+
+        expect(find.byType(LoginFormCard), findsOneWidget);
+        expect(find.byType(BrandPanel), findsOneWidget);
+        expect(find.byType(TextField), findsNWidgets(2));
+        expect(find.byType(LoginPasswordField), findsOneWidget);
+        expect(find.byType(KkfcLoadingButton), findsOneWidget);
+        expect(_status(tester), LoginStatus.idle);
+      },
+    );
+
+    testWidgets('WT-MOB-LOGIN-002 uses the compact brand panel on a phone', (
+      tester,
+    ) async {
+      await _pumpLogin(tester, size: _phone);
+
+      expect(
+        tester.widget<BrandPanel>(find.byType(BrandPanel)).compact,
+        isTrue,
+      );
+    });
+
+    testWidgets('WT-MOB-LOGIN-003 uses the full brand panel on a wide screen', (
+      tester,
+    ) async {
+      await _pumpLogin(tester, size: _desktop);
+
+      expect(
+        tester.widget<BrandPanel>(find.byType(BrandPanel)).compact,
+        isFalse,
+      );
+      expect(find.byType(LoginFormCard), findsOneWidget);
+    });
+
+    testWidgets(
+      'WT-MOB-LOGIN-004 header renders logo_light.png, bold Multi-brand POS title, and brands in middle of header',
+      (tester) async {
+        // 1. Check compact layout (phone)
+        await _pumpLogin(tester, size: _phone);
+
+        final logoFinder = find.byKey(const ValueKey('brand-panel-logo'));
+        final titleFinder = find.byKey(const ValueKey('brand-panel-title'));
+        final brandsFinder = find.byKey(const ValueKey('brand-panel-brands'));
+
+        expect(logoFinder, findsOneWidget);
+        expect(titleFinder, findsOneWidget);
+        expect(brandsFinder, findsOneWidget);
+
+        // Logo uses logo_light.png
+        final logoImage = tester.widget<Image>(logoFinder);
+        expect(
+          (logoImage.image as AssetImage).assetName,
+          'assets/images/logo_light.png',
+        );
+
+        // Title is "Multi-brand POS", bold, and slightly smaller than previous textBase (16) -> textMd (14)
+        expect(find.text('Multi-brand POS'), findsOneWidget);
+        expect(find.text('Staff POS'), findsNothing);
+        final titleWidget = tester.widget<Text>(titleFinder);
+        expect(titleWidget.style?.fontWeight, KkfcFontWeights.bold);
+        expect(titleWidget.style?.fontSize, KkfcTextSizes.textMd);
+
+        // Brands are rendered with bullet separators
+        expect(find.text('Gamcheon'), findsOneWidget);
+        expect(find.text("Aurelia's Inasal"), findsOneWidget);
+        expect(find.text('King Kungs Kafé'), findsOneWidget);
+
+        // On phone, brands are centered horizontally in the middle of the header
+        final brandsRect = tester.getRect(brandsFinder);
+        expect(
+          (brandsRect.center.dx - (_phone.width / 2)).abs(),
+          lessThan(10.0),
+        );
+
+        // 2. Check wide layout (desktop)
+        await _pumpLogin(tester, size: _desktop);
+
+        final desktopLogoFinder = find.byKey(
+          const ValueKey('brand-panel-logo'),
+        );
+        final desktopTitleFinder = find.byKey(
+          const ValueKey('brand-panel-title'),
+        );
+        final desktopBrandsFinder = find.byKey(
+          const ValueKey('brand-panel-brands'),
+        );
+
+        expect(desktopLogoFinder, findsOneWidget);
+        expect(desktopTitleFinder, findsOneWidget);
+        expect(desktopBrandsFinder, findsOneWidget);
+
+        final desktopTitleWidget = tester.widget<Text>(desktopTitleFinder);
+        expect(desktopTitleWidget.style?.fontWeight, KkfcFontWeights.bold);
+        expect(desktopTitleWidget.style?.fontSize, KkfcTextSizes.textBase);
+
+        // On desktop, brands are situated in the middle of the header
+        final desktopBrandsRect = tester.getRect(desktopBrandsFinder);
+        final desktopLogoRect = tester.getRect(desktopLogoFinder);
+        expect(
+          (desktopBrandsRect.center.dx - (_desktop.width / 2)).abs(),
+          lessThan(30.0),
+        );
+        expect(desktopLogoRect.left, lessThan(desktopBrandsRect.left));
+      },
+    );
+
+    testWidgets('WT-MOB-LOGIN-005 does not overflow at 2x text scale', (
+      tester,
+    ) async {
+      await _pumpLogin(tester, textScale: 2);
+
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('LoginScreen validation', () {
+    testWidgets(
+      'WT-MOB-LOGIN-006 empty submit shows the required-fields notice',
+      (tester) async {
+        await _pumpLogin(tester);
+
+        await _tapSignIn(tester);
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(_status(tester), LoginStatus.missingFields);
+        expect(
+          tester
+              .widget<KkfcLoadingButton>(find.byType(KkfcLoadingButton))
+              .isLoading,
+          isFalse,
+        );
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-LOGIN-007 username without a password is still missing fields',
+      (tester) async {
+        await _pumpLogin(tester);
+
+        await tester.enterText(_username, 'ana.r');
+        await _tapSignIn(tester);
+
+        expect(_status(tester), LoginStatus.missingFields);
+      },
+    );
+
+    testWidgets('WT-MOB-LOGIN-008 typing clears the notice', (tester) async {
+      await _pumpLogin(tester);
+
+      await _tapSignIn(tester);
+      expect(_status(tester), LoginStatus.missingFields);
+
+      await tester.enterText(_username, 'a');
+      await tester.pump();
+
+      expect(_status(tester), LoginStatus.idle);
+    });
+  });
+
+  group('LoginScreen submit', () {
+    testWidgets(
+      'WT-MOB-LOGIN-009 a successful sign-in stores the session token',
+      (tester) async {
+        final completer = Completer<String>();
+        final repo = _FakeAuthRepository((_, _) => completer.future);
+        final container = await _pumpLogin(tester, authRepository: repo);
+
+        await tester.enterText(_username, 'test_owner');
+        await tester.enterText(_password, 'Password123!');
+        await _tapSignIn(tester);
+
+        // While submitting
+        expect(_status(tester), LoginStatus.submitting);
+        expect(
+          tester
+              .widget<KkfcLoadingButton>(find.byType(KkfcLoadingButton))
+              .isLoading,
+          isTrue,
+        );
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNull,
+        );
+        expect(tester.widget<TextField>(_username).enabled, isFalse);
+        expect(tester.widget<TextField>(_password).enabled, isFalse);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+        completer.complete('token-abc');
+        await _finishSignIn(tester);
+
+        // Holding the token is what makes the router navigate to /orders.
+        expect(container.read(sessionTokenProvider), 'token-abc');
+        expect(repo.callCount, 1);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-LOGIN-010 rejected credentials show the invalid-credentials notice',
+      (tester) async {
+        final repo = _FakeAuthRepository(
+          (_, _) async => throw const AuthException(
+            'Invalid username or password.',
+            kind: AuthFailure.invalidCredentials,
+          ),
+        );
+        await _pumpLogin(tester, authRepository: repo);
+
+        await tester.enterText(_username, 'ana.r');
+        await tester.enterText(_password, 'wrong');
+        await _tapSignIn(tester);
+        await _finishSignIn(tester);
+
+        expect(_status(tester), LoginStatus.invalidCredentials);
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNotNull,
+        );
+        expect(tester.widget<TextField>(_username).enabled, isTrue);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-LOGIN-011 a network failure shows the network-error notice',
+      (tester) async {
+        final repo = _FakeAuthRepository(
+          (_, _) async => throw const AuthException(
+            'Unable to reach the server.',
+            kind: AuthFailure.network,
+          ),
+        );
+        await _pumpLogin(tester, authRepository: repo);
+
+        await tester.enterText(_username, 'test_owner');
+        await tester.enterText(_password, 'Password123!');
+        await _tapSignIn(tester);
+        await _finishSignIn(tester);
+
+        expect(_status(tester), LoginStatus.networkError);
+      },
+    );
+
+    testWidgets('WT-MOB-LOGIN-012 a second tap while submitting is ignored', (
+      tester,
+    ) async {
+      final completer = Completer<String>();
+      final repo = _FakeAuthRepository((_, _) => completer.future);
+      await _pumpLogin(tester, authRepository: repo);
+
+      await tester.enterText(_username, 'test_owner');
+      await tester.enterText(_password, 'Password123!');
+      await _tapSignIn(tester);
+      await _tapSignIn(tester);
+
+      expect(_status(tester), LoginStatus.submitting);
+      expect(repo.callCount, 1);
+
+      completer.complete('token-abc');
+      await _finishSignIn(tester);
+    });
+  });
+
+  group('LoginPasswordField', () {
+    testWidgets(
+      'WT-MOB-LOGIN-013 is obscured by default and toggles with the Show/Hide button',
+      (tester) async {
+        await _pumpLogin(tester);
+
+        final toggle = find.descendant(
+          of: find.byType(LoginPasswordField),
+          matching: find.byType(TextButton),
+        );
+
+        expect(tester.widget<TextField>(_password).obscureText, isTrue);
+
+        await tester.tap(toggle);
+        await tester.pump();
+        expect(tester.widget<TextField>(_password).obscureText, isFalse);
+
+        await tester.tap(toggle);
+        await tester.pump();
+        expect(tester.widget<TextField>(_password).obscureText, isTrue);
+      },
+    );
+  });
+
+  group('LoginScreen session expired', () {
+    testWidgets('WT-MOB-LOGIN-014 no prompt while the session is still valid', (
+      tester,
+    ) async {
+      await _pumpLogin(tester);
+
+      expect(find.byType(SessionExpiredCard), findsNothing);
+    });
+
+    testWidgets('WT-MOB-LOGIN-015 prompts when the session was rejected', (
+      tester,
+    ) async {
+      final container = await _pumpLogin(tester, sessionExpired: true);
+
+      expect(find.byType(SessionExpiredCard), findsOneWidget);
+      // Title and CTA share the same copy.
+      expect(find.text(sessionExpiredTitle), findsNWidgets(2));
+      expect(container.read(sessionExpiredProvider), isTrue);
+    });
+
+    testWidgets(
+      'WT-MOB-LOGIN-016 the CTA closes the prompt and clears the flag',
+      (tester) async {
+        final container = await _pumpLogin(tester, sessionExpired: true);
+
+        await tester.tap(_dialogSignIn);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SessionExpiredCard), findsNothing);
+        expect(container.read(sessionExpiredProvider), isFalse);
+      },
+    );
+  });
+
+  group('LoginScreen superadmin PIN confirmation', () {
+    testWidgets(
+      'WT-MOB-LOGIN-017 shows PIN confirmation dialog when PIN_REQUIRED is returned',
+      (tester) async {
+        var callIndex = 0;
+        final repo = _FakeAuthRepository((username, password) async {
+          callIndex++;
+          if (callIndex == 1) {
+            throw const AuthException(
+              'Enter your PIN to sign in.',
+              kind: AuthFailure.pinRequired,
+            );
+          }
+          return 'superadmin-token';
+        });
+
+        final container = await _pumpLogin(tester, authRepository: repo);
+
+        await tester.enterText(_username, 'admin');
+        await tester.enterText(_password, 'correct-password');
+        await _tapSignIn(tester);
+        await tester.pumpAndSettle();
+
+        // PIN dialog should now be displayed
+        expect(find.byType(PinConfirmationDialog), findsOneWidget);
+        expect(find.text('Superadmin Security PIN'), findsOneWidget);
+
+        // Enter 4 digits on numpad
+        await tester.tap(find.text('1'));
+        await tester.pump();
+        await tester.tap(find.text('2'));
+        await tester.pump();
+        await tester.tap(find.text('3'));
+        await tester.pump();
+        await tester.tap(find.text('4'));
+        await tester.pumpAndSettle();
+
+        // Dialog closed and token stored
+        expect(find.byType(PinConfirmationDialog), findsNothing);
+        expect(container.read(sessionTokenProvider), 'superadmin-token');
+        expect(container.read(userRoleProvider), UserRole.superadmin);
+        expect(repo.callCount, 2);
+      },
+    );
+
+    testWidgets('WT-MOB-LOGIN-018 cancelling PIN dialog does not log in', (
+      tester,
+    ) async {
+      final repo = _FakeAuthRepository((_, _) async {
+        throw const AuthException(
+          'Enter your PIN to sign in.',
+          kind: AuthFailure.pinRequired,
+        );
+      });
+
+      final container = await _pumpLogin(tester, authRepository: repo);
+
+      await tester.enterText(_username, 'admin');
+      await tester.enterText(_password, 'correct-password');
+      await _tapSignIn(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PinConfirmationDialog), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PinConfirmationDialog), findsNothing);
+      expect(container.read(sessionTokenProvider), isNull);
+    });
+  });
+}

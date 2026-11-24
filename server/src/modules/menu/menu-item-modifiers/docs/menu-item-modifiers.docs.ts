@@ -1,0 +1,194 @@
+import { applyDecorators } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+
+const assignmentExample = {
+  menu_item_modifier_id: '00000000-0000-4000-8000-000000000001',
+  menu_item_id: '00000000-0000-4000-8000-000000000002',
+  modifier_id: '00000000-0000-4000-8000-000000000003',
+  additional_price: '20',
+  created_at: '2026-10-31T08:00:00.000Z',
+  modified_at: '2026-10-31T08:00:00.000Z',
+};
+
+const modifierExample = {
+  modifier_id: assignmentExample.modifier_id,
+  code: 'EXTRA-CHEESE',
+  name: 'Extra Cheese',
+  description: 'An extra serving of cheese.',
+  is_active: true,
+  created_at: assignmentExample.created_at,
+  modified_at: assignmentExample.modified_at,
+};
+
+export function MenuItemModifiersDocs() {
+  return applyDecorators(
+    ApiTags('Menu item modifiers'),
+    ApiBearerAuth(),
+    ApiResponse({ status: 400, description: 'Invalid parameters or payload.' }),
+    ApiResponse({
+      status: 401,
+      description: 'Missing, invalid, or expired bearer session.',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Role access denied.',
+    }),
+  );
+}
+
+export function FindAllMenuItemModifiersDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'List menu item modifier assignments.',
+      description:
+        'Available to recipe managers and superadmins. Supports page and limit. Returns data and pagination meta.',
+    }),
+    ApiResponse({
+      status: 200,
+      description:
+        'Paginated assignment records without nested modifier details.',
+      content: {
+        'application/json': {
+          examples: {
+            populated: {
+              summary: 'One matching assignment',
+              value: {
+                data: [assignmentExample],
+                meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+              },
+            },
+            empty: {
+              summary: 'No matching assignments',
+              value: {
+                data: [],
+                meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
+              },
+            },
+          },
+        },
+      },
+    }),
+  );
+}
+
+export function FindMenuItemModifiersForMenuItemDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'List modifier assignments for a menu item.',
+      description:
+        'Available to managers, recipe managers, and superadmins. Requires an active menu item. Returns an empty array when the item has no assignments.',
+    }),
+    ApiParam({
+      name: 'menuItemId',
+      schema: { type: 'string', format: 'uuid' },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Array of assignments with nested modifier details.',
+      content: {
+        'application/json': {
+          examples: {
+            populated: {
+              summary: 'Assignment with modifier details',
+              value: [{ ...assignmentExample, modifier: modifierExample }],
+            },
+            empty: { summary: 'No matching assignments', value: [] },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Menu item not found or inactive.',
+    }),
+  );
+}
+
+export function FindOneMenuItemModifierDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Get a menu item modifier assignment.',
+      description:
+        'Available to any authenticated user across brands. Looks up an assignment by its UUID.',
+    }),
+    ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } }),
+    ApiResponse({
+      status: 200,
+      description: 'Assignment and modifier details in separate fields.',
+      content: {
+        'application/json': {
+          example: {
+            menuItemModifier: assignmentExample,
+            modifierDetails: modifierExample,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Assignment not found.',
+    }),
+  );
+}
+
+export function UpdateMenuItemModifierDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Update a menu item modifier assignment.',
+      description:
+        'Available to managers, recipe managers, and superadmins across brands. Only additional_price and modifier_id can change. The menu item and the resulting modifier (the replacement when modifier_id is sent) must be active. To add assignments, use PATCH /menu-catalog/:id.',
+    }),
+    ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } }),
+    ApiResponse({
+      status: 200,
+      description: 'Updated assignment record.',
+      content: {
+        'application/json': {
+          example: {
+            ...assignmentExample,
+            additional_price: '25',
+            modified_at: '2026-10-31T09:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description:
+        'Available assignment or active menu item/modifier not found.',
+    }),
+    ApiResponse({
+      status: 409,
+      description:
+        'Replacement modifier is already assigned to this menu item.',
+    }),
+  );
+}
+
+export function DeleteMenuItemModifierDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Delete a menu item modifier assignment.',
+      description:
+        'Available to managers, recipe managers, and superadmins across brands. Permanently removes the assignment; past orders keep their own copy of the modifier name and price. Inactive parent records do not prevent cleanup.',
+    }),
+    ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } }),
+    ApiResponse({
+      status: 200,
+      description: 'The deleted assignment.',
+      content: {
+        'application/json': { example: assignmentExample },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Assignment not found.',
+    }),
+  );
+}
