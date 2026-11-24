@@ -74,7 +74,6 @@ interface SeedMenuItemModifier {
   menu_item_code: string;
   modifier_code: string;
   additional_price: number;
-  is_available?: boolean;
 }
 
 function loadSeedData() {
@@ -285,7 +284,6 @@ export async function seedDatabase(prisma: Prisma.TransactionClient) {
         menu_item_id,
         modifier_id,
         additional_price: assignment.additional_price,
-        is_available: assignment.is_available ?? true,
       },
     });
   }

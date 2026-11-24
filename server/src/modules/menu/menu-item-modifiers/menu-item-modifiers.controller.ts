@@ -23,7 +23,6 @@ import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { CreateMenuItemModifierDTO } from './dto/create-menu-item-modifier.dto';
 import { UpdateMenuItemModifierDTO } from './dto/update-menu-item-modifier.dto';
 import { FindAllMenuItemModifiersDTO } from './dto/find-all-menu-item-modifiers.dto';
-import { FindMenuItemModifierDTO } from './dto/find-menu-item-modifier.dto';
 import {
   MenuItemModifiersDocs,
   CreateMenuItemModifierDocs,
@@ -71,24 +70,14 @@ export class MenuItemModifiersController {
   @Roles(UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER)
   async findManyForMenuItem(
     @Param('menuItemId', ParseUUIDPipe) menuItemId: string,
-    @Query() query: FindMenuItemModifierDTO,
   ) {
-    return this.menuItemModifiersService.findManyForMenuItem(
-      menuItemId,
-      query.activeOnly,
-    );
+    return this.menuItemModifiersService.findManyForMenuItem(menuItemId);
   }
 
   @Get(':id')
   @FindOneMenuItemModifierDocs()
-  async findOne(
-    @Param('id', ParseUUIDPipe) menuItemModifierId: string,
-    @Query() query: FindMenuItemModifierDTO,
-  ) {
-    return this.menuItemModifiersService.findOne(
-      menuItemModifierId,
-      query.activeOnly,
-    );
+  async findOne(@Param('id', ParseUUIDPipe) menuItemModifierId: string) {
+    return this.menuItemModifiersService.findOne(menuItemModifierId);
   }
 
   @Patch(':id')

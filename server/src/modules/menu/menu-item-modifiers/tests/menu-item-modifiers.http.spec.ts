@@ -64,7 +64,7 @@ describe('Menu item modifiers HTTP endpoints', () => {
       body: undefined,
       status: 200,
       handler: 'findAll',
-      args: [{ page: 1, limit: 10, activeOnly: true }],
+      args: [{ page: 1, limit: 10 }],
     },
     {
       method: 'GET',
@@ -72,7 +72,7 @@ describe('Menu item modifiers HTTP endpoints', () => {
       body: undefined,
       status: 200,
       handler: 'findOne',
-      args: [assignmentId, true],
+      args: [assignmentId],
     },
     {
       method: 'GET',
@@ -80,7 +80,7 @@ describe('Menu item modifiers HTTP endpoints', () => {
       body: undefined,
       status: 200,
       handler: 'findManyForMenuItem',
-      args: [menuItemId, true],
+      args: [menuItemId],
     },
     {
       method: 'PATCH',
@@ -207,8 +207,10 @@ describe('Menu item modifiers HTTP endpoints', () => {
       [],
     );
     expect(operations[4]?.responses['200']).toHaveProperty(
+      'content.application/json.example.menu_item_modifier_id',
+    );
+    expect(operations[4]?.responses['200']).not.toHaveProperty(
       'content.application/json.example.is_available',
-      false,
     );
     expect(operations[6]?.responses['200']).toHaveProperty(
       'content.application/json.example.is_available',
@@ -220,9 +222,11 @@ describe('Menu item modifiers HTTP endpoints', () => {
       required: ['menu_item_id', 'modifier_id'],
       properties: {
         additional_price: { default: 0 },
-        is_available: { default: true },
       },
     });
+    expect(
+      document.components?.schemas?.CreateMenuItemModifierDTO,
+    ).not.toHaveProperty('properties.is_available');
     const update = document.components?.schemas?.UpdateMenuItemModifierDTO;
     expect(update).toHaveProperty('properties.additional_price');
     expect(update).toHaveProperty('properties.modifier_id');
@@ -238,7 +242,6 @@ describe('Menu item modifiers HTTP endpoints', () => {
         menu_item_modifier_id: assignmentId,
         ...create,
         additional_price: '20',
-        is_available: true,
         created_at: timestamp,
         modified_at: timestamp,
       },
@@ -470,30 +473,11 @@ describe('Menu item modifiers HTTP endpoints', () => {
     },
   );
 
-  it.each([
-    {
-      path: '?page=2&limit=5&activeOnly=false',
-      handler: 'findAll',
-      args: [{ page: 2, limit: 5, activeOnly: false }],
-    },
-    {
-      path: `/${assignmentId}?activeOnly=false`,
-      handler: 'findOne',
-      args: [assignmentId, false],
-    },
-    {
-      path: `/menu-item/${menuItemId}?activeOnly=false`,
-      handler: 'findManyForMenuItem',
-      args: [menuItemId, false],
-    },
-  ] as const)(
-    'IT-MIM-017: parses query filters for $handler',
-    async ({ path, handler, args }) => {
-      const response = await fetch(url + path, { headers });
-      expect(response.status).toBe(200);
-      expect(service[handler]).toHaveBeenCalledWith(...args);
-    },
-  );
+  it('IT-MIM-017: parses pagination for findAll', async () => {
+    const response = await fetch(`${url}?page=2&limit=5`, { headers });
+    expect(response.status).toBe(200);
+    expect(service.findAll).toHaveBeenCalledWith({ page: 2, limit: 5 });
+  });
 
   it.each([
     { method: 'POST', path: '', body: { menu_item_id: menuItemId } },
@@ -529,9 +513,7 @@ describe('Menu item modifiers HTTP endpoints', () => {
     { method: 'DELETE', path: '/invalid' },
     { method: 'GET', path: '?page=0' },
     { method: 'GET', path: '?limit=101' },
-    { method: 'GET', path: '?activeOnly=invalid' },
-    { method: 'GET', path: `/${assignmentId}?activeOnly=invalid` },
-    { method: 'GET', path: `/menu-item/${menuItemId}?activeOnly=invalid` },
+    { method: 'GET', path: '?activeOnly=false' },
   ] as const)(
     'IT-MIM-018: $method $path rejects invalid input before calling the service',
     async (route) => {

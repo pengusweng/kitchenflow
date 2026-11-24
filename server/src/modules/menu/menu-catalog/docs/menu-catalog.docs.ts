@@ -44,7 +44,6 @@ const menuCatalogItemExample = {
       menu_item_id: menuItemExample.menu_item_id,
       modifier_id: '00000000-0000-4000-8000-000000000006',
       additional_price: '20',
-      is_available: true,
       created_at: menuItemExample.created_at,
       modified_at: menuItemExample.modified_at,
       modifier: {
@@ -85,7 +84,7 @@ export function CreateMenuCatalogDocs() {
     ApiOperation({
       summary: 'Create a menu item with channels and modifiers (superadmin).',
       description:
-        "Superadmins can create entries across brands. Supply menu_item with brand_id, recipe_id, img_url, a unique code, name, and base_price. menu_channel and menu_item_modifier are required arrays; use empty arrays when none are needed. Channel entries contain order_channel, price, and optional is_available; each channel must be unique. Modifier assignments contain an existing active modifier_id, optional additional_price (default 0), and optional is_available (default true); each modifier_id must be unique. Child entries omit menu_item_id because it is assigned from the new item. The item, channel overrides, and assignments are created in one transaction; any failed write rolls back the creation. Returns the created menu item with menuChannels and menuItemModifiers, including each assignment's modifier record and name. All created children are returned, including those with is_available set to false; omitted children are represented by empty arrays.",
+        "Superadmins can create entries across brands. Supply menu_item with brand_id, recipe_id, img_url, a unique code, name, and base_price. menu_channel and menu_item_modifier are required arrays; use empty arrays when none are needed. Channel entries contain order_channel, price, and optional is_available; each channel must be unique. Modifier assignments contain an existing active modifier_id and optional additional_price (default 0); each modifier_id must be unique. Child entries omit menu_item_id because it is assigned from the new item. The item, channel overrides, and assignments are created in one transaction; any failed write rolls back the creation. Returns the created menu item with menuChannels and menuItemModifiers, including each assignment's modifier record and name. All created children are returned, including channels with is_available set to false; omitted children are represented by empty arrays.",
     }),
     ApiBody({ type: MenuCatalogSetupDTO }),
     ApiResponse({

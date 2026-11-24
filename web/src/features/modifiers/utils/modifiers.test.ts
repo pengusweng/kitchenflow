@@ -29,7 +29,6 @@ function offeredOn(itemName: string, brand: MenuBrand): ModifierUse {
     itemCode: itemName,
     brand,
     price: 0,
-    available: true,
     itemActive: true,
   };
 }
@@ -71,7 +70,6 @@ test("toModifierUses names each item's brand and reads its price as a number", (
       {
         menu_item_modifier_id: "5ae68f7b-027f-47a6-a18e-fedad04d84a4",
         additional_price: 20,
-        is_available: false,
         menu_item: {
           menu_item_id: "m",
           brand_id: AI.id,
@@ -89,7 +87,6 @@ test("toModifierUses names each item's brand and reads its price as a number", (
       itemCode: "AI-BATCHOY",
       brand: AI,
       price: 20,
-      available: false,
       itemActive: true,
     },
   ]);

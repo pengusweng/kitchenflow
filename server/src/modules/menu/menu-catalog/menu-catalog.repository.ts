@@ -47,7 +47,6 @@ export class MenuCatalogRepository {
       const menuItemModifiers =
         await this.menuItemsModifiersRepository.findManyForMenuItem(
           menuItem.menu_item_id,
-          false,
           tx,
         );
 
@@ -84,7 +83,6 @@ export class MenuCatalogRepository {
           const menuItemModifiers =
             await this.menuItemsModifiersRepository.findManyForMenuItem(
               menuItem.menu_item_id,
-              true,
               tx,
             );
 

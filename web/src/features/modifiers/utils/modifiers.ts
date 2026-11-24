@@ -1,7 +1,7 @@
 import { formatPeso, type MenuBrand } from "@/src/features/menu/utils/menu";
 import type { ModifierDetailRecord, ModifierListRecord, ModifierRecord } from "../schemas/modifierSchema";
 
-/** One menu item that offers the modifier, with the price and stock that item sets for it. */
+/** One menu item that offers the modifier, with the price that item sets for it. */
 export type ModifierUse = {
   /** The item-to-modifier link, not the item. */
   id: string;
@@ -10,8 +10,6 @@ export type ModifierUse = {
   brand: MenuBrand;
   /** Added to the item's line price; 0 for free changes like "Less sugar". */
   price: number;
-  /** Off when this item has run out of the add-on. */
-  available: boolean;
   /** The item itself is still on the menu. */
   itemActive: boolean;
 };
@@ -56,7 +54,6 @@ export function toModifierUses(record: ModifierDetailRecord, brandFor: (id: stri
     itemCode: use.menu_item.code,
     brand: brandFor(use.menu_item.brand_id),
     price: use.additional_price,
-    available: use.is_available,
     itemActive: use.menu_item.is_active,
   }));
 }

@@ -141,7 +141,6 @@ export class ModifiersRepository {
       select: {
         menu_item_modifier_id: true,
         additional_price: true,
-        is_available: true,
         menu_item: {
           select: {
             menu_item_id: true,

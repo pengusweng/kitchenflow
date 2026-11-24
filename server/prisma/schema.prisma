@@ -339,7 +339,6 @@ model MenuItemModifier {
   menu_item_id          String   @db.Uuid
   modifier_id           String   @db.Uuid
   additional_price      Decimal  @default(0) @db.Decimal(12, 2)
-  is_available          Boolean  @default(true)
   created_at            DateTime @default(now()) @db.Timestamp(6)
   modified_at           DateTime @default(now()) @db.Timestamp(6)
 

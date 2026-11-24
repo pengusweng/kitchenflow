@@ -57,17 +57,12 @@ export class MenuItemModifiersService {
     return menuItemModifiers;
   }
 
-  async findOne(
-    menuItemModifierId: string,
-    activeOnly = true,
-    tx?: Prisma.TransactionClient,
-  ) {
+  async findOne(menuItemModifierId: string, tx?: Prisma.TransactionClient) {
     this.logger.debug(`Finding menu item modifier ${menuItemModifierId}`);
 
     const menuItemModifier =
       await this.menuItemModifiersRepository.findOneWithModifier(
         menuItemModifierId,
-        activeOnly,
         tx,
       );
 
@@ -82,14 +77,8 @@ export class MenuItemModifiersService {
     return menuItemModifier;
   }
 
-  async findManyForMenuItem(
-    menuItemId: string,
-    activeOnly = true,
-    tx?: Prisma.TransactionClient,
-  ) {
-    this.logger.debug(
-      `Finding modifiers for menu item ${menuItemId}, activeOnly=${activeOnly}`,
-    );
+  async findManyForMenuItem(menuItemId: string, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Finding modifiers for menu item ${menuItemId}`);
 
     const menuItem = await this.menuItemsRepository.findOneMenuItemByUID(
       menuItemId,
@@ -101,7 +90,6 @@ export class MenuItemModifiersService {
     const menuItemModifiers =
       await this.menuItemModifiersRepository.findManyForMenuItem(
         menuItemId,
-        activeOnly,
         tx,
       );
 
@@ -112,23 +100,18 @@ export class MenuItemModifiersService {
   }
 
   async findAll(
-    { page, limit, activeOnly }: FindAllMenuItemModifiersDTO,
+    { page, limit }: FindAllMenuItemModifiersDTO,
     tx?: Prisma.TransactionClient,
   ) {
     this.logger.debug(
-      `Listing menu item modifiers: page=${page}, limit=${limit}, activeOnly=${activeOnly}`,
+      `Listing menu item modifiers: page=${page}, limit=${limit}`,
     );
 
     const skip = (page - 1) * limit;
     assertValidPagination(skip, this.logger);
 
     const { menuItemModifiers, total } =
-      await this.menuItemModifiersRepository.findAll(
-        skip,
-        limit,
-        activeOnly,
-        tx,
-      );
+      await this.menuItemModifiersRepository.findAll(skip, limit, tx);
 
     this.logger.log(
       `Listed menu item modifiers: page=${page}, returned=${menuItemModifiers.length}, total=${total}`,
@@ -149,7 +132,6 @@ export class MenuItemModifiersService {
 
     const menuItemModifier = await this.menuItemModifiersRepository.findOne(
       menuItemModifierId,
-      true,
       tx,
     );
 
@@ -181,7 +163,6 @@ export class MenuItemModifiersService {
 
     const menuItemModifier = await this.menuItemModifiersRepository.findOne(
       menuItemModifierId,
-      true,
       tx,
     );
     assertExists(

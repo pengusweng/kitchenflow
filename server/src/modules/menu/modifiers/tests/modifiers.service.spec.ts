@@ -41,7 +41,7 @@ describe('ModifiersService operations', () => {
     reactivateModifier: jest.Mock;
     deleteModifier: jest.Mock;
   };
-  const uses = [{ menu_item_modifier_id: 'link', is_available: true }];
+  const uses = [{ menu_item_modifier_id: 'link' }];
   const counts = { all: 30, active: 21, inactive: 9 };
   let service: ModifiersService;
 
@@ -455,7 +455,6 @@ describe('Modifiers persistence', () => {
       select: {
         menu_item_modifier_id: true,
         additional_price: true,
-        is_available: true,
         menu_item: {
           select: {
             menu_item_id: true,
