@@ -82,17 +82,24 @@ If you download the CI artifact, keep each report directory intact.
 Each runner replaces its previous report. Copy the report directory to keep a
 run for comparison. Use the command-line suites to generate reports for handoff.
 
-`.github/workflows/web-ci.yml` runs lint, Vitest with coverage, production build,
-type checking and the full Chromium suite. The required CI workflow selects it for
+`.github/workflows/web-ci.yml` runs two stages:
+
+1. **Lint, Type Check, Unit and Component Tests** runs static checks and Vitest with
+   coverage. The `web-vitest-results` artifact includes HTML, JUnit and coverage reports.
+2. **Production Build, Browser Smoke and E2E Tests** starts after Stage 1 passes.
+   It builds the app in the Playwright container and runs the full Chromium suite,
+   which includes the smoke tests. The `web-playwright-results` artifact includes
+   HTML, JUnit and any failure screenshots and traces.
+
+Each stage uploads available reports even on failure and retains them for 14 days.
+The required CI workflow selects Web CI for
 `web/**` and web workflow changes and includes its result in the final `CI` check.
 The workflow can also be run manually from GitHub Actions.
 Web failures participate in the existing automatic issue reporter. Optionally set
 the repository Actions variable `CI_WEB_ASSIGNEES` to QA usernames; existing
 default-owner and author fallback rules apply when it is unset.
 
-The `web-test-results` artifact contains JUnit results (`reports/`), coverage
-(`coverage/`), Playwright HTML (`playwright-report/`) and failure screenshots and
-traces (`test-results/`). These generated files are ignored by Git.
+Generated reports are ignored by Git.
 Coverage is informational initially; there is no arbitrary percentage gate.
 
 ## Next work for QA
