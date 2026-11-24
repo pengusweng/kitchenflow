@@ -17,6 +17,8 @@ type ModifierEditorProps = {
   errors?: Record<string, string>;
   /** Tag modifiers added during this edit. Off when the whole item is new. */
   tagNew?: boolean;
+  /** The catalog is still on its way. */
+  catalogLoading?: boolean;
 };
 
 const TAG = "inline-flex h-5 items-center rounded-full px-2 text-xs font-semibold";
@@ -27,11 +29,23 @@ export const modifierPriceId = (draftId: string) => `modifier-price-${draftId}`;
 // The item's add-ons, each with its own price. Removing a saved one strikes it
 // through with an Undo instead of deleting it on the spot, so a slip costs
 // nothing until Save. New ones are tagged so it's clear what Save will add.
-export default function ModifierEditor({ drafts, onChange, catalog, errors = {}, tagNew = true }: ModifierEditorProps) {
+export default function ModifierEditor({
+  drafts,
+  onChange,
+  catalog,
+  errors = {},
+  tagNew = true,
+  catalogLoading = false,
+}: ModifierEditorProps) {
   const pickerId = useId();
-  const attached = new Set(drafts.map((d) => d.code));
-  const available = catalog.filter((option) => !attached.has(option.code));
+  const attached = new Set(drafts.map((d) => d.modifierId));
+  const available = catalog.filter((option) => !attached.has(option.id));
   const kept = drafts.filter((d) => !d.removed).length;
+  const pickerEmpty = catalogLoading || available.length === 0;
+  let pickerLabel = "Add a modifier…";
+  if (catalogLoading) pickerLabel = "Loading modifiers…";
+  else if (catalog.length === 0) pickerLabel = "No active modifiers yet";
+  else if (available.length === 0) pickerLabel = "Every modifier is on this item";
 
   const update = (id: string, patch: Partial<ModifierDraft>) =>
     onChange(drafts.map((d) => (d.id === id ? { ...d, ...patch } : d)));
@@ -39,8 +53,8 @@ export default function ModifierEditor({ drafts, onChange, catalog, errors = {},
   const remove = (draft: ModifierDraft) =>
     draft.origin === "new" ? onChange(drafts.filter((d) => d.id !== draft.id)) : update(draft.id, { removed: true });
 
-  const add = (code: string) => {
-    const option = catalog.find((o) => o.code === code);
+  const add = (id: string) => {
+    const option = catalog.find((o) => o.id === id);
     if (option) onChange([...drafts, newModifierDraft(option)]);
   };
 
@@ -84,11 +98,16 @@ export default function ModifierEditor({ drafts, onChange, catalog, errors = {},
                     </span>
                     {tagNew && draft.origin === "new" ? <span className={`${TAG} bg-ink text-card`}>New</span> : null}
                     {!draft.available && !draft.removed ? (
-                      <span className={`${TAG} bg-destructive/10 text-danger-ink`}>Off</span>
+                      <span
+                        className={`${TAG} bg-destructive/10 text-danger-ink`}
+                        title="Retired; the counter can't add it"
+                      >
+                        Off
+                      </span>
                     ) : null}
                   </p>
                   <p className="mt-0.5 text-[0.8125rem] leading-5 text-ink-muted">
-                    {draft.removed ? "Removed when you save" : draft.description ?? draft.code}
+                    {draft.removed ? "Removed when you save" : (draft.description ?? draft.code)}
                   </p>
                 </div>
 
@@ -159,23 +178,23 @@ export default function ModifierEditor({ drafts, onChange, catalog, errors = {},
           aria-hidden="true"
           className={cn(
             "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2",
-            available.length === 0 ? "text-ink-muted" : "text-ink",
+            pickerEmpty ? "text-ink-muted" : "text-ink",
           )}
           strokeWidth={2.25}
         />
         <select
           id={pickerId}
           value=""
-          disabled={available.length === 0}
+          disabled={pickerEmpty}
           onChange={(e) => add(e.target.value)}
           className="h-12 w-full cursor-pointer appearance-none truncate rounded-lg border border-dashed border-input bg-field pr-9 pl-9 text-base font-semibold text-ink outline-none hover:border-solid focus-visible:border-solid focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15 disabled:cursor-not-allowed disabled:font-normal disabled:text-ink-muted md:text-sm"
         >
           <option value="" disabled>
-            {available.length === 0 ? "Every modifier is on this item" : "Add a modifier…"}
+            {pickerLabel}
           </option>
           {available.map((option) => (
-            <option key={option.code} value={option.code}>
-              {option.name} ({option.price === 0 ? "free" : `+${formatPeso(option.price)}`})
+            <option key={option.id} value={option.id}>
+              {option.name}
             </option>
           ))}
         </select>

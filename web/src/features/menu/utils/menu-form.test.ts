@@ -1,16 +1,16 @@
 import { describe, expect, test } from "vitest";
 import type { MenuItem } from "./menu";
 import {
-  applyMenuItemEdit,
   emptyFormValues,
-  newMenuItem,
-  suggestCode,
-  validateNewMenuItem,
   hasFormChanges,
   newModifierDraft,
   parsePrice,
+  suggestCode,
+  toCreatePayload,
   toFormValues,
+  toUpdatePayload,
   validateMenuItemForm,
+  validateNewMenuItem,
 } from "./menu-form";
 
 const ITEM: MenuItem = {
@@ -20,20 +20,40 @@ const ITEM: MenuItem = {
   brand: { id: "b-gc", code: "GC", name: "Gamcheon", accent: "#3D5A80" },
   description: null,
   servingDescription: "1 bowl",
-  recipe: "Kimchi Fried Rice",
+  recipe: { id: "r-kimchi", name: "Kimchi Fried Rice", active: true },
   imageUrl: null,
   basePrice: 189.5,
   available: true,
   active: true,
   channels: [],
   modifiers: [
-    { id: "m-rice", code: "EXTRA-RICE", name: "Extra rice", description: null, price: 35, available: true },
-    { id: "m-egg", code: "FRIED-EGG", name: "Fried egg", description: null, price: 25, available: false },
+    {
+      id: "mim-rice",
+      modifierId: "m-rice",
+      code: "EXTRA-RICE",
+      name: "Extra rice",
+      description: null,
+      price: 35,
+      available: true,
+    },
+    {
+      id: "mim-egg",
+      modifierId: "m-egg",
+      code: "FRIED-EGG",
+      name: "Fried egg",
+      description: null,
+      price: 25,
+      available: false,
+    },
   ],
 };
 
-const CHEESE = { id: "mod-cheese", code: "ADD-CHEESE", name: "Add cheese", description: null, price: 45 };
-const NO_CODES = new Set<string>();
+const CHEESE = {
+  id: "m-cheese",
+  code: "ADD-CHEESE",
+  name: "Add cheese",
+  description: null,
+};
 
 describe("parsePrice", () => {
   test("takes whole pesos and up to two decimals", () => {
@@ -57,10 +77,25 @@ describe("hasFormChanges", () => {
 
   test("removing, adding or repricing a modifier is a change", () => {
     const values = toFormValues(ITEM);
-    const removed = { ...values, modifiers: values.modifiers.map((m, i) => (i === 0 ? { ...m, removed: true } : m)) };
+    const removed = {
+      ...values,
+      modifiers: values.modifiers.map((m, i) => (i === 0 ? { ...m, removed: true } : m)),
+    };
     expect(hasFormChanges(ITEM, removed, false)).toBe(true);
-    expect(hasFormChanges(ITEM, { ...values, modifiers: [...values.modifiers, newModifierDraft(CHEESE)] }, false)).toBe(true);
-    const repriced = { ...values, modifiers: values.modifiers.map((m, i) => (i === 0 ? { ...m, price: "40" } : m)) };
+    expect(
+      hasFormChanges(
+        ITEM,
+        {
+          ...values,
+          modifiers: [...values.modifiers, { ...newModifierDraft(CHEESE), price: "45" }],
+        },
+        false,
+      ),
+    ).toBe(true);
+    const repriced = {
+      ...values,
+      modifiers: values.modifiers.map((m, i) => (i === 0 ? { ...m, price: "40" } : m)),
+    };
     expect(hasFormChanges(ITEM, repriced, false)).toBe(true);
   });
 
@@ -71,41 +106,108 @@ describe("hasFormChanges", () => {
 
 describe("validateMenuItemForm", () => {
   test("a valid form has no errors", () => {
-    expect(validateMenuItemForm(toFormValues(ITEM), NO_CODES)).toEqual({});
+    expect(validateMenuItemForm(toFormValues(ITEM))).toEqual({});
   });
 
-  test("flags missing fields, bad prices and taken codes", () => {
-    const values = { ...toFormValues(ITEM), name: " ", basePrice: "12.345", code: "GC-BIBIMBAP" };
-    const errors = validateMenuItemForm(values, new Set(["GC-BIBIMBAP"]));
-    expect(Object.keys(errors).sort()).toEqual(["basePrice", "code", "name"]);
+  test("flags missing fields and bad prices", () => {
+    const values = {
+      ...toFormValues(ITEM),
+      name: " ",
+      basePrice: "12.345",
+      code: "",
+      recipeId: "",
+    };
+    expect(Object.keys(validateMenuItemForm(values)).sort()).toEqual(["basePrice", "code", "name", "recipeId"]);
   });
 
   test("checks modifier prices, but not the ones being removed", () => {
     const values = toFormValues(ITEM);
     values.modifiers[0] = { ...values.modifiers[0], price: "" };
     values.modifiers[1] = { ...values.modifiers[1], price: "x", removed: true };
-    expect(validateMenuItemForm(values, NO_CODES).modifiers).toEqual({ "m-rice": "Enter an add-on price." });
+    expect(validateMenuItemForm(values).modifiers).toEqual({
+      "mim-rice": "Enter an add-on price.",
+    });
+  });
+
+  test("a newly added modifier needs its price", () => {
+    const values = {
+      ...toFormValues(ITEM),
+      modifiers: [newModifierDraft(CHEESE)],
+    };
+    expect(validateMenuItemForm(values).modifiers).toEqual({
+      "new-m-cheese": "Enter an add-on price.",
+    });
   });
 });
 
-describe("applyMenuItemEdit", () => {
-  test("drops removed modifiers, keeps the rest in order and appends new ones", () => {
-    const values = toFormValues(ITEM);
-    values.modifiers[0] = { ...values.modifiers[0], removed: true };
-    values.modifiers.push({ ...newModifierDraft(CHEESE), price: "50" });
-    const saved = applyMenuItemEdit(ITEM, { ...values, name: "  Kimchi Rice ", code: "gc-kimchi" }, null);
-
-    expect(saved.name).toBe("Kimchi Rice");
-    expect(saved.code).toBe("GC-KIMCHI");
-    expect(saved.modifiers.map((m) => [m.code, m.price, m.available])).toEqual([
-      ["FRIED-EGG", 25, false],
-      ["ADD-CHEESE", 50, true],
-    ]);
+describe("toUpdatePayload", () => {
+  test("sends only the fields that changed, tidied", () => {
+    const values = {
+      ...toFormValues(ITEM),
+      name: "  Kimchi Rice ",
+      code: "gc-kimchi",
+      servingDescription: "  ",
+    };
+    expect(toUpdatePayload(ITEM, values, null)).toEqual({
+      menu_item: {
+        name: "Kimchi Rice",
+        code: "GC-KIMCHI",
+        serving_description: null,
+      },
+    });
   });
 
-  test("blank optional fields are cleared", () => {
-    const saved = applyMenuItemEdit(ITEM, { ...toFormValues(ITEM), servingDescription: "  " }, null);
-    expect(saved.servingDescription).toBeNull();
+  test("adds, reprices and removes modifiers by their links", () => {
+    const values = toFormValues(ITEM);
+    values.modifiers[0] = { ...values.modifiers[0], price: "40" };
+    values.modifiers[1] = { ...values.modifiers[1], removed: true };
+    values.modifiers.push({ ...newModifierDraft(CHEESE), price: "45.50" });
+
+    expect(toUpdatePayload(ITEM, values, null)).toEqual({
+      menu_item_modifier: {
+        create: [{ modifier_id: "m-cheese", additional_price: 45.5 }],
+        update: [{ menu_item_modifier_id: "mim-rice", additional_price: 40 }],
+        delete: ["mim-egg"],
+      },
+    });
+  });
+
+  test("sends a new photo's upload key and a new recipe", () => {
+    const values = { ...toFormValues(ITEM), recipeId: "r-other" };
+    expect(toUpdatePayload(ITEM, values, "uploads/u/p.jpg")).toEqual({
+      menu_item: { recipe_id: "r-other", img_url: "uploads/u/p.jpg" },
+    });
+  });
+
+  test("an untouched form sends nothing", () => {
+    expect(toUpdatePayload(ITEM, toFormValues(ITEM), null)).toEqual({});
+  });
+});
+
+describe("toCreatePayload", () => {
+  test("starts with no channel overrides and every kept modifier", () => {
+    const values = {
+      ...emptyFormValues(),
+      name: " Kimchi Rice ",
+      code: "gc-kimchi-rice",
+      basePrice: "189.50",
+      recipeId: "r-kimchi",
+      modifiers: [{ ...newModifierDraft(CHEESE), price: "0" }],
+    };
+    expect(toCreatePayload("b-gc", values, "uploads/u/p.jpg")).toEqual({
+      menu_item: {
+        brand_id: "b-gc",
+        recipe_id: "r-kimchi",
+        code: "GC-KIMCHI-RICE",
+        name: "Kimchi Rice",
+        description: null,
+        serving_description: null,
+        base_price: 189.5,
+        img_url: "uploads/u/p.jpg",
+      },
+      menu_channel: [],
+      menu_item_modifier: [{ modifier_id: "m-cheese", additional_price: 0 }],
+    });
   });
 });
 
@@ -131,51 +233,30 @@ describe("suggestCode", () => {
 });
 
 describe("validateNewMenuItem", () => {
-  const valid = { ...emptyFormValues(), name: "Kimchi Rice", code: "GC-KIMCHI-RICE", basePrice: "189", recipe: "Kimchi Rice" };
+  const valid = {
+    ...emptyFormValues(),
+    name: "Kimchi Rice",
+    code: "GC-KIMCHI-RICE",
+    basePrice: "189",
+    recipeId: "r-kimchi",
+  };
 
   test("passes a complete form", () => {
-    expect(validateNewMenuItem(valid, new Set(), { brand: "GC", hasPhoto: true })).toEqual({});
+    expect(validateNewMenuItem(valid, { brand: "GC", hasPhoto: true })).toEqual({});
   });
 
   test("asks for a brand and a photo", () => {
-    const errors = validateNewMenuItem(valid, new Set(), { brand: undefined, hasPhoto: false });
+    const errors = validateNewMenuItem(valid, {
+      brand: undefined,
+      hasPhoto: false,
+    });
     expect(errors.brand).toBeDefined();
     expect(errors.photo).toBeDefined();
   });
 
   test("asks for a recipe only once a brand is picked", () => {
-    const blank = { ...valid, recipe: "" };
-    expect(validateNewMenuItem(blank, new Set(), { brand: "GC", hasPhoto: true }).recipe).toBeDefined();
-    expect(validateNewMenuItem(blank, new Set(), { brand: undefined, hasPhoto: true }).recipe).toBeUndefined();
-  });
-
-  test("rejects a code another item uses", () => {
-    expect(validateNewMenuItem(valid, new Set(["GC-KIMCHI-RICE"]), { brand: "GC", hasPhoto: true }).code).toBeDefined();
-  });
-});
-
-describe("newMenuItem", () => {
-  test("starts active and available, with no channels yet", () => {
-    const values = {
-      ...emptyFormValues(),
-      name: " Kimchi Rice ",
-      code: "gc-kimchi-rice",
-      basePrice: "189.50",
-      recipe: "Kimchi Rice",
-      modifiers: [newModifierDraft({ id: "mod-x", code: "EXTRA-RICE", name: "Extra rice", description: null, price: 35 })],
-    };
-    const item = newMenuItem("new-1", ITEM.brand, values, "blob:photo");
-    expect(item).toMatchObject({
-      id: "new-1",
-      name: "Kimchi Rice",
-      code: "GC-KIMCHI-RICE",
-      basePrice: 189.5,
-      servingDescription: null,
-      imageUrl: "blob:photo",
-      available: true,
-      active: true,
-      channels: [],
-    });
-    expect(item.modifiers).toHaveLength(1);
+    const blank = { ...valid, recipeId: "" };
+    expect(validateNewMenuItem(blank, { brand: "GC", hasPhoto: true }).recipeId).toBeDefined();
+    expect(validateNewMenuItem(blank, { brand: undefined, hasPhoto: true }).recipeId).toBeUndefined();
   });
 });

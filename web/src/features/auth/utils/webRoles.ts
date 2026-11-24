@@ -14,3 +14,6 @@ export const MODIFIER_ROLES: ReadonlySet<string> = new Set(["SUPERADMIN", "RECIP
 
 /** Roles that may add and edit recipes; same as the recipe authoring endpoints' @Roles. */
 export const RECIPE_AUTHOR_ROLES: ReadonlySet<string> = new Set(["SUPERADMIN", "RECIPE_MANAGER"]);
+
+/** Roles that may add, edit, deactivate and reactivate menu items; same as the menu catalog endpoints' @Roles. */
+export const MENU_MANAGER_ROLES: ReadonlySet<string> = new Set(["SUPERADMIN"]);

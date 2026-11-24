@@ -1,13 +1,16 @@
-import type { MenuBrand, MenuItem, MenuItemModifier, MenuModifierOption } from "./menu";
+import type { MenuItem, MenuModifierOption } from "./menu";
 
 /** A modifier row in the edit form. Removing a saved one only marks it, so it can be undone before saving. */
 export type ModifierDraft = {
+  /** The item's link to the modifier when saved; `new-<modifier id>` while only in the form. */
   id: string;
+  modifierId: string;
   code: string;
   name: string;
   description: string | null;
   /** As typed, e.g. "35" or "35.50". */
   price: string;
+  /** False when the modifier has been retired since it was added. */
   available: boolean;
   /** Already on the item, or added during this edit. */
   origin: "saved" | "new";
@@ -20,11 +23,11 @@ export type MenuItemFormValues = {
   basePrice: string;
   servingDescription: string;
   description: string;
-  recipe: string;
+  recipeId: string;
   modifiers: ModifierDraft[];
 };
 
-type FieldName = "name" | "code" | "basePrice" | "servingDescription" | "description" | "recipe";
+type FieldName = "name" | "code" | "basePrice" | "servingDescription" | "description" | "recipeId";
 
 export type MenuItemFormErrors = Partial<Record<FieldName, string>> & {
   /** Keyed by modifier draft id. */
@@ -32,7 +35,12 @@ export type MenuItemFormErrors = Partial<Record<FieldName, string>> & {
 };
 
 // Same limits as the menu items API.
-export const LIMITS = { name: 150, code: 64, description: 2000, servingDescription: 255 };
+export const LIMITS = {
+  name: 150,
+  code: 64,
+  description: 2000,
+  servingDescription: 255,
+};
 const MAX_PRICE = 9_999_999_999.99;
 const PRICE = /^\d+(\.\d{1,2})?$/;
 
@@ -56,9 +64,10 @@ export function toFormValues(item: MenuItem): MenuItemFormValues {
     basePrice: priceText(item.basePrice),
     servingDescription: item.servingDescription ?? "",
     description: item.description ?? "",
-    recipe: item.recipe,
+    recipeId: item.recipe.id,
     modifiers: item.modifiers.map((m) => ({
       id: m.id,
+      modifierId: m.modifierId,
       code: m.code,
       name: m.name,
       description: m.description,
@@ -72,23 +81,37 @@ export function toFormValues(item: MenuItem): MenuItemFormValues {
 
 /** A blank form for a new item; the recipe stays empty until a brand is picked. */
 export function emptyFormValues(): MenuItemFormValues {
-  return { name: "", code: "", basePrice: "", servingDescription: "", description: "", recipe: "", modifiers: [] };
+  return {
+    name: "",
+    code: "",
+    basePrice: "",
+    servingDescription: "",
+    description: "",
+    recipeId: "",
+    modifiers: [],
+  };
 }
 
 /** The brand code plus the name, e.g. "GC" + "Kimchi Rice" gives "GC-KIMCHI-RICE". */
 export function suggestCode(brandCode: string | undefined, name: string): string {
-  const slug = name.toUpperCase().replace(/&/g, "AND").replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const slug = name
+    .toUpperCase()
+    .replace(/&/g, "AND")
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
   if (!slug) return "";
   return (brandCode ? `${brandCode}-${slug}` : slug).slice(0, LIMITS.code).replace(/-$/, "");
 }
 
+/** Modifiers carry no price of their own; each item sets one when it adds the modifier. */
 export function newModifierDraft(option: MenuModifierOption): ModifierDraft {
   return {
     id: `new-${option.id}`,
+    modifierId: option.id,
     code: option.code,
     name: option.name,
     description: option.description,
-    price: priceText(option.price),
+    price: "",
     available: true,
     origin: "new",
     removed: false,
@@ -101,8 +124,8 @@ function priceProblem(text: string, what: string): string | undefined {
   return undefined;
 }
 
-/** Problems to fix before saving; empty when the form can be saved. `takenCodes` are other items' codes. */
-export function validateMenuItemForm(values: MenuItemFormValues, takenCodes: Set<string>): MenuItemFormErrors {
+/** Problems to fix before saving; empty when the form can be saved. Code clashes come back from the API. */
+export function validateMenuItemForm(values: MenuItemFormValues): MenuItemFormErrors {
   const errors: MenuItemFormErrors = {};
   const name = values.name.trim();
   const code = values.code.trim();
@@ -112,12 +135,11 @@ export function validateMenuItemForm(values: MenuItemFormValues, takenCodes: Set
 
   if (!code) errors.code = "Enter a code.";
   else if (code.length > LIMITS.code) errors.code = `Keep the code to ${LIMITS.code} characters.`;
-  else if (takenCodes.has(code.toUpperCase())) errors.code = "Another menu item already uses this code.";
 
   const basePrice = priceProblem(values.basePrice, "a price");
   if (basePrice) errors.basePrice = basePrice;
 
-  if (!values.recipe) errors.recipe = "Choose the recipe the kitchen follows.";
+  if (!values.recipeId) errors.recipeId = "Choose the recipe the kitchen follows.";
 
   if (values.servingDescription.trim().length > LIMITS.servingDescription)
     errors.servingDescription = `Keep this to ${LIMITS.servingDescription} characters.`;
@@ -139,89 +161,135 @@ export function hasErrors(errors: MenuItemFormErrors) {
   return Object.keys(errors).length > 0;
 }
 
-function sameModifiers(item: MenuItem, drafts: ModifierDraft[]) {
-  const kept = drafts.filter((d) => !d.removed);
-  if (kept.length !== item.modifiers.length || kept.some((d) => d.origin === "new")) return false;
-  return kept.every((d) => {
-    const saved = item.modifiers.find((m) => m.id === d.id);
-    return saved !== undefined && parsePrice(d.price) === saved.price;
-  });
-}
-
-export function hasFormChanges(item: MenuItem, values: MenuItemFormValues, imageChanged: boolean) {
-  return (
-    imageChanged ||
-    values.name.trim() !== item.name ||
-    values.code.trim().toUpperCase() !== item.code ||
-    parsePrice(values.basePrice) !== item.basePrice ||
-    values.servingDescription.trim() !== (item.servingDescription ?? "") ||
-    values.description.trim() !== (item.description ?? "") ||
-    values.recipe !== item.recipe ||
-    !sameModifiers(item, values.modifiers)
-  );
-}
-
-/** The item as it reads after saving a valid form. */
-export function applyMenuItemEdit(item: MenuItem, values: MenuItemFormValues, imageUrl: string | null): MenuItem {
-  const modifiers: MenuItemModifier[] = values.modifiers
-    .filter((d) => !d.removed)
-    .map((d) => ({
-      id: d.id,
-      code: d.code,
-      name: d.name,
-      description: d.description,
-      price: parsePrice(d.price) ?? 0,
-      available: d.available,
-    }));
-
-  return {
-    ...item,
-    name: values.name.trim(),
-    code: values.code.trim().toUpperCase(),
-    basePrice: parsePrice(values.basePrice) ?? item.basePrice,
-    servingDescription: values.servingDescription.trim() || null,
-    description: values.description.trim() || null,
-    recipe: values.recipe,
-    imageUrl,
-    modifiers,
-  };
-}
-
-export type NewMenuItemErrors = MenuItemFormErrors & { brand?: string; photo?: string };
+export type NewMenuItemErrors = MenuItemFormErrors & {
+  brand?: string;
+  photo?: string;
+};
 
 /** Everything the edit form checks, plus what only a new item needs: a brand and a photo. */
 export function validateNewMenuItem(
   values: MenuItemFormValues,
-  takenCodes: Set<string>,
   { brand, hasPhoto }: { brand: string | undefined; hasPhoto: boolean },
 ): NewMenuItemErrors {
-  const errors: NewMenuItemErrors = validateMenuItemForm(values, takenCodes);
+  const errors: NewMenuItemErrors = validateMenuItemForm(values);
   if (!brand) {
     errors.brand = "Choose the brand that sells this item.";
     // Recipes come from the brand, so the brand error says it all.
-    delete errors.recipe;
+    delete errors.recipeId;
   }
   if (!hasPhoto) errors.photo = "Add a photo. It's what the counter and delivery menus show.";
   return errors;
 }
 
-/** The item as it reads once a valid new-item form is added. New items start active and available. */
-export function newMenuItem(id: string, brand: MenuBrand, values: MenuItemFormValues, imageUrl: string): MenuItem {
-  const blank: MenuItem = {
-    id,
-    code: "",
-    name: "",
-    brand,
-    description: null,
-    servingDescription: null,
-    recipe: "",
-    imageUrl: null,
-    basePrice: 0,
-    available: true,
-    active: true,
-    // Channel prices are set separately, after the item exists.
-    channels: [],
-    modifiers: [],
+// ---------------------------------------------------------------- payloads
+
+/** The item fields the menu catalog API takes. */
+export type MenuItemFieldsPayload = {
+  recipe_id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  serving_description: string | null;
+  base_price: number;
+  /** An image URL, or the key POST /assets returned for an uploaded photo. */
+  img_url: string;
+};
+
+type AddModifier = { modifier_id: string; additional_price: number };
+
+export type CreateMenuItemPayload = {
+  menu_item: MenuItemFieldsPayload & { brand_id: string };
+  menu_channel: [];
+  menu_item_modifier: AddModifier[];
+};
+
+/** PATCH /menu-catalog/:id: changed item fields, plus which add-ons to add, reprice and remove. */
+export type UpdateMenuItemPayload = {
+  menu_item?: Partial<MenuItemFieldsPayload>;
+  menu_item_modifier?: {
+    create?: AddModifier[];
+    update?: { menu_item_modifier_id: string; additional_price: number }[];
+    delete?: string[];
   };
-  return applyMenuItemEdit(blank, values, imageUrl);
+};
+
+type ItemFields = Omit<MenuItemFieldsPayload, "img_url">;
+
+function itemFields(values: MenuItemFormValues): ItemFields {
+  return {
+    recipe_id: values.recipeId,
+    code: values.code.trim().toUpperCase(),
+    name: values.name.trim(),
+    description: values.description.trim() || null,
+    serving_description: values.servingDescription.trim() || null,
+    base_price: parsePrice(values.basePrice) ?? 0,
+  };
+}
+
+const addOnPrice = (draft: ModifierDraft) => parsePrice(draft.price) ?? 0;
+
+/** A new item starts with no channel overrides, so every channel sells it at the base price. */
+export function toCreatePayload(brandId: string, values: MenuItemFormValues, imageKey: string): CreateMenuItemPayload {
+  return {
+    menu_item: { ...itemFields(values), brand_id: brandId, img_url: imageKey },
+    menu_channel: [],
+    menu_item_modifier: values.modifiers
+      .filter((d) => !d.removed)
+      .map((d) => ({
+        modifier_id: d.modifierId,
+        additional_price: addOnPrice(d),
+      })),
+  };
+}
+
+/** Only what changed, so an untouched field is never rewritten. `imageKey` is a newly uploaded photo. */
+export function toUpdatePayload(
+  item: MenuItem,
+  values: MenuItemFormValues,
+  imageKey: string | null,
+): UpdateMenuItemPayload {
+  const next = itemFields(values);
+  const current: ItemFields = {
+    recipe_id: item.recipe.id,
+    code: item.code,
+    name: item.name,
+    description: item.description,
+    serving_description: item.servingDescription,
+    base_price: item.basePrice,
+  };
+  const menuItem: Partial<MenuItemFieldsPayload> = {};
+  for (const key of Object.keys(next) as (keyof ItemFields)[]) {
+    if (next[key] !== current[key]) Object.assign(menuItem, { [key]: next[key] });
+  }
+  if (imageKey) menuItem.img_url = imageKey;
+
+  const savedPrice = new Map(item.modifiers.map((m) => [m.id, m.price]));
+  const kept = values.modifiers.filter((d) => !d.removed);
+  const create = kept
+    .filter((d) => d.origin === "new")
+    .map((d) => ({
+      modifier_id: d.modifierId,
+      additional_price: addOnPrice(d),
+    }));
+  const update = kept
+    .filter((d) => d.origin === "saved" && addOnPrice(d) !== savedPrice.get(d.id))
+    .map((d) => ({
+      menu_item_modifier_id: d.id,
+      additional_price: addOnPrice(d),
+    }));
+  const remove = values.modifiers.filter((d) => d.origin === "saved" && d.removed).map((d) => d.id);
+
+  const modifiers: NonNullable<UpdateMenuItemPayload["menu_item_modifier"]> = {};
+  if (create.length) modifiers.create = create;
+  if (update.length) modifiers.update = update;
+  if (remove.length) modifiers.delete = remove;
+
+  return {
+    ...(Object.keys(menuItem).length ? { menu_item: menuItem } : {}),
+    ...(Object.keys(modifiers).length ? { menu_item_modifier: modifiers } : {}),
+  };
+}
+
+export function hasFormChanges(item: MenuItem, values: MenuItemFormValues, imageChanged: boolean) {
+  return Object.keys(toUpdatePayload(item, values, imageChanged ? "new-photo" : null)).length > 0;
 }

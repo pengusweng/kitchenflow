@@ -43,7 +43,12 @@ describe('Menu catalog HTTP endpoints', () => {
       },
     ],
   };
-  const service = { create: jest.fn(), findAll: jest.fn(), update: jest.fn() };
+  const service = {
+    create: jest.fn(),
+    findAll: jest.fn(),
+    findCatalog: jest.fn(),
+    update: jest.fn(),
+  };
   const auth = { validateSession: jest.fn() };
   const brandLookup = jest.fn();
   const headers = {
@@ -84,7 +89,8 @@ describe('Menu catalog HTTP endpoints', () => {
     service.create.mockResolvedValue(createdEntry);
     service.findAll.mockResolvedValue({ data: [], meta: { total: 0 } });
     service.update.mockResolvedValue(createdEntry);
-    auth.validateSession.mockResolvedValue({ user });
+    auth.validateSession.mockResolvedValue({ user_id: user.user_id, user });
+    service.findCatalog.mockResolvedValue({ data: [], meta: { total: 0 } });
     brandLookup.mockResolvedValue({ brand_id: brandId });
   });
 
@@ -99,7 +105,7 @@ describe('Menu catalog HTTP endpoints', () => {
 
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual(createdEntry);
-    expect(service.create).toHaveBeenCalledWith(dto);
+    expect(service.create).toHaveBeenCalledWith(dto, user.user_id);
   });
 
   it.each([
@@ -169,6 +175,69 @@ describe('Menu catalog HTTP endpoints', () => {
     const response = await fetch(`${url}/brand/${otherBrandId}`, { headers });
     expect(response.status).toBe(200);
     expect(service.findAll).toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      img_url: `uploads/${user.user_id}/00000000-0000-4000-8000-000000000009.jpg`,
+      status: 201,
+    },
+    { img_url: 'uploads/not-a-key.jpg', status: 400 },
+    { img_url: 'not a url', status: 400 },
+  ])(
+    'IT-MCAT-016: accepts an image URL or an upload key as the photo, rejecting $img_url with $status',
+    async ({ img_url, status }) => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          ...dto,
+          menu_item: { ...dto.menu_item, img_url },
+        }),
+      });
+
+      expect(response.status).toBe(status);
+      expect(service.create).toHaveBeenCalledTimes(status === 201 ? 1 : 0);
+    },
+  );
+
+  it.each([
+    { query: '', expected: { status: 'active', availability: 'all' } },
+    {
+      query: `?brand_id=${brandId}&status=inactive&availability=unavailable&search=rice&page=2&limit=20`,
+      expected: {
+        brand_id: brandId,
+        status: 'inactive',
+        availability: 'unavailable',
+        search: 'rice',
+        page: 2,
+        limit: 20,
+      },
+    },
+  ])(
+    'IT-MCAT-017: lists every brand menu with query "$query"',
+    async ({ query, expected }) => {
+      const response = await fetch(`${url}${query}`, {
+        headers: { authorization: headers.authorization },
+      });
+
+      expect(response.status).toBe(200);
+      expect(service.findCatalog).toHaveBeenCalledWith(
+        expect.objectContaining(expected),
+      );
+    },
+  );
+
+  it.each([
+    '?brand_id=invalid',
+    '?status=archived',
+    '?availability=sold-out',
+    '?limit=101',
+  ])('IT-MCAT-018: rejects invalid menu filters %s', async (query) => {
+    const response = await fetch(`${url}${query}`, { headers });
+
+    expect(response.status).toBe(400);
+    expect(service.findCatalog).not.toHaveBeenCalled();
   });
 
   it.each([undefined, null, {}])(
@@ -245,7 +314,11 @@ describe('Menu catalog HTTP endpoints', () => {
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual(createdEntry);
-      expect(service.update).toHaveBeenCalledWith(menuItemId, update);
+      expect(service.update).toHaveBeenCalledWith(
+        menuItemId,
+        update,
+        user.user_id,
+      );
     });
 
     it.each([

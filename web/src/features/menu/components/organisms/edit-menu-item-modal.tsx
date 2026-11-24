@@ -15,9 +15,10 @@ import {
 } from "@/components/ui/dialog";
 import { type LogoPreview } from "@/src/features/brands/components/molecules/logo-field";
 import { useLogoPicker } from "@/src/features/brands/hooks/useLogoPicker";
-import type { MenuItem, MenuModifierOption } from "../../utils/menu";
+import { useBrandRecipes, useModifierOptions } from "../../hooks/useMenu";
+import type { MenuItem } from "../../utils/menu";
+import { menuSaveError, type MenuSaveError } from "../../utils/menu-errors";
 import {
-  applyMenuItemEdit,
   hasErrors,
   hasFormChanges,
   toFormValues,
@@ -32,12 +33,8 @@ type EditMenuItemModalProps = {
   item: MenuItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved: (item: MenuItem) => void;
-  /** Recipes the item's brand can link to. */
-  recipes: string[];
-  modifierCatalog: MenuModifierOption[];
-  /** Codes other menu items already use. */
-  takenCodes: Set<string>;
+  /** Saves the form; rejects with the API's error when the save is refused. */
+  onSubmit: (values: MenuItemFormValues, photo: File | null) => Promise<unknown>;
 };
 
 // DESIGN.md › Elevation: dialogs get Shadow 3. Shadows vanish on the dark
@@ -59,44 +56,80 @@ export default function EditMenuItemModal({ item, open, onOpenChange, ...formPro
   );
 }
 
+const ID = "edit-menu-item";
+
 function EditMenuItemForm({
   item,
-  onSaved,
-  recipes,
-  modifierCatalog,
-  takenCodes,
-}: Omit<EditMenuItemModalProps, "item" | "open" | "onOpenChange"> & { item: MenuItem }) {
+  onSubmit,
+}: Omit<EditMenuItemModalProps, "item" | "open" | "onOpenChange"> & {
+  item: MenuItem;
+}) {
   const [values, setValues] = useState<MenuItemFormValues>(() => toFormValues(item));
   // Errors show after the first save attempt, then follow every keystroke.
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // What the API refused, until the field it's about changes.
+  const [saveError, setSaveError] = useState<(MenuSaveError & { sent: unknown }) | null>(null);
   const photo = useLogoPicker("Photos");
+  const { recipes, isPending: recipesLoading } = useBrandRecipes(item.brand.id);
+  const modifiers = useModifierOptions();
 
-  const errors: MenuItemFormErrors = submitted ? validateMenuItemForm(values, takenCodes) : {};
+  const fieldValue = (field: NonNullable<MenuSaveError["field"]>) =>
+    field === "photo" ? photo.logo?.file : values[field];
+  const serverError =
+    saveError && (!saveError.field || fieldValue(saveError.field) === saveError.sent) ? saveError : null;
+  const errors: MenuItemFormErrors = submitted ? validateMenuItemForm(values) : {};
+  if ((serverError?.field === "code" || serverError?.field === "recipeId") && !errors[serverError.field])
+    errors[serverError.field] = serverError.message;
   const changed = hasFormChanges(item, values, photo.logo !== null);
   const set = <K extends keyof MenuItemFormValues>(key: K, value: MenuItemFormValues[K]) =>
     setValues((current) => ({ ...current, [key]: value }));
 
   let preview: LogoPreview | null = null;
-  if (photo.logo) preview = { url: photo.logo.previewUrl, name: photo.logo.file.name, size: photo.logo.file.size };
+  if (photo.logo)
+    preview = {
+      url: photo.logo.previewUrl,
+      name: photo.logo.file.name,
+      size: photo.logo.file.size,
+    };
   else if (item.imageUrl) preview = { url: item.imageUrl, name: "Current photo" };
 
-  // Keep the recipe on the list even if the brand's list no longer has it.
-  const recipeOptions = recipes.includes(item.recipe) ? recipes : [item.recipe, ...recipes];
+  // Keep the current recipe on the list even once it's inactive, so the form
+  // doesn't silently swap it; saving a different one needs an active recipe.
+  const recipeOptions = recipes.some((r) => r.id === item.recipe.id)
+    ? recipes
+    : [
+        {
+          id: item.recipe.id,
+          name: item.recipe.active ? item.recipe.name : `${item.recipe.name} (inactive)`,
+        },
+        ...recipes,
+      ];
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     setSubmitted(true);
-    const found = validateMenuItemForm(values, takenCodes);
+    const found = validateMenuItemForm(values);
     if (hasErrors(found)) {
       const first = FIELD_ORDER.find((name) => name in found);
       const firstModifier = Object.keys(found.modifiers ?? {})[0];
-      document.getElementById(first ? `edit-menu-item-${first}` : modifierPriceId(firstModifier))?.focus();
+      document.getElementById(first ? `${ID}-${first}` : modifierPriceId(firstModifier))?.focus();
       return;
     }
-    // Static UI: a fresh object URL for the picked photo, since the picker
-    // releases its own as soon as this form closes.
-    const imageUrl = photo.logo ? URL.createObjectURL(photo.logo.file) : item.imageUrl;
-    onSaved(applyMenuItemEdit(item, values, imageUrl));
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSubmit(values, photo.logo?.file ?? null);
+    } catch (error) {
+      const reason = menuSaveError(error);
+      setSaveError({
+        ...reason,
+        sent: reason.field ? fieldValue(reason.field) : undefined,
+      });
+      if (reason.field && reason.field !== "photo") document.getElementById(`${ID}-${reason.field}`)?.focus();
+      setSaving(false);
+    }
   };
 
   return (
@@ -104,7 +137,9 @@ function EditMenuItemForm({
       <DialogHeader className="flex-row items-center justify-between gap-4 border-b border-hairline py-3 pr-3 pl-6">
         <DialogTitle className="text-base font-semibold text-ink">Edit menu item</DialogTitle>
         <DialogClose
-          render={<Button type="button" variant="ghost" size="icon-lg" className="size-10 text-ink-muted hover:text-ink" />}
+          render={
+            <Button type="button" variant="ghost" size="icon-lg" className="size-10 text-ink-muted hover:text-ink" />
+          }
         >
           <X aria-hidden="true" className="size-5" />
           <span className="sr-only">Close</span>
@@ -113,12 +148,11 @@ function EditMenuItemForm({
 
       <div className="flex min-h-0 flex-col gap-5 overflow-y-auto overscroll-contain px-6 pt-5 pb-6">
         <DialogDescription className="text-sm leading-relaxed text-ink-muted">
-          Update {item.name}&apos;s details and the modifiers the counter can add to it. Channel prices are set
-          separately.
+          Update {item.name}&apos;s details and the modifiers the counter can add to it.
         </DialogDescription>
 
         <MenuItemFields
-          idPrefix="edit-menu-item"
+          idPrefix={ID}
           values={values}
           onChange={set}
           errors={errors}
@@ -126,24 +160,34 @@ function EditMenuItemForm({
             preview,
             onSelect: photo.select,
             onRemove: photo.logo ? photo.clear : undefined,
-            error: photo.error ?? undefined,
+            error: photo.error ?? (serverError?.field === "photo" ? serverError.message : undefined),
             hint: "JPG or PNG, up to 5 MB. Square photos fit the menu tiles best.",
           }}
           recipes={recipeOptions}
-          modifierCatalog={modifierCatalog}
+          recipePlaceholder={recipesLoading ? "Loading recipes…" : undefined}
+          modifierCatalog={modifiers.options}
+          modifierCatalogLoading={modifiers.isPending}
         />
       </div>
+
+      {serverError && !serverError.field ? (
+        <p role="alert" className="px-6 pb-3 text-sm leading-5 text-danger-ink">
+          {serverError.message}
+        </p>
+      ) : null}
 
       <DialogFooter className="mx-0 mb-0 items-center border-hairline bg-transparent px-6 py-4 sm:justify-between">
         <p className={cn("hidden text-sm text-ink-muted sm:block", !changed && "invisible")} aria-live="polite">
           {changed ? "Unsaved changes" : "No changes yet"}
         </p>
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
-          <DialogClose render={<Button type="button" variant="outline" size="lg" className="h-10 px-4 font-semibold" />}>
+          <DialogClose
+            render={<Button type="button" variant="outline" size="lg" className="h-10 px-4 font-semibold" />}
+          >
             Cancel
           </DialogClose>
-          <Button type="submit" size="lg" className="h-10 px-4 font-semibold" disabled={!changed}>
-            Save changes
+          <Button type="submit" size="lg" className="h-10 px-4 font-semibold" disabled={!changed || saving}>
+            {saving ? "Saving…" : "Save changes"}
           </Button>
         </div>
       </DialogFooter>

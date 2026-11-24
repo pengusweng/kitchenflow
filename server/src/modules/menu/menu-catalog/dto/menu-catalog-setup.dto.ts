@@ -1,5 +1,4 @@
 import { Type } from 'class-transformer';
-import { CreateMenuItemDTO } from '../../menu-items/dto/create-menu-item.dto';
 import {
   ArrayUnique,
   IsArray,
@@ -10,6 +9,7 @@ import {
 import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { CreateMenuChannelDTO } from '../../menu-channels/dto/create-menu-channel.dto';
 import { CreateMenuItemModifierDTO } from '../../menu-item-modifiers/dto/create-menu-item-modifier.dto';
+import { CatalogMenuItemDTO } from './catalog-menu-item.dto';
 
 export class MenuChannelSetupDTO extends OmitType(CreateMenuChannelDTO, [
   'menu_item_id',
@@ -19,9 +19,9 @@ export class MenuCatalogSetupDTO {
   @IsDefined()
   @IsObject()
   @ValidateNested()
-  @Type(() => CreateMenuItemDTO)
-  @ApiProperty({ type: CreateMenuItemDTO })
-  menu_item!: CreateMenuItemDTO;
+  @Type(() => CatalogMenuItemDTO)
+  @ApiProperty({ type: CatalogMenuItemDTO })
+  menu_item!: CatalogMenuItemDTO;
 
   @IsArray()
   @ArrayUnique((channel: MenuChannelSetupDTO) => channel.order_channel)

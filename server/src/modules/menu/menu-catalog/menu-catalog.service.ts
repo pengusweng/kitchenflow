@@ -1,9 +1,15 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { OrderChannel, Prisma } from '@prisma/client';
 import { assertExists } from '../../../shared/assertions/assert-exists';
 import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { StorageService } from '../../../shared/storage/storage.service';
+import { AssetsService } from '../../assets/assets.service';
 import { BrandsRepository } from '../../brands/brands.repository';
 import { RecipesRepository } from '../../recipe/recipes/recipes.repository';
 import { MenuChannelsRepository } from '../menu-channels/menu-channels.repository';
@@ -11,6 +17,7 @@ import { MenuItemModifiersRepository } from '../menu-item-modifiers/menu-item-mo
 import { MenuItemSearchDTO } from '../menu-items/dto/find-all-menu-items.dto';
 import { MenuItemsRepository } from '../menu-items/menu-items.repository';
 import { ModifiersRepository } from '../modifiers/modifiers.repository';
+import { FindMenuCatalogDTO, UPLOAD_KEY } from './dto/catalog-menu-item.dto';
 import { MenuCatalogSetupDTO } from './dto/menu-catalog-setup.dto';
 import {
   MenuChannelMutationsDTO,
@@ -39,11 +46,17 @@ export class MenuCatalogService {
     private readonly menuChannelsRepository: MenuChannelsRepository,
     private readonly menuItemModifiersRepository: MenuItemModifiersRepository,
     private readonly recipesRepository: RecipesRepository,
+    private readonly assets: AssetsService,
   ) {}
 
-  async create(dto: MenuCatalogSetupDTO, tx?: Prisma.TransactionClient) {
+  async create(
+    dto: MenuCatalogSetupDTO,
+    actorId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
     this.logger.debug(`Creating menu catalog entry for ${dto.menu_item.name}`);
 
+    await this.assertOwnedImage(dto.menu_item.img_url, actorId);
     await this.assertActiveModifiers(
       dto.menu_item_modifier.map((m) => m.modifier_id),
       tx,
@@ -90,9 +103,55 @@ export class MenuCatalogService {
     };
   }
 
-  async update(menuItemId: string, dto: UpdateMenuCatalogDTO) {
+  /** Every brand's menu for the menu page, with the counts its filter chips show. */
+  async findCatalog(query: FindMenuCatalogDTO, tx?: Prisma.TransactionClient) {
+    const { page, limit } = query;
+    this.logger.debug(
+      `Listing menu catalog: brand=${query.brand_id ?? 'all'}, status=${query.status}, availability=${query.availability}, page=${page}, limit=${limit}, search=${query.search ? 'yes' : 'no'}`,
+    );
+
+    const skip = (page - 1) * limit;
+    assertValidPagination(skip, this.logger);
+
+    const { entries, total, groups } =
+      await this.menuCatalogRepository.findCatalog(query, skip, limit, tx);
+
+    const brands: Record<string, { total: number; unavailable: number }> = {
+      all: { total: 0, unavailable: 0 },
+    };
+    const availability = { all: 0, available: 0, unavailable: 0 };
+    for (const { brand_id, is_available, count } of groups) {
+      for (const key of ['all', brand_id]) {
+        const bucket = (brands[key] ??= { total: 0, unavailable: 0 });
+        bucket.total += count;
+        if (!is_available) bucket.unavailable += count;
+      }
+      if (query.brand_id && brand_id !== query.brand_id) continue;
+      availability.all += count;
+      availability[is_available ? 'available' : 'unavailable'] += count;
+    }
+
+    this.logger.log(
+      `Listed menu catalog: page=${page}, returned=${entries.length}, total=${total}`,
+    );
+    return {
+      data: await Promise.all(entries.map((entry) => this.withImageUrl(entry))),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        counts: { brands, availability },
+      },
+    };
+  }
+
+  async update(menuItemId: string, dto: UpdateMenuCatalogDTO, actorId: string) {
     this.logger.debug(`Editing menu catalog entry ${menuItemId}`);
     this.assertHasChanges(dto);
+    if (dto.menu_item?.img_url !== undefined) {
+      await this.assertOwnedImage(dto.menu_item.img_url, actorId);
+    }
 
     const {
       menu_item: itemDto = {},
@@ -118,23 +177,11 @@ export class MenuCatalogService {
       }
 
       // Always written, so modified_at moves even when only children change.
-      const menuItem = await this.menuItemsRepository.updateMenuItem(
-        menuItemId,
-        itemDto,
-        tx,
-      );
-      const menuChannels = await this.applyChannelMutations(
-        menuItemId,
-        channels,
-        tx,
-      );
-      const menuItemModifiers = await this.applyModifierMutations(
-        menuItemId,
-        modifiers,
-        tx,
-      );
+      await this.menuItemsRepository.updateMenuItem(menuItemId, itemDto, tx);
+      await this.applyChannelMutations(menuItemId, channels, tx);
+      await this.applyModifierMutations(menuItemId, modifiers, tx);
 
-      return { ...menuItem, menuChannels, menuItemModifiers };
+      return this.menuCatalogRepository.findEntry(menuItemId, tx);
     });
 
     this.logger.log(`Edited menu catalog entry ${result.menu_item_id}`);
@@ -209,13 +256,6 @@ export class MenuCatalogService {
         tx,
       );
     }
-
-    return this.menuChannelsRepository.findManyByMenuItem(
-      menuItemId,
-      false,
-      undefined,
-      tx,
-    );
   }
 
   private async applyModifierMutations(
@@ -284,8 +324,22 @@ export class MenuCatalogService {
     if (create.length > 0) {
       await this.menuItemModifiersRepository.createMany(menuItemId, create, tx);
     }
+  }
 
-    return this.menuItemModifiersRepository.findManyForMenuItem(menuItemId, tx);
+  // An uploaded photo is referenced by its key; only its uploader may use it,
+  // and it has to exist. Plain URLs are taken as given.
+  private async assertOwnedImage(imgUrl: string, actorId: string) {
+    if (!UPLOAD_KEY.test(imgUrl)) return;
+    try {
+      await this.assets.download(actorId, imgUrl, false);
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) throw error;
+      this.logger.warn(`Upload ${imgUrl} is missing or not the caller's`);
+      throw new NotFoundException({
+        code: 'ASSET_NOT_FOUND',
+        message: 'The uploaded photo was not found. Upload it again.',
+      });
+    }
   }
 
   private async assertActiveModifiers(

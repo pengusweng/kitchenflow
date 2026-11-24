@@ -16,7 +16,7 @@ import {
 import { CreateMenuChannelDTO } from '../../menu-channels/dto/create-menu-channel.dto';
 import { CreateMenuItemModifierDTO } from '../../menu-item-modifiers/dto/create-menu-item-modifier.dto';
 import { UpdateMenuItemModifierDTO } from '../../menu-item-modifiers/dto/update-menu-item-modifier.dto';
-import { UpdateMenuItemDTO } from '../../menu-items/dto/update-menu-item.dto';
+import { UpdateCatalogMenuItemDTO } from './catalog-menu-item.dto';
 import { MenuChannelSetupDTO } from './menu-catalog-setup.dto';
 
 // A channel's order_channel is fixed; delete it and create another instead.
@@ -112,12 +112,12 @@ export class UpdateMenuCatalogDTO {
   @IsOptional()
   @IsObject({ message: 'Menu item changes must be an object.' })
   @ValidateNested()
-  @Type(() => UpdateMenuItemDTO)
+  @Type(() => UpdateCatalogMenuItemDTO)
   @ApiPropertyOptional({
-    type: UpdateMenuItemDTO,
+    type: UpdateCatalogMenuItemDTO,
     description: 'Menu item fields to change. The brand cannot be changed.',
   })
-  menu_item?: UpdateMenuItemDTO;
+  menu_item?: UpdateCatalogMenuItemDTO;
 
   @IsOptional()
   @IsObject({

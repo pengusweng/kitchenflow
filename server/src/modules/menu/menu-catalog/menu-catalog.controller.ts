@@ -12,19 +12,25 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../../shared/decorators/roles.decorator';
 import { MenuItemSearchDTO } from '../menu-items/dto/find-all-menu-items.dto';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
-import { Authenticated } from '../../auth/auth.guard';
+import {
+  Authenticated,
+  type AuthenticatedRequest,
+} from '../../auth/auth.guard';
 import {
   CreateMenuCatalogDocs,
   FindAllMenuCatalogDocs,
+  FindMenuCatalogDocs,
   MenuCatalogDocs,
   UpdateMenuCatalogDocs,
 } from './docs/menu-catalog.docs';
+import { FindMenuCatalogDTO } from './dto/catalog-menu-item.dto';
 import { MenuCatalogSetupDTO } from './dto/menu-catalog-setup.dto';
 import { UpdateMenuCatalogDTO } from './dto/update-menu-catalog.dto';
 import { MenuCatalogService } from './menu-catalog.service';
@@ -44,8 +50,17 @@ export class MenuCatalogController {
   })
   @CreateMenuCatalogDocs()
   @Roles(UserRole.SUPERADMIN)
-  async create(@Body() dto: MenuCatalogSetupDTO) {
-    return this.menuCatalogService.create(dto);
+  async create(
+    @Body() dto: MenuCatalogSetupDTO,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.menuCatalogService.create(dto, request.session.user_id);
+  }
+
+  @Get()
+  @FindMenuCatalogDocs()
+  async findCatalog(@Query() query: FindMenuCatalogDTO) {
+    return this.menuCatalogService.findCatalog(query);
   }
 
   @Get('brand/:brandId')
@@ -69,7 +84,12 @@ export class MenuCatalogController {
   async update(
     @Param('id', ParseUUIDPipe) menuItemId: string,
     @Body() dto: UpdateMenuCatalogDTO,
+    @Req() request: AuthenticatedRequest,
   ) {
-    return this.menuCatalogService.update(menuItemId, dto);
+    return this.menuCatalogService.update(
+      menuItemId,
+      dto,
+      request.session.user_id,
+    );
   }
 }
