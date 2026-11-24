@@ -293,10 +293,23 @@ export async function seedDatabase(prisma: Prisma.TransactionClient) {
 }
 
 async function main() {
-  const pool = new Pool({ connectionString: getDatabaseUrl(process.env) });
+  const pool = new Pool({
+    connectionString: getDatabaseUrl(process.env),
+    connectionTimeoutMillis: 30_000,
+    max: 2,
+  });
   const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
   try {
-    await prisma.$transaction(seedDatabase, { timeout: 60_000 });
+    // Connect before starting the transaction acquisition timer on cold hosts.
+    console.log('Connecting to the seed database...');
+    await prisma.$queryRaw`SELECT 1`;
+    console.log('Database connected. Starting demo seed transaction...');
+    await prisma.$transaction(seedDatabase, {
+      maxWait: 60_000,
+      // Include password/PIN hashing and fixture writes in the time budget.
+      timeout: 300_000,
+    });
+    console.log('Demo seed transaction committed.');
   } finally {
     await prisma.$disconnect();
     await pool.end();
