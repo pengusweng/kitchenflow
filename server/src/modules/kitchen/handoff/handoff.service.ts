@@ -133,7 +133,7 @@ export class HandoffService {
     return {
       ...data,
       img_urls: await Promise.all(
-        img_keys.map((key) => this.storage.createDownloadUrl(key)),
+        img_keys.map((key) => this.storage.createDownloadUrl(key, false)),
       ),
     };
   }
