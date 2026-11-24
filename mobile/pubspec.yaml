@@ -71,6 +71,8 @@ flutter:
     - assets/images/aurelia.png
     - assets/images/logo_light.png
     - assets/images/logo_dark.png
+    - assets/bg/
+    - assets/images/bg/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

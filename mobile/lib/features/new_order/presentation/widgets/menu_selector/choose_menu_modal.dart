@@ -56,6 +56,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
+    final isTablet = mediaQuery.size.width >= 600.0;
     final maxHeight = mediaQuery.size.height * 0.88;
     final selectedBrandColor = KkfcBrand.colorFor(
       _selectedBrand.code,
@@ -66,11 +67,25 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
       _selectedBrand.name,
     );
 
-    return Container(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      decoration: const BoxDecoration(
+    final modalBody = Container(
+      constraints: BoxConstraints(
+        maxHeight: maxHeight,
+        maxWidth: isTablet ? 560.0 : double.infinity,
+      ),
+      decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+        borderRadius: isTablet
+            ? BorderRadius.circular(20.0)
+            : const BorderRadius.vertical(top: Radius.circular(20.0)),
+        boxShadow: isTablet
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.16),
+                  blurRadius: 28.0,
+                  offset: const Offset(0, 10),
+                ),
+              ]
+            : null,
       ),
       child: SafeArea(
         top: false,
@@ -102,23 +117,23 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10.0,
-                        vertical: 3.5,
+                        vertical: 4.0,
                       ),
                       decoration: BoxDecoration(
-                        color: selectedBrandTint,
+                        color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(100.0),
                         border: Border.all(
-                          color: selectedBrandColor.withValues(alpha: 0.35),
+                          color: const Color(0xFFCBD5E1),
                           width: 1.0,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.storefront_rounded,
+                          const Icon(
+                            Icons.storefront_outlined,
                             size: 13.0,
-                            color: selectedBrandColor,
+                            color: Color(0xFF475569),
                           ),
                           const SizedBox(width: 5.0),
                           Flexible(
@@ -126,12 +141,12 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                               widget.showChannels
                                   ? 'MENU SELECTION · ${_selectedBrand.name.toUpperCase()}'
                                   : '${widget.brands.length} ASSIGNED BRAND${widget.brands.length == 1 ? '' : 'S'}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontFamily: KkfcFonts.ibmPlexSans,
-                                fontSize: 10.5,
+                                fontSize: 11.0,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,
-                                color: selectedBrandColor,
+                                color: Color(0xFF475569),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -181,13 +196,13 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
 
               const SizedBox(height: 12.0),
 
-              // Bottom Actions: [ Switch menu ] and [ Cancel ]
+              // Bottom Actions: [ Switch provider / menu ] and [ Cancel ]
               Padding(
                 padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 16.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Primary: Switch menu
+                    // Primary: Switch provider
                     ConstrainedBox(
                       constraints: const BoxConstraints(minHeight: 48.0),
                       child: SizedBox(
@@ -202,9 +217,9 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                             ));
                           },
                           style: FilledButton.styleFrom(
-                            backgroundColor: selectedBrandColor,
+                            backgroundColor: const Color(0xFF2B4A77),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
+                              borderRadius: BorderRadius.circular(10.0),
                             ),
                           ),
                           child: Text(
@@ -239,7 +254,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                               width: 1.0,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
+                              borderRadius: BorderRadius.circular(10.0),
                             ),
                           ),
                           child: const Text(
@@ -262,289 +277,328 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
         ),
       ),
     );
-  }
 
+    return Align(
+      alignment: isTablet ? Alignment.center : Alignment.bottomCenter,
+      child: Padding(
+        padding: isTablet
+            ? const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0)
+            : EdgeInsets.zero,
+        child: Material(
+          color: Colors.transparent,
+          child: modalBody,
+        ),
+      ),
+    );
+  }
   Widget _buildBrandCard(AssignedBrand brand) {
     final brandColor = KkfcBrand.colorFor(brand.code, brand.name);
     final brandTint = KkfcBrand.tintFor(brand.code, brand.name);
     final logoAsset = KkfcBrand.logoFor(brand.code, brand.name);
+    final bgAsset = KkfcBrand.bgFor(brand.code, brand.name);
 
     if (!widget.showChannels) {
       final selected = _selectedBrand.id == brand.id;
       final isAuthorized = brand.isAuthorized;
 
       return Padding(
-        padding: const EdgeInsets.only(bottom: 10.0),
+        padding: const EdgeInsets.only(bottom: 12.0),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
-            color: selected
-                ? brandTint
-                : (isAuthorized ? Colors.white : const Color(0xFFF8FAFC)),
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(16.0),
             border: Border.all(
-              color: selected ? brandColor : const Color(0xFFDDD6C9),
+              color: selected
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFFE2E8F0),
               width: selected ? 2.0 : 1.0,
             ),
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: brandColor.withValues(alpha: 0.16),
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.22),
                       blurRadius: 10.0,
                       spreadRadius: 1.0,
-                      offset: const Offset(0, 2),
+                      offset: const Offset(0, 3),
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 4.0,
                       offset: const Offset(0, 1),
                     ),
                   ],
           ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              key: ValueKey('select-provider-${brand.id}'),
-              borderRadius: BorderRadius.circular(12.0),
-              splashColor: brandColor.withValues(alpha: 0.12),
-              highlightColor: brandColor.withValues(alpha: 0.05),
-              onTap: isAuthorized
-                  ? () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _selectedBrand = brand);
-                    }
-                  : null,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 64.0),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0,
-                    vertical: 10.0,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15.0),
+            child: Stack(
+              children: [
+                // 1. Background Food Image from mobile/assets/bg/
+                if (bgAsset != null)
+                  Positioned.fill(
+                    child: Image.asset(
+                      bgAsset,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      // Vertical Brand Color Accent Strip
-                      Container(
-                        width: 4.0,
-                        height: 44.0,
-                        decoration: BoxDecoration(
-                          color: isAuthorized
-                              ? (selected
-                                    ? brandColor
-                                    : brandColor.withValues(alpha: 0.4))
-                              : const Color(0xFFCBD5E1),
-                          borderRadius: BorderRadius.circular(2.0),
-                        ),
-                      ),
-                      const SizedBox(width: 10.0),
 
-                      // Dedicated Logo & Image Container
-                      Container(
-                        width: 54.0,
-                        height: 44.0,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8.0),
-                          border: Border.all(
-                            color: selected
-                                ? brandColor.withValues(alpha: 0.35)
-                                : const Color(0xFFE5DFD4),
-                            width: 1.0,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 3.0,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(7.0),
-                          child: Center(
-                            child: logoAsset != null
-                                ? Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5.0,
-                                      vertical: 3.0,
-                                    ),
-                                    child: Image.asset(
-                                      logoAsset,
-                                      fit: BoxFit.contain,
-                                      filterQuality: FilterQuality.medium,
-                                      gaplessPlayback: true,
-                                      semanticLabel: brand.name,
-                                    ),
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.all(4.0),
-                                    child: BrandLogo(
-                                      brand: brand,
-                                      height: 24.0,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12.0),
-
-                      // Brand Title, Code Tag & Status Subtitle
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    brand.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontFamily: KkfcFonts.ibmPlexSans,
-                                      fontSize: 15.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: isAuthorized
-                                          ? const Color(0xFF19293E)
-                                          : const Color(0xFF94A3B8),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6.0),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6.0,
-                                    vertical: 1.5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: brandColor.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(4.0),
-                                    border: Border.all(
-                                      color: brandColor.withValues(alpha: 0.3),
-                                      width: 1.0,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    brand.code,
-                                    style: TextStyle(
-                                      fontFamily: KkfcFonts.ibmPlexSans,
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
-                                      color: isAuthorized
-                                          ? brandColor
-                                          : const Color(0xFF94A3B8),
-                                    ),
-                                  ),
-                                ),
+                // 2. Tint Overlay: Deep navy for selected, warm ivory for unselected
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: selected
+                          ? LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                const Color(0xFF132B4A).withValues(alpha: 0.90),
+                                const Color(0xFF1B3B66).withValues(alpha: 0.82),
+                              ],
+                            )
+                          : LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                Colors.white.withValues(alpha: 0.88),
+                                const Color(0xFFFFFDF9).withValues(alpha: 0.84),
                               ],
                             ),
-                            const SizedBox(height: 4.0),
-                            if (isAuthorized)
-                              Row(
+                    ),
+                  ),
+                ),
+
+                // 3. Interactive tap surface and content
+                Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    key: ValueKey('select-provider-${brand.id}'),
+                    splashColor: selected
+                        ? Colors.white.withValues(alpha: 0.10)
+                        : brandColor.withValues(alpha: 0.08),
+                    highlightColor: Colors.transparent,
+                    onTap: isAuthorized
+                        ? () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _selectedBrand = brand);
+                          }
+                        : null,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 76.0),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 12.0,
+                        ),
+                        child: Row(
+                          children: [
+                            // Left: Brand Name, Code Tag & Status Subtitle
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Container(
-                                    width: 7.0,
-                                    height: 7.0,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: selected
-                                          ? brandColor
-                                          : brandColor.withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6.0),
-                                  Flexible(
-                                    child: Text(
-                                      selected
-                                          ? 'Selected provider'
-                                          : 'Available provider',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontFamily: KkfcFonts.ibmPlexSans,
-                                        fontSize: 12.5,
-                                        fontWeight: selected
-                                            ? FontWeight.w600
-                                            : FontWeight.w400,
-                                        color: selected
-                                            ? const Color(0xFF334155)
-                                            : const Color(0xFF64748B),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          brand.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontFamily: KkfcFonts.ibmPlexSans,
+                                            fontSize: 15.0,
+                                            fontWeight: FontWeight.w700,
+                                            color: selected
+                                                ? Colors.white
+                                                : (isAuthorized
+                                                    ? const Color(0xFF0F172A)
+                                                    : const Color(0xFF94A3B8)),
+                                          ),
+                                        ),
                                       ),
+                                      const SizedBox(width: 6.0),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6.0,
+                                          vertical: 1.5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: selected
+                                              ? Colors.white
+                                                  .withValues(alpha: 0.20)
+                                              : brandColor
+                                                  .withValues(alpha: 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(4.0),
+                                          border: Border.all(
+                                            color: selected
+                                                ? Colors.white
+                                                    .withValues(alpha: 0.40)
+                                                : brandColor
+                                                    .withValues(alpha: 0.30),
+                                            width: 1.0,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          brand.code,
+                                          style: TextStyle(
+                                            fontFamily: KkfcFonts.ibmPlexSans,
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.5,
+                                            color: selected
+                                                ? Colors.white
+                                                : (isAuthorized
+                                                    ? brandColor
+                                                    : const Color(0xFF94A3B8)),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4.0),
+                                  if (isAuthorized)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (selected)
+                                          Container(
+                                            width: 6.0,
+                                            height: 6.0,
+                                            margin: const EdgeInsets.only(
+                                              right: 5.0,
+                                            ),
+                                            decoration: const BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: Color(0xFF60A5FA),
+                                            ),
+                                          ),
+                                        Flexible(
+                                          child: Text(
+                                            selected
+                                                ? 'Selected provider'
+                                                : 'Available provider',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontFamily: KkfcFonts.ibmPlexSans,
+                                              fontSize: 12.5,
+                                              fontWeight: selected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w400,
+                                              color: selected
+                                                  ? const Color(0xFF93C5FD)
+                                                  : const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  else
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(
+                                          Icons.lock_outline,
+                                          size: 13.0,
+                                          color: Color(0xFF94A3B8),
+                                        ),
+                                        SizedBox(width: 4.0),
+                                        Flexible(
+                                          child: Text(
+                                            'Not authorized',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontFamily: KkfcFonts.ibmPlexSans,
+                                              fontSize: 12.0,
+                                              color: Color(0xFF94A3B8),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                            // Center: Brand Logo
+                            if (logoAsset != null)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10.0,
+                                ),
+                                child: Container(
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 42.0,
+                                    maxWidth: 110.0,
+                                  ),
+                                  child: Image.asset(
+                                    logoAsset,
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.medium,
+                                    gaplessPlayback: true,
+                                    semanticLabel: brand.name,
+                                    errorBuilder: (_, _, _) => BrandLogo(
+                                      brand: brand,
+                                      height: 26.0,
                                     ),
                                   ),
-                                ],
+                                ),
                               )
                             else
-                              Row(
-                                children: const [
-                                  Icon(
-                                    Icons.lock_outline,
-                                    size: 13.0,
-                                    color: Color(0xFF94A3B8),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10.0,
+                                ),
+                                child: BrandLogo(brand: brand, height: 26.0),
+                              ),
+
+                            // Right: Selection Indicator (Checkmark / Radio outline)
+                            if (!isAuthorized)
+                              const Icon(
+                                Icons.lock_outline,
+                                color: Color(0xFF94A3B8),
+                                size: 22.0,
+                              )
+                            else if (selected)
+                              Container(
+                                width: 24.0,
+                                height: 24.0,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFF2563EB),
+                                ),
+                                child: const Icon(
+                                  Icons.check_rounded,
+                                  size: 15.0,
+                                  color: Colors.white,
+                                ),
+                              )
+                            else
+                              Container(
+                                width: 24.0,
+                                height: 24.0,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0xFF94A3B8),
+                                    width: 1.5,
                                   ),
-                                  SizedBox(width: 4.0),
-                                  Flexible(
-                                    child: Text(
-                                      'Not authorized',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontFamily: KkfcFonts.ibmPlexSans,
-                                        fontSize: 12.0,
-                                        color: Color(0xFF94A3B8),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8.0),
-
-                      // Trailing icon: Lock outline if not authorized, custom radio if authorized
-                      if (!isAuthorized)
-                        const Icon(
-                          Icons.lock_outline,
-                          color: Color(0xFF94A3B8),
-                          size: 22.0,
-                        )
-                      else
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          width: 22.0,
-                          height: 22.0,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: selected ? brandColor : Colors.transparent,
-                            border: Border.all(
-                              color: selected
-                                  ? brandColor
-                                  : const Color(0xFFCBD5E1),
-                              width: selected ? 2.0 : 1.5,
-                            ),
-                          ),
-                          child: selected
-                              ? Center(
-                                  child: Container(
-                                    width: 7.5,
-                                    height: 7.5,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : null,
-                        ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
