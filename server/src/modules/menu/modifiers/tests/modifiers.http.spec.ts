@@ -1,0 +1,441 @@
+import {
+  INestApplication,
+  NotFoundException,
+  ConflictException,
+  ValidationPipe,
+} from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
+import { Authenticated } from '../../../auth/auth.guard';
+import { AuthService } from '../../../auth/auth.service';
+import { RolesGuard } from '../../../../shared/guards/roles.guard';
+import { ModifiersController } from '../modifiers.controller';
+import { ModifiersService } from '../modifiers.service';
+
+describe('Modifiers HTTP endpoints', () => {
+  const modifierId = '00000000-0000-4000-8000-000000000001';
+  const create = {
+    code: 'MOD-EXTRA-RICE',
+    name: 'Extra rice',
+  };
+  const headers = {
+    Authorization: 'Bearer test-session',
+    'Content-Type': 'application/json',
+  };
+  const service = {
+    create: jest.fn(),
+    findOne: jest.fn(),
+    findAll: jest.fn(),
+    update: jest.fn(),
+    reactivate: jest.fn(),
+    delete: jest.fn(),
+  };
+  const auth = { validateSession: jest.fn() };
+  const protectedRoutes = [
+    { method: 'POST', path: '', body: create, status: 201, handler: 'create' },
+    {
+      method: 'GET',
+      path: '',
+      body: undefined,
+      status: 200,
+      handler: 'findAll',
+    },
+    {
+      method: 'GET',
+      path: `/${modifierId}`,
+      body: undefined,
+      status: 200,
+      handler: 'findOne',
+    },
+    {
+      method: 'PATCH',
+      path: `/${modifierId}`,
+      body: { name: 'Updated' },
+      status: 200,
+      handler: 'update',
+    },
+    {
+      method: 'PATCH',
+      path: `/reactivate/${modifierId}`,
+      body: undefined,
+      status: 200,
+      handler: 'reactivate',
+    },
+    {
+      method: 'DELETE',
+      path: `/${modifierId}`,
+      body: undefined,
+      status: 200,
+      handler: 'delete',
+    },
+  ] as const;
+  let app: INestApplication;
+  let url: string;
+  let role: UserRole;
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      controllers: [ModifiersController],
+      providers: [
+        Authenticated,
+        RolesGuard,
+        { provide: AuthService, useValue: auth },
+        { provide: ModifiersService, useValue: service },
+      ],
+    }).compile();
+    app = module.createNestApplication();
+    app.useLogger(false);
+    app.setGlobalPrefix('api');
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
+    await app.listen(0, '127.0.0.1');
+    url = `${await app.getUrl()}/api/modifiers`;
+  });
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    role = UserRole.SUPERADMIN;
+    auth.validateSession.mockImplementation(() =>
+      Promise.resolve({ user: { role } }),
+    );
+    for (const handler of Object.values(service))
+      handler.mockResolvedValue({ name: 'Safe menu result' });
+  });
+
+  afterAll(async () => app?.close());
+
+  it('IT-MOD-001: documents every guarded route, payload, and query', () => {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder().addBearerAuth().build(),
+    );
+    const operations = [
+      document.paths['/api/modifiers']?.post,
+      document.paths['/api/modifiers']?.get,
+      document.paths['/api/modifiers/{id}']?.get,
+      document.paths['/api/modifiers/{id}']?.patch,
+      document.paths['/api/modifiers/{id}']?.delete,
+      document.paths['/api/modifiers/reactivate/{id}']?.patch,
+    ];
+    for (const [index, operation] of operations.entries()) {
+      expect(typeof operation?.summary).toBe('string');
+      expect(typeof operation?.description).toBe('string');
+      expect(operation?.tags).toEqual(['Modifiers']);
+      expect(operation?.security).toEqual([{ bearer: [] }]);
+      expect(operation?.responses).toHaveProperty('400.description');
+      expect(operation?.responses).toHaveProperty('401.description');
+      expect(operation?.responses).toHaveProperty('403.description');
+      expect(operation?.responses[index === 0 ? '201' : '200']).toHaveProperty(
+        'content.application/json',
+      );
+    }
+    expect(operations[0]?.responses['201']).toHaveProperty(
+      'content.application/json.example.modifier_id',
+      modifierId,
+    );
+    expect(operations[2]?.responses['200']).toHaveProperty(
+      'content.application/json.example.code',
+      'MOD-EXTRA-RICE',
+    );
+    expect(operations[1]?.responses['200']).toHaveProperty(
+      'content.application/json.examples.populated.value.meta',
+      {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+        counts: { all: 2, active: 1, inactive: 1 },
+      },
+    );
+    expect(operations[1]?.responses['200']).toHaveProperty(
+      'content.application/json.examples.empty.value',
+      {
+        data: [],
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+          counts: { all: 0, active: 0, inactive: 0 },
+        },
+      },
+    );
+    expect(operations[2]?.responses['200']).toHaveProperty(
+      'content.application/json.example.menu_item_modifiers_modifier.0.menu_item.code',
+      'GC-BIBIMBAP',
+    );
+    expect(operations[3]?.responses['200']).toHaveProperty(
+      'content.application/json.example.name',
+      'Extra rice (large)',
+    );
+    expect(operations[4]?.responses['200']).toHaveProperty(
+      'content.application/json.example.is_active',
+      false,
+    );
+    expect(operations[5]?.responses['200']).toHaveProperty(
+      'content.application/json.example.is_active',
+      true,
+    );
+    expect(document.components?.schemas?.CreateModifierDTO).toMatchObject({
+      required: ['code', 'name'],
+    });
+    expect(document.components?.schemas?.UpdateModifierDTO).not.toHaveProperty(
+      'required',
+    );
+    for (const [name, defaultValue] of [
+      ['page', 1],
+      ['limit', 10],
+      ['status', 'active'],
+    ] as const) {
+      expect(
+        document.paths['/api/modifiers'].get?.parameters?.find(
+          (parameter) => 'name' in parameter && parameter.name === name,
+        ),
+      ).toMatchObject({
+        in: 'query',
+        required: false,
+        schema: { default: defaultValue },
+      });
+    }
+  });
+
+  it.each([
+    {
+      method: 'POST',
+      path: '',
+      body: create,
+      status: 201,
+      handler: 'create',
+      args: [create],
+    },
+    {
+      method: 'GET',
+      path: '',
+      status: 200,
+      handler: 'findAll',
+      args: [{ page: 1, limit: 10, status: 'active' }],
+    },
+    {
+      method: 'GET',
+      path: `?page=2&limit=5&status=all&search=%20extra%20rice%20&brand_id=${modifierId}&sortBy=name&sortOrder=desc`,
+      status: 200,
+      handler: 'findAll',
+      args: [
+        {
+          page: 2,
+          limit: 5,
+          status: 'all',
+          search: 'extra rice',
+          brand_id: modifierId,
+          sortBy: 'name',
+          sortOrder: 'desc',
+        },
+      ],
+    },
+    {
+      method: 'GET',
+      path: '?status=inactive&search=%20%20',
+      status: 200,
+      handler: 'findAll',
+      // A blank search is no search.
+      args: [{ page: 1, limit: 10, status: 'inactive', search: undefined }],
+    },
+    {
+      method: 'GET',
+      path: `/${modifierId}`,
+      status: 200,
+      handler: 'findOne',
+      args: [modifierId, true],
+    },
+    {
+      method: 'GET',
+      path: '/MOD-EXTRA-RICE?activeOnly=false',
+      status: 200,
+      handler: 'findOne',
+      args: ['MOD-EXTRA-RICE', false],
+    },
+    {
+      method: 'PATCH',
+      path: `/${modifierId}`,
+      body: { name: 'Updated' },
+      status: 200,
+      handler: 'update',
+      args: [modifierId, { name: 'Updated' }],
+    },
+    {
+      method: 'PATCH',
+      path: `/${modifierId}`,
+      body: { description: null },
+      status: 200,
+      handler: 'update',
+      args: [modifierId, { description: null }],
+    },
+    {
+      method: 'PATCH',
+      path: `/reactivate/${modifierId}`,
+      status: 200,
+      handler: 'reactivate',
+      args: [modifierId],
+    },
+    {
+      method: 'DELETE',
+      path: `/${modifierId}`,
+      status: 200,
+      handler: 'delete',
+      args: [modifierId],
+    },
+  ] as const)(
+    'IT-MOD-002: $method $path delegates to $handler for an authenticated allowed role',
+    async (route) => {
+      const body = 'body' in route ? route.body : undefined;
+      const response = await fetch(url + route.path, {
+        method: route.method,
+        headers,
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(route.status);
+      expect(await response.json()).toEqual({ name: 'Safe menu result' });
+      expect(service[route.handler]).toHaveBeenCalledTimes(1);
+      expect(service[route.handler]).toHaveBeenCalledWith(...route.args);
+      expect(auth.validateSession).toHaveBeenCalledWith('test-session');
+    },
+  );
+
+  it.each(protectedRoutes)(
+    'IT-MOD-003: $method $path rejects missing authentication',
+    async (route) => {
+      const response = await fetch(url + route.path, {
+        method: route.method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(route.body),
+      });
+      expect(response.status).toBe(401);
+      expect(auth.validateSession).not.toHaveBeenCalled();
+      for (const handler of Object.values(service))
+        expect(handler).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(protectedRoutes)(
+    'IT-MOD-004: $method $path rejects invalid sessions',
+    async (route) => {
+      auth.validateSession.mockRejectedValueOnce(
+        new NotFoundException('Invalid session'),
+      );
+      const response = await fetch(url + route.path, {
+        method: route.method,
+        headers,
+        body: JSON.stringify(route.body),
+      });
+      expect(response.status).toBe(401);
+      for (const handler of Object.values(service))
+        expect(handler).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([UserRole.SUPERADMIN, UserRole.RECIPE_MANAGER])(
+    'IT-MOD-005: allows %s on all modifier endpoints',
+    async (callerRole) => {
+      role = callerRole;
+      for (const route of protectedRoutes) {
+        const response = await fetch(url + route.path, {
+          method: route.method,
+          headers,
+          body: JSON.stringify(route.body),
+        });
+        expect(response.status).toBe(route.status);
+        expect(service[route.handler]).toHaveBeenCalledTimes(1);
+      }
+    },
+  );
+
+  it.each(
+    Object.values(UserRole).filter(
+      (value) =>
+        value !== UserRole.SUPERADMIN && value !== UserRole.RECIPE_MANAGER,
+    ),
+  )('IT-MOD-006: denies %s on all modifier endpoints', async (callerRole) => {
+    role = callerRole;
+    for (const route of protectedRoutes) {
+      const response = await fetch(url + route.path, {
+        method: route.method,
+        headers,
+        body: JSON.stringify(route.body),
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: 'ACCESS_DENIED' });
+      expect(service[route.handler]).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each([
+    { method: 'POST', path: '', body: { code: 'EXTRA' } },
+    {
+      method: 'POST',
+      path: '',
+      body: { ...create, inventory_item_id: crypto.randomUUID() },
+    },
+    { method: 'PATCH', path: `/${modifierId}`, body: { name: null } },
+    { method: 'PATCH', path: `/${modifierId}`, body: { is_active: false } },
+    { method: 'PATCH', path: '/invalid', body: { name: 'Updated' } },
+    { method: 'PATCH', path: '/reactivate/invalid' },
+    { method: 'DELETE', path: '/invalid' },
+    { method: 'GET', path: '?page=0' },
+    { method: 'GET', path: '?limit=101' },
+    { method: 'GET', path: '?activeOnly=false' },
+    { method: 'GET', path: '?status=retired' },
+    { method: 'GET', path: '?brand_id=not-a-uuid' },
+    { method: 'GET', path: '?sortBy=price' },
+    { method: 'GET', path: '?sortOrder=up' },
+    { method: 'GET', path: `?search=${'a'.repeat(101)}` },
+    { method: 'GET', path: '/EXTRA?activeOnly=invalid' },
+  ] as const)(
+    'IT-MOD-007: $method $path rejects invalid input before calling the service',
+    async (route) => {
+      const body = 'body' in route ? route.body : undefined;
+      const response = await fetch(url + route.path, {
+        method: route.method,
+        headers,
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(400);
+      for (const handler of Object.values(service))
+        expect(handler).not.toHaveBeenCalled();
+    },
+  );
+
+  it('IT-MOD-008: preserves not-found errors from the service', async () => {
+    service.findOne.mockRejectedValueOnce(
+      new NotFoundException({
+        code: 'MODIFIER_NOT_FOUND',
+        message: 'Modifier not found.',
+      }),
+    );
+    const response = await fetch(`${url}/${modifierId}`, { headers });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: 'MODIFIER_NOT_FOUND' });
+  });
+
+  it('IT-MOD-009: preserves reactivation conflicts from the service', async () => {
+    service.reactivate.mockRejectedValueOnce(
+      new ConflictException({
+        code: 'MODIFIER_ALREADY_ACTIVE',
+        message: 'Modifier is still active',
+      }),
+    );
+    const response = await fetch(`${url}/reactivate/${modifierId}`, {
+      method: 'PATCH',
+      headers,
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      code: 'MODIFIER_ALREADY_ACTIVE',
+    });
+  });
+});

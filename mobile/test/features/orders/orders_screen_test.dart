@@ -1,0 +1,147 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:mobile/app/routes.dart';
+import 'package:mobile/app/theme/theme.dart';
+import 'package:mobile/core/auth/token_store.dart';
+import 'package:mobile/features/auth/data/repository/auth_repository.dart';
+import 'package:mobile/features/auth/providers/session_provider.dart';
+import 'package:mobile/features/orders/screens/orders_screen.dart';
+
+class _FakeAuthRepository extends AuthRepository {
+  _FakeAuthRepository() : super(Dio(), TokenStore());
+
+  final logoutTokens = <String>[];
+
+  @override
+  Future<void> logout(String token) async {
+    logoutTokens.add(token);
+  }
+}
+
+Future<ProviderContainer> _pumpOrders(
+  WidgetTester tester,
+  _FakeAuthRepository repo, {
+  String? token,
+  bool expired = false,
+}) async {
+  final container = ProviderContainer(
+    overrides: [authRepositoryProvider.overrideWithValue(repo)],
+  );
+  addTearDown(container.dispose);
+
+  if (token != null) {
+    container.read(sessionTokenProvider.notifier).setToken(token);
+  }
+  if (expired) {
+    container.read(sessionExpiredProvider.notifier).set(true);
+  }
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(theme: counterTheme, home: const OrdersScreen()),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return container;
+}
+
+void main() {
+  testWidgets(
+    'WT-MOB-ORDERS-001 logout ends the server session and clears the local session',
+    (tester) async {
+      final repo = _FakeAuthRepository();
+      final container = await _pumpOrders(
+        tester,
+        repo,
+        token: 'tok-abc',
+        expired: true,
+      );
+
+      await tester.tap(find.text('Logout'));
+      await tester.pump();
+
+      expect(container.read(sessionTokenProvider), isNull);
+      expect(container.read(sessionProvider), isFalse);
+      expect(container.read(sessionExpiredProvider), isFalse);
+      expect(repo.logoutTokens, ['tok-abc']);
+    },
+  );
+
+  testWidgets('WT-MOB-ORDERS-002 logout does nothing when already signed out', (
+    tester,
+  ) async {
+    final repo = _FakeAuthRepository();
+    final container = await _pumpOrders(tester, repo);
+
+    await tester.tap(find.text('Logout'));
+    await tester.pump();
+
+    expect(container.read(sessionTokenProvider), isNull);
+    expect(repo.logoutTokens, isEmpty);
+  });
+
+  testWidgets(
+    'WT-MOB-ORDERS-003 opens the live cancel screen with the entered order UUID',
+    (tester) async {
+      const orderId = '11111111-1111-4111-8111-111111111111';
+      final router = GoRouter(
+        initialLocation: AppRoutes.orders,
+        routes: [
+          GoRoute(
+            path: AppRoutes.orders,
+            builder: (context, state) => const OrdersScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.cancelOrder,
+            builder: (context, state) => Scaffold(
+              body: Text('order=${state.uri.queryParameters['orderId']}'),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp.router(theme: counterTheme, routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel a real order (live API, QA)'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), orderId);
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('order=$orderId'), findsOneWidget);
+    },
+  );
+
+  testWidgets('WT-MOB-ORDERS-004 shows the navigation rail on a wide screen', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: AppRoutes.orders,
+      routes: [
+        GoRoute(
+          path: AppRoutes.orders,
+          builder: (context, state) => const OrdersScreen(),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp.router(theme: counterTheme, routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+  });
+}

@@ -1,0 +1,100 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile/features/new_order/data/models/menu_models.dart';
+import 'package:mobile/shared/shared_layout.dart';
+import 'package:mobile/features/new_order/providers/menu_providers.dart';
+import 'package:mobile/features/new_order/presentation/customize_flow.dart';
+
+class CartLineTile extends ConsumerWidget {
+  const CartLineTile({super.key, required this.line, required this.channel});
+
+  final CartLine line;
+  final MenuChannel channel;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final modifiers = line.modifierSummary;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MenuSpace.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  line.item.name,
+                  style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: MenuSpace.sm),
+              Text(
+                formatPeso(line.totalCentavos(channel)),
+                style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (modifiers.isNotEmpty)
+                      Text(
+                        modifiers.join(' · '),
+                        style: text.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    if (line.kitchenNote != null &&
+                        line.kitchenNote!.isNotEmpty)
+                      Text(
+                        'Note: ${line.kitchenNote}',
+                        style: text.bodySmall?.copyWith(
+                          color: const Color(0xFF855B14),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton.outlined(
+                tooltip: 'Remove one',
+                onPressed: () =>
+                    ref.read(cartProvider.notifier).decrementLine(line.id),
+                icon: const Icon(Icons.remove),
+              ),
+              AnimatedSwitcher(
+                duration: context.motion(MenuMotion.fast),
+                transitionBuilder: (child, anim) =>
+                    ScaleTransition(scale: anim, child: child),
+                child: Padding(
+                  key: ValueKey(line.quantity),
+                  padding: const EdgeInsets.symmetric(horizontal: MenuSpace.md),
+                  child: Text('${line.quantity}', style: text.titleSmall),
+                ),
+              ),
+              IconButton.outlined(
+                tooltip: 'Add one',
+                onPressed: () => ref.read(cartProvider.notifier).add(line.item),
+                icon: const Icon(Icons.add),
+              ),
+              IconButton(
+                tooltip: 'Edit item',
+                icon: const Icon(Icons.tune),
+                onPressed: () =>
+                    openCustomize(context, ref, item: line.item, editing: line),
+              ),
+            ],
+          ),
+          const Divider(height: MenuSpace.md),
+        ],
+      ),
+    );
+  }
+}

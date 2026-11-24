@@ -1,0 +1,545 @@
+import { OrderItemsService } from '../order-items/order-items.service';
+import { OrderLineDTO } from '../order-items/dto/order-line.dto';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { Order, OrderChannel, OrderStatus, Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
+import { assertExists } from '../../../shared/assertions/assert-exists';
+import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
+import { FindAllOrdersDTO } from './dto/find-all-orders.dto';
+import { FindOrdersDTO } from './dto/find-orders.dto';
+import { OrdersRepository, type SavedOrder } from './orders.repository';
+import {
+  ConfirmOrderDTO,
+  CreateOrderDTO,
+  CancelOrderDTO,
+} from './dto/order.dto';
+
+@Injectable()
+export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
+  constructor(
+    private readonly repository: OrdersRepository,
+    private readonly items: OrderItemsService,
+  ) {}
+
+  async create(brandId: string, actorId: string, dto: CreateOrderDTO) {
+    this.items.validateLines(dto.lines);
+
+    const hash = this.buildHash(brandId, dto);
+    return this.repository.transaction(async (tx) => {
+      const existing = await this.repository.findById(dto.order_id, tx);
+
+      if (existing) {
+        this.assertNoRequestConflicts(brandId, existing, hash);
+        return this.response(existing);
+      }
+
+      if (this.isDelivery(dto.order_channel)) {
+        await this.assertValidDeliveryOrder(dto, brandId, tx);
+      } else if (dto.merchant_store_reference || dto.external_order_reference) {
+        throw new BadRequestException({
+          code: 'INVALID_ORDER_REQUEST',
+          message: 'Platform references are only valid for platform orders.',
+        });
+      }
+
+      if (dto.order_channel === 'DINE_IN' && !dto.table_reference?.trim()) {
+        throw new BadRequestException({
+          code: 'DINE_IN_NO_TABLE_REFERENCE',
+          message: 'Dine-in requires a table reference.',
+        });
+      }
+
+      const { brand, lines } = await this.snapshots(
+        tx,
+        brandId,
+        dto.order_channel,
+        dto.lines,
+      );
+      const { created_at, order_date, number } =
+        await this.repository.nextOrderNumber(brandId, tx);
+      const order = await this.repository.create(
+        dto,
+        {
+          brandId,
+          actorId,
+          orderCode: `${brand.code.trim()}-${number.toString().padStart(5, '0')}`,
+          hash,
+          number,
+          order_date,
+          created_at,
+          lines,
+          payment: this.isDelivery(dto.order_channel)
+            ? { payment_method: 'PLATFORM_SETTLED', payment_status: 'PAID' }
+            : undefined,
+        },
+        tx,
+      );
+      return this.response(order);
+    });
+  }
+
+  async findAll(brandId: string, query: FindOrdersDTO) {
+    const skip = (query.page - 1) * query.limit;
+    this.logger.debug(
+      `Listing orders: brand=${brandId}, skip=${skip}, take=${query.limit}`,
+    );
+    assertValidPagination(skip, this.logger);
+
+    const { orders, total } = await this.repository.findManyByBrand(
+      brandId,
+      {
+        status: query.status,
+        order_channel: query.order_channel,
+        // Order dates are stored as Manila calendar dates (midnight UTC).
+        order_date: query.order_date
+          ? new Date(`${query.order_date}T00:00:00.000Z`)
+          : undefined,
+      },
+      skip,
+      query.limit,
+    );
+
+    this.logger.log(
+      `Listed orders: brand=${brandId}, returned=${orders.length}, total=${total}`,
+    );
+    return { orders: orders.map((order) => this.response(order)), total };
+  }
+
+  /** Every brand's orders for the back-office list, newest first, with per-status counts. */
+  async findOverview(query: FindAllOrdersDTO) {
+    const { page, limit, status, search, brand_id, payment_status, from, to } =
+      query;
+    // YYYY-MM-DD strings compare in calendar order.
+    if (from !== undefined && to !== undefined && from > to) {
+      throw new BadRequestException('from must be on or before to.');
+    }
+    const skip = (page - 1) * limit;
+    this.logger.debug(`Listing all orders: skip=${skip}, take=${limit}`);
+    assertValidPagination(skip, this.logger);
+
+    const { orders, total, counts } = await this.repository.findOverview(
+      {
+        search,
+        brand_id,
+        payment_status,
+        // Order dates are stored as Manila calendar dates (midnight UTC).
+        from: from ? new Date(`${from}T00:00:00.000Z`) : undefined,
+        to: to ? new Date(`${to}T00:00:00.000Z`) : undefined,
+      },
+      status,
+      skip,
+      limit,
+    );
+
+    this.logger.log(
+      `Listed all orders: returned=${orders.length}, total=${total}`,
+    );
+    return {
+      data: orders,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        counts,
+      },
+    };
+  }
+
+  async findOne(brandId: string, orderId: string) {
+    const order = await this.repository.findByBrand(brandId, orderId);
+    if (!order) throw new NotFoundException('Order not found.');
+    return this.response(order);
+  }
+
+  async verify(brandId: string, orderId: string, dto: ConfirmOrderDTO) {
+    return this.repository.transaction(async (tx) => {
+      const order = await this.load(tx, brandId, orderId);
+      this.assertConfirmable(order);
+      if (order.status !== 'DRAFT')
+        throw new ConflictException('Only draft orders can be verified.');
+      const payment = this.payment(order.order_channel, dto);
+      const { lines } = await this.snapshots(
+        tx,
+        brandId,
+        order.order_channel,
+        this.draftLines(order),
+      );
+      return {
+        order_id: orderId,
+        valid: true,
+        ...payment,
+        lines: lines.map((line) => omit(line, 'recipe_snapshot')),
+      };
+    });
+  }
+
+  async confirm(
+    brandId: string,
+    orderId: string,
+    actorId: string,
+    dto: ConfirmOrderDTO,
+  ) {
+    return this.repository.transaction(async (tx) => {
+      const order = await this.load(tx, brandId, orderId);
+      this.assertConfirmable(order);
+      if (order.kitchen_tickets_order) return this.response(order);
+      if (order.status !== 'DRAFT')
+        throw new ConflictException('Only draft orders can be confirmed.');
+      const payment = this.payment(order.order_channel, dto);
+      const { lines } = await this.snapshots(
+        tx,
+        brandId,
+        order.order_channel,
+        this.draftLines(order),
+      );
+      await this.items.saveSnapshots(
+        order.order_items_order.map((item) => item.order_item_id),
+        lines,
+        tx,
+      );
+      const sequence = await this.repository.nextTicketNumber(tx);
+      if (
+        !sequence ||
+        typeof sequence.number !== 'bigint' ||
+        sequence.number < 1n
+      )
+        throw new ServiceUnavailableException(
+          'Ticket sequence returned an invalid number.',
+        );
+      const ticketNumber = `T-${sequence.number.toString().padStart(3, '0')}`;
+      if (ticketNumber.length > 64)
+        throw new ServiceUnavailableException(
+          'Ticket number exceeds storage capacity.',
+        );
+
+      await this.repository.createTicket(
+        orderId,
+        order.order_code,
+        ticketNumber,
+        actorId,
+        tx,
+      );
+
+      const confirmed = await this.repository.updateStatus(
+        orderId,
+        OrderStatus.CONFIRMED,
+        OrderStatus.DRAFT,
+        { confirmed_at: new Date(), ...payment },
+        tx,
+      );
+      return this.response(confirmed);
+    });
+  }
+
+  async prepare(orderId: string, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Preparing order ${orderId}`);
+    const order = await this.repository.findById(orderId, tx);
+    assertExists(order, 'Order', orderId, this.logger);
+
+    if (order.status !== OrderStatus.CONFIRMED) {
+      this.logger.warn(
+        `Cannot mark order ${orderId} as preparing, status=${order.status}`,
+      );
+
+      throw new ConflictException({
+        code: 'ORDER_INVALID_STATUS',
+        message: 'Cannot mark order as preparing. Order is not confirmed.',
+      });
+    }
+
+    const updated = await this.repository.updateStatus(
+      orderId,
+      OrderStatus.PREPARING,
+      order.status,
+      {},
+      tx,
+    );
+
+    this.logger.log(`Order ${updated.order_id} set to ${updated.status}`);
+    return this.response(updated);
+  }
+
+  async complete(orderId: string, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Completing order ${orderId}`);
+    const order = await this.repository.findById(orderId, tx);
+    assertExists(order, 'Order', orderId, this.logger);
+
+    if (order.status !== OrderStatus.PREPARING) {
+      this.logger.warn(
+        `Cannot complete order ${orderId}, status=${order.status}`,
+      );
+
+      throw new ConflictException({
+        code: 'ORDER_INVALID_STATUS',
+        message: 'Cannot complete order. Order is not preparing.',
+      });
+    }
+
+    const updated = await this.repository.updateStatus(
+      orderId,
+      OrderStatus.COMPLETED,
+      order.status,
+      { completed_at: new Date() },
+      tx,
+    );
+
+    this.logger.log(
+      `Completed order ${updated.order_id}, time=${updated.completed_at?.toISOString()}`,
+    );
+    return this.response(updated);
+  }
+
+  async cancel(
+    brandId: string,
+    orderId: string,
+    actorId: string,
+    dto: CancelOrderDTO,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const reason = dto?.cancellation_reason;
+    if (typeof reason !== 'string' || !reason.trim() || reason.length > 1000) {
+      throw new BadRequestException(
+        'Cancellation reason must be nonblank and at most 1000 characters.',
+      );
+    }
+    const cancelOrder = async (client: Prisma.TransactionClient) => {
+      const order = await this.load(client, brandId, orderId);
+      if (order.status === 'CANCELLED') {
+        return this.response(order);
+      }
+      if (order.status === 'COMPLETED') {
+        throw new ConflictException('Completed orders cannot be cancelled.');
+      }
+
+      const cancelledAt = new Date();
+      const cancelled = await this.repository.update(
+        orderId,
+        {
+          status: 'CANCELLED',
+          cancelled_by_id: actorId,
+          cancellation_reason: reason.trim(),
+          cancelled_at: cancelledAt,
+          modified_at: cancelledAt,
+        },
+        client,
+      );
+      return this.response(cancelled);
+    };
+
+    return tx ? cancelOrder(tx) : this.repository.transaction(cancelOrder);
+  }
+
+  async cancelDraft(
+    brandId: string,
+    orderId: string,
+    actorId: string,
+    dto: CancelOrderDTO,
+  ) {
+    return this.repository.transaction(async (tx) => {
+      const order = await this.load(tx, brandId, orderId);
+      const isCancelledDraft =
+        order.status === OrderStatus.CANCELLED && order.confirmed_at == null;
+
+      if (
+        order.kitchen_tickets_order ||
+        (order.status !== OrderStatus.DRAFT && !isCancelledDraft)
+      ) {
+        throw new ConflictException({
+          code: 'ORDER_NOT_DRAFT',
+          message:
+            'Only draft orders can be cancelled here. Cancel orders with a kitchen ticket through kitchen fulfillment.',
+        });
+      }
+
+      return this.cancel(brandId, orderId, actorId, dto, tx);
+    });
+  }
+
+  private buildHash(brandId: string, dto: CreateOrderDTO) {
+    const request = {
+      brandId,
+      channel: dto.order_channel,
+      merchant: dto.merchant_store_reference ?? null,
+      external: dto.external_order_reference ?? null,
+      table: dto.table_reference ?? null,
+      notes: dto.notes ?? null,
+      lines: dto.lines.map((l) => ({
+        menu: l.menu_item_id,
+        quantity: l.quantity,
+        modifiers: [...(l.modifier_ids ?? [])].sort(),
+        notes: l.notes ?? null,
+      })),
+    };
+
+    return createHash('sha256').update(JSON.stringify(request)).digest('hex');
+  }
+
+  private assertNoRequestConflicts(
+    brandId: string,
+    existing: Order,
+    hash: string,
+  ) {
+    if (
+      existing.brand_id !== brandId ||
+      existing.create_request_hash !== hash
+    ) {
+      throw new ConflictException({
+        statusCode: 409,
+        error: 'Conflict',
+        code: 'ORDER_ID_CONFLICT',
+        message: 'Order ID was already used for a different request.',
+      });
+    }
+  }
+
+  private isDelivery(channel: OrderChannel) {
+    return (
+      channel === OrderChannel.GRABFOOD || channel === OrderChannel.FOODPANDA
+    );
+  }
+
+  private async assertValidDeliveryOrder(
+    dto: CreateOrderDTO,
+    brandId: string,
+    tx: Prisma.TransactionClient,
+  ) {
+    const { merchant_store_reference, external_order_reference } = dto;
+
+    if (
+      !merchant_store_reference?.trim() ||
+      !external_order_reference?.trim()
+    ) {
+      throw new BadRequestException({
+        code: 'EMPTY_DELIVERY_REFERENCES',
+        message: 'Platform store and order references are required.',
+      });
+    }
+
+    const duplicate = await this.repository.findPlatformOrder(
+      dto.order_channel,
+      merchant_store_reference,
+      external_order_reference,
+      tx,
+    );
+
+    this.assertNoDuplicateOrder(duplicate, brandId);
+  }
+
+  private assertNoDuplicateOrder(
+    duplicate: SavedOrder | null,
+    brandId: string,
+  ) {
+    if (duplicate)
+      throw new ConflictException({
+        statusCode: 409,
+        error: 'Conflict',
+        code: 'DUPLICATE_PLATFORM_ORDER',
+        message: 'Platform order already exists.',
+        existing_order:
+          duplicate.brand_id === brandId ? this.response(duplicate) : null,
+      });
+  }
+
+  private assertConfirmable(order: SavedOrder) {
+    if (order.status === 'DRAFT' && order.kitchen_tickets_order)
+      throw new ConflictException(
+        'Draft order unexpectedly has a ticket; repair is required.',
+      );
+    if (order.status === 'CANCELLED')
+      throw new ConflictException('Cancelled orders cannot be confirmed.');
+    if (order.status !== 'DRAFT' && !order.kitchen_tickets_order)
+      throw new ConflictException(
+        'Order is missing its confirmed ticket; repair is required.',
+      );
+  }
+
+  private response(order: SavedOrder) {
+    return {
+      ...omit(order, 'create_request_hash'),
+      order_items_order: order.order_items_order.map((line) =>
+        omit(line, 'recipe_snapshot'),
+      ),
+    };
+  }
+
+  private async snapshots(
+    tx: Prisma.TransactionClient,
+    brandId: string,
+    channel: OrderChannel,
+    lines: OrderLineDTO[],
+  ) {
+    this.items.validateLines(lines);
+    const brand = await this.repository.findActiveBrand(brandId, tx);
+    if (!brand) throw new BadRequestException('Brand is unavailable.');
+    const snapshots = await this.items.snapshots(tx, brandId, channel, lines);
+    return { brand, lines: snapshots };
+  }
+
+  private async load(
+    tx: Prisma.TransactionClient,
+    brandId: string,
+    orderId: string,
+  ) {
+    const order = await this.repository.findByBrand(brandId, orderId, tx);
+    if (!order) throw new NotFoundException('Order not found.');
+    return order;
+  }
+
+  private payment(channel: OrderChannel, dto: ConfirmOrderDTO) {
+    if (this.isDelivery(channel)) {
+      if (
+        (dto.payment_method && dto.payment_method !== 'PLATFORM_SETTLED') ||
+        (dto.payment_status && dto.payment_status !== 'PAID')
+      )
+        throw new BadRequestException(
+          'Platform orders must be PLATFORM_SETTLED and PAID.',
+        );
+      return {
+        payment_method: 'PLATFORM_SETTLED' as const,
+        payment_status: 'PAID' as const,
+        payment_reference: dto.payment_reference ?? null,
+      };
+    }
+    if (
+      !dto.payment_method ||
+      !['CASH', 'E_WALLET', 'CARD'].includes(dto.payment_method) ||
+      !dto.payment_status ||
+      !['UNPAID', 'PAID'].includes(dto.payment_status)
+    )
+      throw new BadRequestException(
+        'Cash, E-wallet or Card and an UNPAID or PAID status are required.',
+      );
+    return {
+      payment_method: dto.payment_method,
+      payment_status: dto.payment_status,
+      payment_reference: dto.payment_reference ?? null,
+    };
+  }
+
+  private draftLines(order: SavedOrder): OrderLineDTO[] {
+    return order.order_items_order.map((line) => ({
+      menu_item_id: line.menu_item_id,
+      quantity: line.quantity,
+      notes: line.notes ?? undefined,
+      modifier_ids: line.order_item_modifiers_order_item.map(
+        (m) => m.modifier_id,
+      ),
+    }));
+  }
+}
+
+function omit<T, K extends keyof T>(value: T, ...keys: K[]): Omit<T, K> {
+  const copy = { ...value };
+  for (const key of keys) delete copy[key];
+  return copy;
+}

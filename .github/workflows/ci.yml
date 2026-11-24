@@ -1,0 +1,190 @@
+name: Backend CI
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Stage 1 - Unit Tests (UT) & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Run ESLint (check only)
+        run: npm run lint:check
+
+      - name: Check formatting (Prettier)
+        run: npm run format:check
+
+      - name: Test Gherkin reporting tools
+        run: npm run test:reporter
+
+      - name: Run Jest Unit Tests
+        run: npm run test:unit
+
+      - name: Upload Unit Test HTML report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: server/reports/unit/
+          if-no-files-found: warn
+
+      - name: Build backend application
+        run: npm run build
+
+  integration-tests:
+    name: Stage 2 - Integration Tests (IT)
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: pos_test
+          POSTGRES_USER: pos_test_user
+          POSTGRES_PASSWORD: pos_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Run Prisma migrations on test database
+        env:
+          DATABASE_URL: postgresql://pos_test_user:pos_test_password@localhost:5432/pos_test
+        run: npx prisma migrate deploy
+
+      - name: Run Jest Integration Tests
+        env:
+          DATABASE_URL: postgresql://pos_test_user:pos_test_password@localhost:5432/pos_test
+          TEST_DATABASE_URL: postgresql://pos_test_user:pos_test_password@localhost:5432/pos_test
+        run: npm run test:integration
+
+      - name: Upload Integration Test HTML report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: server/reports/integration/
+          if-no-files-found: warn
+
+  # Run all backend E2E suites against an isolated PostgreSQL database.
+  e2e-robot-tests:
+    name: Stage 3 - Robot Framework E2E Tests (E2E)
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://pos_test_user:pos_test_password@localhost:5432/pos_test
+      TEST_DATABASE_URL: postgresql://pos_test_user:pos_test_password@localhost:5432/pos_test
+      NODE_ENV: test
+      PORT: 3000
+      API_BASE_URL: http://127.0.0.1:3000
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: pos_test
+          POSTGRES_USER: pos_test_user
+          POSTGRES_PASSWORD: pos_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Robot dependencies
+        run: python -m pip install -r robot/requirements.txt
+      - name: Install and build the API and migrate PostgreSQL
+        working-directory: server
+        run: |
+          npm ci
+          npm run build
+          npx prisma migrate deploy
+      - name: Prepare shared isolated E2E fixtures
+        id: fixtures
+        working-directory: server
+        run: npm run test:e2e:prepare
+      - name: Start API and wait for HTTP readiness
+        working-directory: server
+        run: |
+          node dist/main > server.log 2>&1 &
+          for attempt in {1..30}; do
+            status=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/api/auth/me || true)
+            if [ "$status" = "401" ]; then exit 0; fi
+            sleep 1
+          done
+          cat server.log
+          exit 1
+      - name: Execute all backend Robot E2E suites
+        working-directory: server
+        run: npm run test:e2e:robot
+      - name: Clean up shared E2E fixtures
+        if: always() && steps.fixtures.outcome == 'success'
+        working-directory: server
+        run: npm run test:e2e:cleanup
+      - name: Upload Robot reports and API log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-test-results
+          path: |
+            robot/results/
+            server/server.log
+          if-no-files-found: warn
