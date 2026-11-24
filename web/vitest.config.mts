@@ -25,8 +25,8 @@ export default defineConfig({
         },
       },
     ],
-    reporters: ["default", "junit"],
-    outputFile: { junit: "reports/vitest.xml" },
+    reporters: ["default", "html", "junit"],
+    outputFile: { html: "reports/vitest/index.html", junit: "reports/vitest.xml" },
     coverage: {
       provider: "v8",
       include: ["src/features/**/*.{ts,tsx}", "src/app/api/**/*.ts", "src/proxy.ts"],
