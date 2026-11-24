@@ -112,7 +112,10 @@ describe('HandoffService', () => {
   it('UT-HAND-001: returns a handoff by its ID', async () => {
     await expect(service.findOne('handoff')).resolves.toEqual(response);
     expect(repository.findOne).toHaveBeenCalledWith('handoff');
-    expect(storage.createDownloadUrl).toHaveBeenCalledWith(handoff.img_keys[0]);
+    expect(storage.createDownloadUrl).toHaveBeenCalledWith(
+      handoff.img_keys[0],
+      false,
+    );
   });
 
   it('UT-HAND-002: rejects a missing handoff with the standard not-found code', async () => {
@@ -460,8 +463,8 @@ describe('HandoffService', () => {
     expect(result).toEqual({ ...response, img_urls: urls });
     expect(result).not.toHaveProperty('img_keys');
     expect(storage.createDownloadUrl.mock.calls).toEqual([
-      [keys[0]],
-      [keys[1]],
+      [keys[0], false],
+      [keys[1], false],
     ]);
     expect(storedHandoff).toEqual({ ...handoff, img_keys: keys });
   });
