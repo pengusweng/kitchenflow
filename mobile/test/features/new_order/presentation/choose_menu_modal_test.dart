@@ -61,9 +61,9 @@ void main() {
 
         expect(find.byType(ChooseMenuModal), findsOneWidget);
 
-        // 1. Header badge pill with storefront icon and assigned brands count
-        expect(find.text('3 ASSIGNED BRANDS'), findsOneWidget);
-        expect(find.byIcon(Icons.storefront_outlined), findsOneWidget);
+        // 1. Header: verify the assigned brands badge is removed and title/subtitle are displayed
+        expect(find.text('3 ASSIGNED BRANDS'), findsNothing);
+        expect(find.byIcon(Icons.storefront_outlined), findsNothing);
         expect(find.text('Choose provider'), findsOneWidget);
         expect(
           find.text('Choose the provider for this menu.'),
@@ -143,6 +143,14 @@ void main() {
                     'assets/images/king_kungs.png',
           ),
           findsOneWidget,
+        );
+
+        // 5b. Solid white under-layer is rendered to guarantee WCAG AA contrast over dark photos
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget is ColoredBox && widget.color == Colors.white,
+          ),
+          findsNWidgets(3),
         );
 
         // 6. Checkmark icon on selected card

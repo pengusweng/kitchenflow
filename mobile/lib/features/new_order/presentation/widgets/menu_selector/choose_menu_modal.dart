@@ -115,47 +115,6 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10.0,
-                        vertical: 4.0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: KkfcColors.neutralBg,
-                        borderRadius: BorderRadius.circular(KkfcRadius.pill),
-                        border: Border.all(
-                          color: KkfcColors.border,
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.storefront_outlined,
-                            size: 13.0,
-                            color: KkfcColors.ink2,
-                          ),
-                          const SizedBox(width: 5.0),
-                          Flexible(
-                            child: Text(
-                              widget.showChannels
-                                  ? 'MENU SELECTION · ${_selectedBrand.name.toUpperCase()}'
-                                  : '${widget.brands.length} ASSIGNED BRAND${widget.brands.length == 1 ? '' : 'S'}',
-                              style: const TextStyle(
-                                fontFamily: KkfcFonts.ibmPlexSans,
-                                fontSize: 11.0,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                                color: KkfcColors.ink2,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8.0),
                     Text(
                       widget.showChannels ? 'Choose menu' : 'Choose provider',
                       style: const TextStyle(
@@ -310,6 +269,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16.0),
             border: Border.all(
               color: selected
@@ -338,6 +298,11 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
             borderRadius: BorderRadius.circular(15.0),
             child: Stack(
               children: [
+                // 0. Solid white under-layer guaranteeing WCAG contrast
+                const Positioned.fill(
+                  child: ColoredBox(color: Colors.white),
+                ),
+
                 // 1. Background Food Image from mobile/assets/bg/
                 if (bgAsset != null)
                   Positioned.fill(
@@ -348,7 +313,7 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                     ),
                   ),
 
-                // 2. Tint Overlay: Deep navy for selected, warm ivory for unselected
+                // 2. Tint Overlay: Deep navy for selected, warm ivory for unselected (boosted to 0.93/0.90 for dark photos)
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -365,8 +330,8 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
                               colors: [
-                                Colors.white.withValues(alpha: 0.88),
-                                const Color(0xFFFFFDF9).withValues(alpha: 0.84),
+                                Colors.white.withValues(alpha: 0.93),
+                                const Color(0xFFFFFDF9).withValues(alpha: 0.90),
                               ],
                             ),
                     ),
