@@ -303,6 +303,105 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     });
   }
 
+  async function otherBrandItem() {
+    const recipe = await prisma.recipe.create({
+      data: {
+        brand_id: fixture.otherBrand.brand_id,
+        code: `mixed-recipe-${randomUUID()}`,
+        name: 'Other brand recipe',
+      },
+    });
+    return prisma.menuItem.create({
+      data: {
+        brand_id: fixture.otherBrand.brand_id,
+        recipe_id: recipe.recipe_id,
+        code: `mixed-menu-${randomUUID()}`,
+        name: 'Other brand meal',
+        img_url: 'uploads/fixture.png',
+        base_price: 70,
+      },
+    });
+  }
+
+  it('IT-ORD-048: creates, verifies and confirms one mixed-brand order with one ticket', async () => {
+    const otherItem = await otherBrandItem();
+    const body = orderBody();
+    body.lines.push({
+      menu_item_id: otherItem.menu_item_id,
+      quantity: 1,
+      modifier_ids: [],
+    });
+    const created = await request(ordersPath(), 'POST', body, 1);
+    expect(created.status).toBe(201);
+    const verify = await request(
+      `${ordersPath()}/${body.order_id}/verify`,
+      'POST',
+      payment,
+      1,
+    );
+    expect(verify.status).toBe(200);
+    expect(await json(verify)).toMatchObject({
+      lines: expect.arrayContaining([
+        expect.objectContaining({
+          menu_item_id: fixture.item.menu_item_id,
+          unit_price: '100',
+        }),
+        expect.objectContaining({
+          menu_item_id: otherItem.menu_item_id,
+          unit_price: '70',
+        }),
+      ]) as unknown[],
+    });
+    const path = `${ordersPath()}/${body.order_id}/confirm`;
+    const confirmed = await request(path, 'POST', payment, 1);
+    expect(confirmed.status).toBe(200);
+    const replay = await request(path, 'POST', payment, 1);
+    expect(replay.status).toBe(200);
+    expect(await json(replay)).toEqual(await json(confirmed));
+    expect((await request(ordersPath(), 'POST', body, 1)).status).toBe(201);
+    const saved = await savedOrder(body.order_id);
+    expect(saved.brand_id).toBe(fixture.brand.brand_id);
+    expect(saved.order_items_order).toHaveLength(2);
+    expect(saved.order_items_order).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          menu_item_id: otherItem.menu_item_id,
+          applied_recipe_id: otherItem.recipe_id,
+          recipe_snapshot: expect.objectContaining({
+            recipe_id: otherItem.recipe_id,
+          }) as object,
+        }),
+      ]),
+    );
+    expect(
+      await prisma.order.count({ where: { order_id: body.order_id } }),
+    ).toBe(1);
+    expect(
+      await prisma.kitchenTicket.count({ where: { order_id: body.order_id } }),
+    ).toBe(1);
+  });
+
+  it('IT-ORD-049: rejects an item from an inactive brand without creating an order', async () => {
+    const otherItem = await otherBrandItem();
+    await prisma.brand.update({
+      where: { brand_id: fixture.otherBrand.brand_id },
+      data: { is_active: false },
+    });
+    const body = orderBody();
+    body.lines.push({
+      menu_item_id: otherItem.menu_item_id,
+      quantity: 1,
+      modifier_ids: [],
+    });
+    expect((await request(ordersPath(), 'POST', body, 1)).status).toBe(400);
+    expect(
+      await prisma.order.count({ where: { order_id: body.order_id } }),
+    ).toBe(0);
+    expect(
+      await prisma.kitchenTicket.count({ where: { order_id: body.order_id } }),
+    ).toBe(0);
+  });
+
   async function confirmedOrder() {
     const body = await draft();
     expect(

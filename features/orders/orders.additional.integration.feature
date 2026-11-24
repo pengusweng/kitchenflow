@@ -3,6 +3,21 @@ Feature: Additional orders integration coverage
   Feature ID: FEAT-ORD-IT-ADDITIONAL
   Requirement ID: FR-ORD-001
 
+  @IT-ORD-048
+  Scenario: Create and confirm one order with items from multiple brands
+    Test Case ID: IT-ORD-048
+    Given active menu items from two active brands with different prices
+    When one mixed-brand draft is created, verified, confirmed and replayed
+    Then both menu items retain their prices and recipe snapshots
+    And exactly one order and one kitchen ticket exist
+
+  @IT-ORD-049
+  Scenario: Reject an item from an inactive brand
+    Test Case ID: IT-ORD-049
+    Given a cart contains an item belonging to an inactive brand
+    When the mixed-brand order is submitted
+    Then the request fails without creating an order or ticket
+
   As a backend maintainer,
   I want the orders behavior documented alongside its executable tests,
   So that each result can be traced to its preconditions, action, and expected outcome.

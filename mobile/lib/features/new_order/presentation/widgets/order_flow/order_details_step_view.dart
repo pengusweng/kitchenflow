@@ -138,14 +138,6 @@ class _OrderDetailsStepViewState extends ConsumerState<OrderDetailsStepView> {
       final activeBrand = ref.read(activeBrandProvider);
       final allBrands = ref.read(assignedBrandsProvider);
       final brandId = resolveActiveBrandId(activeBrand, allBrands);
-      if (lines.any(
-        (line) => line.brandId.isNotEmpty && line.brandId != brandId,
-      )) {
-        throw StateError(
-          'Each order must contain items from one provider. Switch back to the '
-          'items’ provider, or remove items from other providers before continuing.',
-        );
-      }
       final storeRef = channel.isPlatform
           ? formatStoreReference(
               brandName: activeBrand.name,

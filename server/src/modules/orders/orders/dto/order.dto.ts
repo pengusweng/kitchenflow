@@ -72,7 +72,13 @@ export class CreateOrderDTO {
   @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => OrderLineDTO)
-  @ApiProperty({ type: [OrderLineDTO], minItems: 1, maxItems: 100 })
+  @ApiProperty({
+    type: [OrderLineDTO],
+    minItems: 1,
+    maxItems: 100,
+    description:
+      'Items from multiple active brands may share one order and ticket.',
+  })
   lines: OrderLineDTO[];
 }
 
