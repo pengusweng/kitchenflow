@@ -6,6 +6,7 @@ final sampleGamcheonMenu = <MenuItem>[
     name: 'Gamcheon Samgyupsal Rice Bowl',
     description: 'Thinly sliced pork belly marinated in house gochujang sweet soy, sesame and scallions over warm rice.',
     category: 'Rice bowls',
+    imageUrl: 'assets/images/gamcheon.png',
     pricesCentavos: {
       MenuChannel.dineIn: 22000,
       MenuChannel.takeaway: 22000,

@@ -5,7 +5,9 @@ import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/presentation/widgets/brands/brand_switch_confirm_dialog.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_search_bar.dart';
+import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_view_mode_toggle.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_item_card.dart';
+import 'package:mobile/features/new_order/presentation/widgets/menu_item_grid_card.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_selector/choose_menu_modal.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_selector/current_menu_card.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_states.dart';
@@ -31,6 +33,7 @@ class MenuCatalogView extends ConsumerWidget {
     final selectedChannel = ref.watch(menuChannelProvider);
     final visibleItems = ref.watch(visibleMenuItemsProvider);
     final visibleCount = visibleItems.asData?.value.length;
+    final viewMode = ref.watch(menuViewModeProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -101,17 +104,31 @@ class MenuCatalogView extends ConsumerWidget {
 
                   // 2. Search field + Unavailable button with tactile press feedback
                   const CatalogSearchBar(),
-                  if (visibleCount != null) ...[
-                    const SizedBox(height: KkfcSpace.s8),
-                    Text(
-                      'Showing $visibleCount item${visibleCount == 1 ? '' : 's'}',
-                      style: const TextStyle(
-                        fontFamily: KkfcFonts.text,
-                        fontSize: 13,
-                        color: Color(0xFF586579),
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: KkfcSpace.s8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: visibleCount != null
+                              ? Text(
+                                  'Showing $visibleCount item${visibleCount == 1 ? '' : 's'}',
+                                  style: const TextStyle(
+                                    fontFamily: KkfcFonts.text,
+                                    fontSize: 13,
+                                    color: Color(0xFF586579),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                        const SizedBox(width: KkfcSpace.s8),
+                        const CatalogViewModeToggle(),
+                      ],
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -126,8 +143,9 @@ class MenuCatalogView extends ConsumerWidget {
               bottomPadding,
             ),
             sliver: visibleItems.when(
-              loading: () =>
-                  SliverToBoxAdapter(child: MenuGridSkeleton(isWide: isWide)),
+              loading: () => SliverToBoxAdapter(
+                child: MenuGridSkeleton(isWide: isWide, viewMode: viewMode),
+              ),
               error: (_, _) => SliverToBoxAdapter(
                 child: MenuMessageCard(
                   icon: Icons.wifi_off,
@@ -196,6 +214,29 @@ class MenuCatalogView extends ConsumerWidget {
                       body: 'No items found in this brand catalog.',
                       actionLabel: 'Refresh catalog',
                       onAction: () => ref.invalidate(menuItemsProvider),
+                    ),
+                  );
+                }
+
+                if (viewMode == MenuViewMode.grid) {
+                  return SliverGrid.builder(
+                    gridDelegate: isWide
+                        ? const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 220.0,
+                            crossAxisSpacing: 16.0,
+                            mainAxisSpacing: 16.0,
+                            childAspectRatio: 1.0,
+                          )
+                        : const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12.0,
+                            mainAxisSpacing: 12.0,
+                            childAspectRatio: 1.0,
+                          ),
+                    itemCount: items.length,
+                    itemBuilder: (context, index) => MenuItemGridCard(
+                      item: items[index],
+                      channel: selectedChannel,
                     ),
                   );
                 }

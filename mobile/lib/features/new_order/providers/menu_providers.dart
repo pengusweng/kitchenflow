@@ -152,6 +152,23 @@ final hideUnavailableProvider = NotifierProvider<HideUnavailableNotifier, bool>(
   HideUnavailableNotifier.new,
 );
 
+enum MenuViewMode { grid, list }
+
+class MenuViewModeNotifier extends Notifier<MenuViewMode> {
+  @override
+  MenuViewMode build() => MenuViewMode.grid;
+
+  void set(MenuViewMode mode) => state = mode;
+
+  void toggle() =>
+      state = state == MenuViewMode.grid ? MenuViewMode.list : MenuViewMode.grid;
+}
+
+final menuViewModeProvider =
+    NotifierProvider<MenuViewModeNotifier, MenuViewMode>(
+      MenuViewModeNotifier.new,
+    );
+
 final visibleMenuItemsProvider =
     Provider.autoDispose<AsyncValue<List<MenuItem>>>((ref) {
       final query = ref.watch(menuSearchProvider).trim().toLowerCase();
