@@ -108,3 +108,39 @@ Feature: Additional menu catalog integration coverage
     Given a malformed brand UUID
     When the brand catalog is requested
     Then the response is 400 before calling the service
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.http.spec.ts
+  # Context: Menu catalog HTTP endpoints PATCH /menu-catalog/:id
+  @IT-MCAT-012
+  Scenario: Pass item fields and child mutations to the service
+    Test Case ID: IT-MCAT-012
+    Given a superadmin and an update with item fields, channel and modifier mutations
+    When the catalog entry is patched
+    Then the response is 200 and the service receives the menu item ID and the payload
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.http.spec.ts
+  # Context: Menu catalog HTTP endpoints PATCH /menu-catalog/:id
+  @IT-MCAT-013
+  Scenario: Reject malformed catalog updates
+    Test Case ID: IT-MCAT-013
+    Given a brand change, an order channel change, a child list sent as an array, a malformed delete ID, an update without its ID, or a duplicate channel create
+    When the catalog entry is patched
+    Then the response is 400 before calling the service
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.http.spec.ts
+  # Context: Menu catalog HTTP endpoints PATCH /menu-catalog/:id
+  @IT-MCAT-014
+  Scenario: Reject a malformed menu item ID on update
+    Test Case ID: IT-MCAT-014
+    Given a malformed menu item UUID
+    When the catalog entry is patched
+    Then the response is 400 before calling the service
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.http.spec.ts
+  # Context: Menu catalog HTTP endpoints PATCH /menu-catalog/:id
+  @IT-MCAT-015
+  Scenario: Require a superadmin session to update
+    Test Case ID: IT-MCAT-015
+    Given no session, or a cashier session
+    When the catalog entry is patched
+    Then the response is 401 or 403 before calling the service

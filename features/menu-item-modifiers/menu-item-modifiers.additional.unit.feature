@@ -22,11 +22,11 @@ Feature: Additional menu item modifiers unit coverage
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: MenuItemModifiersService operations
   @UT-MIM-002
-  Scenario: Creates an assignment after checking the active menu item and modifier
+  Scenario: Creates assignments after checking the active menu item and every modifier
     Test Case ID: UT-MIM-002
-    Given an active menu item and modifier
-    When a modifier assignment is created
-    Then both references are checked before saving the assignment
+    Given an active menu item and active modifiers
+    When several modifier assignments are created for it
+    Then the menu item and each modifier are checked before one bulk insert
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: MenuItemModifiersService operations
@@ -34,25 +34,25 @@ Feature: Additional menu item modifiers unit coverage
   Scenario: Rejects creation when the menu item is missing or inactive
     Test Case ID: UT-MIM-003
     Given a missing or inactive menu item
-    When a modifier assignment is created
-    Then a not-found error is returned without saving
+    When modifier assignments are created for it
+    Then a not-found error is returned before checking modifiers or saving
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: MenuItemModifiersService operations
   @UT-MIM-004
-  Scenario: Rejects creation when the modifier is missing or inactive
+  Scenario: Rejects creation when a later modifier is missing or inactive
     Test Case ID: UT-MIM-004
-    Given a missing or inactive modifier
-    When a modifier assignment is created
-    Then a not-found error is returned without saving
+    Given one active modifier followed by a missing or inactive one
+    When modifier assignments are created
+    Then a not-found error is returned without saving any assignment
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: MenuItemModifiersService operations
   @UT-MIM-005
   Scenario: Preserves duplicate-pair errors for the application exception filter
     Test Case ID: UT-MIM-005
-    Given the menu item and modifier pair already exists
-    When a duplicate assignment is created
+    Given a menu item and modifier pair that already exists
+    When the assignments are created
     Then the database constraint error is propagated for the application filter
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
@@ -147,30 +147,12 @@ Feature: Additional menu item modifiers unit coverage
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: MenuItemModifiersService operations
-  @UT-MIM-016
-  Scenario: Reactivates an unavailable assignment after checking its active references
-    Test Case ID: UT-MIM-016
-    Given an unavailable assignment with active parent references
-    When reactivation is requested
-    Then both references are checked before making the assignment available
-
-  # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
-  # Context: MenuItemModifiersService operations
-  @UT-MIM-017
-  Scenario: Rejects reactivation of an already-available assignment before checking references
-    Test Case ID: UT-MIM-017
-    Given an already available assignment
-    When reactivation is requested
-    Then a conflict is returned before checking parent references
-
-  # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
-  # Context: MenuItemModifiersService operations
   @UT-MIM-018
-  Scenario: Soft deletes an assignment even when its parent references are inactive
+  Scenario: Deletes an assignment even when its parent references are inactive
     Test Case ID: UT-MIM-018
     Given an assignment whose parent references are inactive
     When deletion is requested
-    Then the assignment is soft-deleted without requiring active parent references
+    Then the assignment is deleted without requiring active parent references
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: MenuItemModifiersService operations
@@ -178,7 +160,7 @@ Feature: Additional menu item modifiers unit coverage
   Scenario: Reject writes to missing assignments
     Test Case ID: UT-MIM-019
     Given a missing assignment
-    When an update, reactivation, or deletion is requested
+    When an update or deletion is requested
     Then a not-found error is returned without writing
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
@@ -187,35 +169,35 @@ Feature: Additional menu item modifiers unit coverage
   Scenario: Propagate repository operation failures
     Test Case ID: UT-MIM-020
     Given an assignment repository operation fails
-    When an update, reactivation, or deletion is requested
+    When an update or deletion is requested
     Then the original repository error is propagated
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: MenuItemModifiersService operations
   @UT-MIM-021
-  Scenario: Require an active menu item before assignment writes
+  Scenario: Require an active menu item before an assignment update
     Test Case ID: UT-MIM-021
     Given an assignment with a missing or inactive menu item
-    When an operation requiring active references is requested
+    When the assignment is updated
     Then a not-found error is returned without writing
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: MenuItemModifiersService operations
   @UT-MIM-022
-  Scenario: Require an active modifier before assignment writes
+  Scenario: Require an active modifier before an assignment update
     Test Case ID: UT-MIM-022
-    Given an assignment with a missing or inactive modifier
-    When an operation requiring active references is requested
+    Given an update to a missing or inactive modifier
+    When the assignment is updated
     Then a not-found error is returned without writing
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: Menu item modifiers persistence
   @UT-MIM-023
-  Scenario: Creates an assignment and leaves timestamps and availability to database defaults
+  Scenario: Creates assignments in one insert and leaves timestamps to database defaults
     Test Case ID: UT-MIM-023
-    Given a valid assignment payload
-    When the repository creates the assignment
-    Then timestamps and availability are left to database defaults
+    Given several modifier assignments for one menu item
+    When the repository creates them
+    Then one insert carries the menu item ID on every row and leaves timestamps to database defaults
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: Menu item modifiers persistence
@@ -261,15 +243,6 @@ Feature: Additional menu item modifiers unit coverage
     Given a partial assignment update
     When the repository saves it
     Then only the supplied update fields and modification time are persisted
-
-  # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
-  # Context: Menu item modifiers persistence
-  @UT-MIM-029
-  Scenario: Reactivates an unavailable assignment without changing its references
-    Test Case ID: UT-MIM-029
-    Given an unavailable assignment
-    When the repository reactivates it
-    Then availability changes without replacing its parent references
 
   # Jest: server/src/modules/menu/menu-item-modifiers/tests/menu-item-modifiers.service.spec.ts
   # Context: Menu item modifiers persistence

@@ -144,3 +144,168 @@ Feature: Additional menu catalog unit coverage
     Given a catalog search for one brand
     When the catalog is listed
     Then the repository receives the search with the page offset and limit
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.service.spec.ts
+  # Context: MenuCatalogService transactional creation
+  @UT-MCAT-016
+  Scenario: Join a caller transaction instead of opening its own
+    Test Case ID: UT-MCAT-016
+    Given a transaction client supplied by the caller
+    When a catalog entry is created and a brand catalog is listed with it
+    Then every write and read uses that client without opening a new transaction
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-017
+  Scenario: Update only menu item fields
+    Test Case ID: UT-MCAT-017
+    Given an active menu item and a change to its fields only
+    When the catalog entry is updated
+    Then the fields are saved in one transaction without touching its channels or modifiers
+    And the item is returned with its channels, modifiers and a download URL for an uploaded image
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-018
+  Scenario: Touch the menu item when only its children change
+    Test Case ID: UT-MCAT-018
+    Given an update that only changes channels
+    When the catalog entry is updated
+    Then the menu item is still written so its modified time moves
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-019
+  Scenario: Reject an update with no changes
+    Test Case ID: UT-MCAT-019
+    Given an update with no item fields and empty mutation lists
+    When the catalog entry is updated
+    Then NO_MENU_CATALOG_CHANGES is returned before opening a transaction
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-020
+  Scenario: Reject updates to a missing or inactive menu item
+    Test Case ID: UT-MCAT-020
+    Given a menu item that is missing or inactive
+    When the catalog entry is updated
+    Then MENU_ITEM_NOT_FOUND is returned without reading or writing its children
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-021
+  Scenario: Reject a missing or inactive replacement recipe
+    Test Case ID: UT-MCAT-021
+    Given an update that points the item at a missing or inactive recipe
+    When the catalog entry is updated
+    Then RECIPE_NOT_FOUND is returned before the item is saved
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-022
+  Scenario: Apply channel deletes, updates and creates in order
+    Test Case ID: UT-MCAT-022
+    Given channel overrides to delete, update and create, including a channel removed and added back
+    When the catalog entry is updated
+    Then deletes run before updates and updates before creates, all in the same transaction
+    And the item is returned with its channels read back after the writes
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-023
+  Scenario: Reject channel IDs that do not belong to the item
+    Test Case ID: UT-MCAT-023
+    Given a channel override ID to update or delete that the menu item does not have
+    When the catalog entry is updated
+    Then MENU_ITEM_CHANNEL_NOT_FOUND is returned without writing
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-024
+  Scenario: Reject a channel targeted twice
+    Test Case ID: UT-MCAT-024
+    Given the same channel override in both the update and delete lists
+    When the catalog entry is updated
+    Then CONFLICTING_CHANNEL_MUTATIONS is returned without writing
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-025
+  Scenario: Reject overrides for internal channels
+    Test Case ID: UT-MCAT-025
+    Given a new DINE_IN or TAKEAWAY channel override
+    When the catalog entry is updated
+    Then INVALID_ORDER_CHANNEL is returned without writing
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-026
+  Scenario: Reject a second override for the same channel
+    Test Case ID: UT-MCAT-026
+    Given a new override for a channel the menu item already has
+    When the catalog entry is updated
+    Then DUPLICATE_ORDER_CHANNEL is returned without writing
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-027
+  Scenario: Apply modifier deletes, updates and creates in order
+    Test Case ID: UT-MCAT-027
+    Given modifier assignments to delete, update and create
+    When the catalog entry is updated
+    Then only the newly assigned modifier is checked for being active
+    And deletes run before updates and updates before one bulk create, all in the same transaction
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-028
+  Scenario: Check a replacement modifier is active
+    Test Case ID: UT-MCAT-028
+    Given an assignment update that swaps in an inactive or missing modifier
+    When the catalog entry is updated
+    Then MODIFIER_NOT_FOUND is returned without writing
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-029
+  Scenario: Reject assigning the same modifier twice
+    Test Case ID: UT-MCAT-029
+    Given a new or replacement assignment for a modifier the item already has
+    When the catalog entry is updated
+    Then DUPLICATE_MENU_ITEM_MODIFIER is returned without writing
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-030
+  Scenario: Allow a modifier to be removed and re-added in one request
+    Test Case ID: UT-MCAT-030
+    Given an assignment deleted and its modifier assigned again
+    When the catalog entry is updated
+    Then the old assignment is deleted and the new one is created
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-031
+  Scenario: Reject unknown or repeated assignment IDs
+    Test Case ID: UT-MCAT-031
+    Given an assignment ID the item does not have, or the same assignment updated twice
+    When the catalog entry is updated
+    Then MENU_ITEM_MODIFIER_NOT_FOUND or CONFLICTING_MODIFIER_MUTATIONS is returned without writing
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuChannelsRepository catalog overrides
+  @UT-MCAT-032
+  Scenario: Update any channel override
+    Test Case ID: UT-MCAT-032
+    Given a channel override, available or not
+    When its price and availability are updated
+    Then the change is saved with a new modified time
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuChannelsRepository catalog overrides
+  @UT-MCAT-033
+  Scenario: Permanently delete a channel override
+    Test Case ID: UT-MCAT-033
+    Given a channel override
+    When it is deleted permanently
+    Then the row is removed so the channel can be added again
