@@ -122,7 +122,7 @@ export class MenuItemsRepository {
 
   // Every whitespace-separated term must match the name or code, so
   // "cheese rice" finds "Cheesy Beef Rice".
-  private searchWhere(search?: string): Prisma.MenuItemWhereInput {
+  searchWhere(search?: string): Prisma.MenuItemWhereInput {
     const terms = search?.split(/\s+/).filter(Boolean) ?? [];
     if (terms.length === 0) return {};
 

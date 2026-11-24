@@ -1,7 +1,8 @@
-import { Logger } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import { StorageService } from '../../../../shared/storage/storage.service';
+import { AssetsService } from '../../../assets/assets.service';
 import { BrandsRepository } from '../../../brands/brands.repository';
 import { RecipesRepository } from '../../../recipe/recipes/recipes.repository';
 import { MenuChannelsRepository } from '../../menu-channels/menu-channels.repository';
@@ -14,6 +15,7 @@ import { MenuCatalogService } from '../menu-catalog.service';
 
 describe('MenuCatalogService update', () => {
   const menuItemId = '00000000-0000-4000-8000-000000000001';
+  const actorId = '00000000-0000-4000-8000-000000000002';
   const tx = { marker: 'tx' } as unknown as Prisma.TransactionClient;
   const menuItem = {
     menu_item_id: menuItemId,
@@ -62,6 +64,8 @@ describe('MenuCatalogService update', () => {
   >;
   let modifiers: jest.Mocked<Pick<ModifiersRepository, 'findOne'>>;
   let recipes: jest.Mocked<Pick<RecipesRepository, 'findOne'>>;
+  let catalog: jest.Mocked<Pick<MenuCatalogRepository, 'findEntry'>>;
+  let assets: jest.Mocked<Pick<AssetsService, 'download'>>;
   let service: MenuCatalogService;
 
   beforeEach(() => {
@@ -102,8 +106,18 @@ describe('MenuCatalogService update', () => {
     recipes = {
       findOne: jest.fn().mockResolvedValue({ is_active: true }),
     };
+    catalog = {
+      findEntry: jest.fn().mockResolvedValue({
+        ...menuItem,
+        menuChannels: finalChannels,
+        menuItemModifiers: finalModifiers,
+      }),
+    };
+    assets = {
+      download: jest.fn().mockResolvedValue({}),
+    };
     service = new MenuCatalogService(
-      {} as MenuCatalogRepository,
+      catalog as unknown as MenuCatalogRepository,
       {} as BrandsRepository,
       modifiers as unknown as ModifiersRepository,
       {
@@ -116,6 +130,7 @@ describe('MenuCatalogService update', () => {
       channels as unknown as MenuChannelsRepository,
       assignments as unknown as MenuItemModifiersRepository,
       recipes as unknown as RecipesRepository,
+      assets as unknown as AssetsService,
     );
   });
 
@@ -134,6 +149,7 @@ describe('MenuCatalogService update', () => {
     const result = await service.update(
       menuItemId,
       asUpdate({ menu_item: { name: 'Garlic Rice' } }),
+      actorId,
     );
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
@@ -148,7 +164,9 @@ describe('MenuCatalogService update', () => {
       tx,
     );
     expect(recipes.findOne).not.toHaveBeenCalled();
+    expect(assets.download).not.toHaveBeenCalled();
     expectNoChildWrites();
+    expect(catalog.findEntry).toHaveBeenCalledWith(menuItemId, tx);
     expect(result).toEqual({
       ...menuItem,
       img_url: 'https://files.example.test/uploads/rice.jpg',
@@ -161,6 +179,7 @@ describe('MenuCatalogService update', () => {
     await service.update(
       menuItemId,
       asUpdate({ menu_channel: { delete: [panda] } }),
+      actorId,
     );
 
     expect(items.updateMenuItem).toHaveBeenCalledWith(menuItemId, {}, tx);
@@ -176,7 +195,7 @@ describe('MenuCatalogService update', () => {
     'UT-MCAT-019: Given no changes %j, When the entry is updated, Then throw NO_MENU_CATALOG_CHANGES without opening a transaction',
     async (dto) => {
       await expect(
-        service.update(menuItemId, asUpdate(dto)),
+        service.update(menuItemId, asUpdate(dto), actorId),
       ).rejects.toMatchObject({
         status: 400,
         response: { code: 'NO_MENU_CATALOG_CHANGES' },
@@ -189,7 +208,11 @@ describe('MenuCatalogService update', () => {
     items.findOneMenuItemByUID.mockResolvedValue(null);
 
     await expect(
-      service.update(menuItemId, asUpdate({ menu_item: { name: 'X' } })),
+      service.update(
+        menuItemId,
+        asUpdate({ menu_item: { name: 'X' } }),
+        actorId,
+      ),
     ).rejects.toMatchObject({
       status: 404,
       response: { code: 'MENU_ITEM_NOT_FOUND' },
@@ -206,6 +229,7 @@ describe('MenuCatalogService update', () => {
       service.update(
         menuItemId,
         asUpdate({ menu_item: { recipe_id: unknownId } }),
+        actorId,
       ),
     ).rejects.toMatchObject({
       status: 404,
@@ -213,6 +237,40 @@ describe('MenuCatalogService update', () => {
     });
     expect(recipes.findOne).toHaveBeenCalledWith(unknownId, true, false, tx);
     expect(items.updateMenuItem).not.toHaveBeenCalled();
+  });
+
+  it('UT-MCAT-034: Given a photo the editor uploaded, When the entry is updated, Then check the upload is theirs before saving it', async () => {
+    const key = `uploads/${actorId}/00000000-0000-4000-8000-000000000050.jpg`;
+
+    await service.update(
+      menuItemId,
+      asUpdate({ menu_item: { img_url: key } }),
+      actorId,
+    );
+
+    expect(assets.download).toHaveBeenCalledWith(actorId, key, false);
+    expect(items.updateMenuItem).toHaveBeenCalledWith(
+      menuItemId,
+      { img_url: key },
+      tx,
+    );
+  });
+
+  it('UT-MCAT-035: Given a photo key that is missing or uploaded by someone else, When the entry is updated, Then throw ASSET_NOT_FOUND without opening a transaction', async () => {
+    assets.download.mockRejectedValue(new NotFoundException('Asset not found'));
+    const key = `uploads/${unknownId}/00000000-0000-4000-8000-000000000050.png`;
+
+    await expect(
+      service.update(
+        menuItemId,
+        asUpdate({ menu_item: { img_url: key } }),
+        actorId,
+      ),
+    ).rejects.toMatchObject({
+      status: 404,
+      response: { code: 'ASSET_NOT_FOUND' },
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('UT-MCAT-022: Given channel create, update and delete, When the entry is updated, Then delete, update, then create them with the same transaction', async () => {
@@ -240,6 +298,7 @@ describe('MenuCatalogService update', () => {
           create: [{ order_channel: 'FOODPANDA', price: 130 }],
         },
       }),
+      actorId,
     );
 
     expect(order).toEqual(['delete', 'update', 'create']);
@@ -270,7 +329,7 @@ describe('MenuCatalogService update', () => {
     'UT-MCAT-023: Given a channel ID that does not belong to the item %j, When the entry is updated, Then throw MENU_ITEM_CHANNEL_NOT_FOUND without writing',
     async (menu_channel) => {
       await expect(
-        service.update(menuItemId, asUpdate({ menu_channel })),
+        service.update(menuItemId, asUpdate({ menu_channel }), actorId),
       ).rejects.toMatchObject({
         status: 404,
         response: { code: 'MENU_ITEM_CHANNEL_NOT_FOUND' },
@@ -289,6 +348,7 @@ describe('MenuCatalogService update', () => {
             delete: [grab],
           },
         }),
+        actorId,
       ),
     ).rejects.toMatchObject({
       status: 400,
@@ -304,6 +364,7 @@ describe('MenuCatalogService update', () => {
         service.update(
           menuItemId,
           asUpdate({ menu_channel: { create: [{ order_channel, price: 1 }] } }),
+          actorId,
         ),
       ).rejects.toMatchObject({
         status: 400,
@@ -320,6 +381,7 @@ describe('MenuCatalogService update', () => {
         asUpdate({
           menu_channel: { create: [{ order_channel: 'GRABFOOD', price: 1 }] },
         }),
+        actorId,
       ),
     ).rejects.toMatchObject({
       status: 400,
@@ -353,6 +415,7 @@ describe('MenuCatalogService update', () => {
           create,
         },
       }),
+      actorId,
     );
 
     expect(order).toEqual(['delete', 'update', 'create']);
@@ -383,6 +446,7 @@ describe('MenuCatalogService update', () => {
             update: [{ menu_item_modifier_id: egg, modifier_id: newModifier }],
           },
         }),
+        actorId,
       ),
     ).rejects.toMatchObject({
       status: 404,
@@ -411,7 +475,7 @@ describe('MenuCatalogService update', () => {
     'UT-MCAT-029: Given $name, When the entry is updated, Then throw DUPLICATE_MENU_ITEM_MODIFIER without writing',
     async ({ menu_item_modifier }) => {
       await expect(
-        service.update(menuItemId, asUpdate({ menu_item_modifier })),
+        service.update(menuItemId, asUpdate({ menu_item_modifier }), actorId),
       ).rejects.toMatchObject({
         status: 400,
         response: { code: 'DUPLICATE_MENU_ITEM_MODIFIER' },
@@ -429,6 +493,7 @@ describe('MenuCatalogService update', () => {
           create: [{ modifier_id: eggModifier, additional_price: 30 }],
         },
       }),
+      actorId,
     );
 
     expect(assignments.delete).toHaveBeenCalledWith(egg, tx);
@@ -457,7 +522,7 @@ describe('MenuCatalogService update', () => {
     'UT-MCAT-031: Given $name, When the entry is updated, Then throw $code without writing',
     async ({ menu_item_modifier, code, status }) => {
       await expect(
-        service.update(menuItemId, asUpdate({ menu_item_modifier })),
+        service.update(menuItemId, asUpdate({ menu_item_modifier }), actorId),
       ).rejects.toMatchObject({ status, response: { code } });
       expectNoChildWrites();
     },

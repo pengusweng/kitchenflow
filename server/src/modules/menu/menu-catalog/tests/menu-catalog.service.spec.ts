@@ -5,6 +5,7 @@ import { AppModule } from '../../../../app.module';
 import { PaginationDTO } from '../../../../shared/dto/pagination.dto';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import { StorageService } from '../../../../shared/storage/storage.service';
+import { AssetsService } from '../../../assets/assets.service';
 import { BrandsRepository } from '../../../brands/brands.repository';
 import { ModifiersRepository } from '../../modifiers/modifiers.repository';
 import { MenuChannelsRepository } from '../../menu-channels/menu-channels.repository';
@@ -57,6 +58,7 @@ describe('MenuCatalogService operations', () => {
   let repository: { create: jest.Mock; findMany: jest.Mock };
   let brands: { findOneBrand: jest.Mock };
   let modifiers: { findOne: jest.Mock };
+  let assets: { download: jest.Mock };
   let service: MenuCatalogService;
 
   beforeEach(() => {
@@ -75,6 +77,7 @@ describe('MenuCatalogService operations', () => {
     modifiers = {
       findOne: jest.fn().mockResolvedValue({ is_active: true }),
     };
+    assets = { download: jest.fn().mockResolvedValue({}) };
     service = new MenuCatalogService(
       repository as unknown as MenuCatalogRepository,
       brands as unknown as BrandsRepository,
@@ -89,6 +92,7 @@ describe('MenuCatalogService operations', () => {
       {} as MenuChannelsRepository,
       {} as MenuItemModifiersRepository,
       {} as RecipesRepository,
+      assets as unknown as AssetsService,
     );
   });
 
@@ -111,7 +115,7 @@ describe('MenuCatalogService operations', () => {
       return Promise.resolve(menuItem);
     });
 
-    await expect(service.create(dto)).resolves.toEqual(menuItem);
+    await expect(service.create(dto, 'actor-id')).resolves.toEqual(menuItem);
     expect(repository.create).toHaveBeenCalledWith(dto, undefined);
     expect(repository.create).toHaveBeenCalledTimes(1);
   });
@@ -121,7 +125,7 @@ describe('MenuCatalogService operations', () => {
       .mockResolvedValueOnce({ is_active: true })
       .mockResolvedValueOnce(null);
 
-    await expect(service.create(dto)).rejects.toMatchObject({
+    await expect(service.create(dto, 'actor-id')).rejects.toMatchObject({
       status: 404,
       response: { code: 'MODIFIER_NOT_FOUND' },
     });
@@ -130,7 +134,9 @@ describe('MenuCatalogService operations', () => {
 
   it('UT-MCAT-004: allows creation without modifier assignments', async () => {
     const withoutModifiers = { ...dto, menu_item_modifier: [] };
-    await expect(service.create(withoutModifiers)).resolves.toEqual(menuItem);
+    await expect(service.create(withoutModifiers, 'actor-id')).resolves.toEqual(
+      menuItem,
+    );
     expect(modifiers.findOne).not.toHaveBeenCalled();
     expect(repository.create).toHaveBeenCalledWith(withoutModifiers, undefined);
   });
@@ -138,13 +144,13 @@ describe('MenuCatalogService operations', () => {
   it('UT-MCAT-005: preserves creation errors for the application exception filters', async () => {
     const error = new Error('Duplicate menu item');
     repository.create.mockRejectedValueOnce(error);
-    await expect(service.create(dto)).rejects.toBe(error);
+    await expect(service.create(dto, 'actor-id')).rejects.toBe(error);
   });
 
   it('UT-MCAT-006: does not create anything when a modifier lookup fails', async () => {
     const error = new Error('Database unavailable');
     modifiers.findOne.mockRejectedValueOnce(error);
-    await expect(service.create(dto)).rejects.toBe(error);
+    await expect(service.create(dto, 'actor-id')).rejects.toBe(error);
     expect(repository.create).not.toHaveBeenCalled();
   });
 
@@ -214,7 +220,9 @@ describe('MenuCatalogService operations', () => {
     repository.findMany.mockResolvedValue({ menuItems: [uploaded], total: 1 });
     const expected = { img_url: `https://files.example.test/${key}` };
 
-    await expect(service.create(dto)).resolves.toMatchObject(expected);
+    await expect(service.create(dto, 'actor-id')).resolves.toMatchObject(
+      expected,
+    );
     await expect(
       service.findAll('brand-id', new PaginationDTO()),
     ).resolves.toMatchObject({ data: [expected] });
@@ -327,15 +335,22 @@ describe('MenuCatalogService transactional creation', () => {
         menu_item_id: menuItem.menu_item_id,
         modifier,
       }));
+      const recipe = { recipe_id: 'recipe-id', name: 'Rice', is_active: true };
       const tx = {
-        menuItem: { create: jest.fn().mockResolvedValue(menuItem) },
+        menuItem: {
+          create: jest.fn().mockResolvedValue(menuItem),
+          findUnique: jest.fn().mockResolvedValue({
+            ...menuItem,
+            recipe,
+            menu_item_channels_menu_item: menuChannels,
+            menu_item_modifiers_menu_item: menuItemModifiers,
+          }),
+        },
         menuItemChannel: {
           create: jest.fn().mockResolvedValue(menuChannels[0]),
-          findMany: jest.fn().mockResolvedValue(menuChannels),
         },
         menuItemModifier: {
           createManyAndReturn: jest.fn().mockResolvedValue(menuItemModifiers),
-          findMany: jest.fn().mockResolvedValue(menuItemModifiers),
         },
       };
       const runTransaction = jest
@@ -364,10 +379,12 @@ describe('MenuCatalogService transactional creation', () => {
         {} as MenuChannelsRepository,
         {} as MenuItemModifiersRepository,
         {} as RecipesRepository,
+        {} as AssetsService,
       );
 
-      await expect(service.create(input)).resolves.toEqual({
+      await expect(service.create(input, 'actor-id')).resolves.toEqual({
         ...menuItem,
+        recipe,
         menuChannels,
         menuItemModifiers,
       });
@@ -378,16 +395,11 @@ describe('MenuCatalogService transactional creation', () => {
       expect(tx.menuItemModifier.createManyAndReturn).toHaveBeenCalledTimes(
         input.menu_item_modifier.length > 0 ? 1 : 0,
       );
-      expect(tx.menuItemChannel.findMany).toHaveBeenCalledWith({
-        where: {
-          menu_item_id: menuItem.menu_item_id,
-          is_available: undefined,
-          order_channel: undefined,
-        },
-      });
-      expect(tx.menuItemModifier.findMany).toHaveBeenCalledWith({
-        include: { modifier: true },
+      expect(tx.menuItem.findUnique).toHaveBeenCalledWith({
         where: { menu_item_id: menuItem.menu_item_id },
+        include: expect.objectContaining({
+          recipe: expect.anything() as unknown,
+        }) as unknown,
       });
     },
   );
@@ -397,6 +409,11 @@ describe('MenuCatalogService transactional creation', () => {
     const tx = {
       menuItem: {
         create: jest.fn().mockResolvedValue(menuItem),
+        findUnique: jest.fn().mockResolvedValue({
+          ...menuItem,
+          menu_item_channels_menu_item: [],
+          menu_item_modifiers_menu_item: [],
+        }),
         findMany: jest.fn().mockResolvedValue([menuItem]),
         count: jest.fn().mockResolvedValue(1),
       },
@@ -426,5 +443,205 @@ describe('MenuCatalogService transactional creation', () => {
     expect(runTransaction).not.toHaveBeenCalled();
     expect(tx.menuItem.create).toHaveBeenCalledTimes(1);
     expect(tx.menuItem.findMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('MenuCatalogService cross-brand menu', () => {
+  const gc = '00000000-0000-4000-8000-0000000000a1';
+  const ai = '00000000-0000-4000-8000-0000000000a2';
+  const entry = {
+    menu_item_id: 'menu-id',
+    img_url: 'uploads/owner/photo.jpg',
+    menuChannels: [],
+    menuItemModifiers: [],
+  };
+  const groups = [
+    { brand_id: gc, is_available: true, count: 3 },
+    { brand_id: gc, is_available: false, count: 1 },
+    { brand_id: ai, is_available: false, count: 2 },
+  ];
+  let findCatalog: jest.Mock;
+  let service: MenuCatalogService;
+
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, 'debug').mockImplementation();
+    jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    findCatalog = jest
+      .fn()
+      .mockResolvedValue({ entries: [entry], total: 21, groups });
+    service = new MenuCatalogService(
+      { findCatalog } as unknown as MenuCatalogRepository,
+      {} as BrandsRepository,
+      {} as ModifiersRepository,
+      {
+        createDownloadUrl: jest.fn((key: string) =>
+          Promise.resolve(`https://files.example.test/${key}`),
+        ),
+      } as unknown as StorageService,
+      {} as PrismaService,
+      {} as MenuItemsRepository,
+      {} as MenuChannelsRepository,
+      {} as MenuItemModifiersRepository,
+      {} as RecipesRepository,
+      {} as AssetsService,
+    );
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('UT-MCAT-036: counts every brand and, for the chosen brand, each availability', async () => {
+    const query = {
+      page: 2,
+      limit: 20,
+      brand_id: gc,
+      status: 'active' as const,
+      availability: 'all' as const,
+    };
+
+    await expect(service.findCatalog(query)).resolves.toEqual({
+      data: [
+        {
+          ...entry,
+          img_url: 'https://files.example.test/uploads/owner/photo.jpg',
+        },
+      ],
+      meta: {
+        page: 2,
+        limit: 20,
+        total: 21,
+        totalPages: 2,
+        counts: {
+          brands: {
+            all: { total: 6, unavailable: 3 },
+            [gc]: { total: 4, unavailable: 1 },
+            [ai]: { total: 2, unavailable: 2 },
+          },
+          availability: { all: 4, available: 3, unavailable: 1 },
+        },
+      },
+    });
+    expect(findCatalog).toHaveBeenCalledWith(query, 20, 20, undefined);
+  });
+
+  it('UT-MCAT-037: counts availability across every brand when no brand is chosen', async () => {
+    const result = await service.findCatalog({
+      page: 1,
+      limit: 20,
+      status: 'active',
+      availability: 'all',
+    });
+
+    expect(result.meta.counts.availability).toEqual({
+      all: 6,
+      available: 3,
+      unavailable: 3,
+    });
+  });
+
+  it('UT-MCAT-038: rejects pagination overflow before querying', async () => {
+    await expect(
+      service.findCatalog({
+        page: 2147483647,
+        limit: 100,
+        status: 'active',
+        availability: 'all',
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      response: { code: 'PAGINATION_UNSUPPORTED_RANGE' },
+    });
+    expect(findCatalog).not.toHaveBeenCalled();
+  });
+});
+
+describe('MenuCatalogRepository cross-brand menu', () => {
+  it('UT-MCAT-039: filters the page by brand and availability but counts without them, in brand then name order', async () => {
+    const row = {
+      menu_item_id: 'menu-id',
+      recipe: { recipe_id: 'recipe-id', name: 'Rice', is_active: true },
+      menu_item_channels_menu_item: [{ order_channel: 'GRABFOOD' }],
+      menu_item_modifiers_menu_item: [{ modifier_id: 'modifier-id' }],
+    };
+    const tx = {
+      menuItem: {
+        findMany: jest.fn().mockResolvedValue([row]),
+        count: jest.fn().mockResolvedValue(1),
+        groupBy: jest
+          .fn()
+          .mockResolvedValue([
+            { brand_id: 'brand-id', is_available: false, _count: { _all: 2 } },
+          ]),
+      },
+    };
+    const prisma = { $transaction: jest.fn() } as unknown as PrismaService;
+    const repository = new MenuCatalogRepository(
+      prisma,
+      new MenuItemsRepository(prisma),
+      {} as MenuChannelsRepository,
+      {} as ModifiersRepository,
+      {} as MenuItemModifiersRepository,
+    );
+
+    const result = await repository.findCatalog(
+      {
+        page: 1,
+        limit: 20,
+        brand_id: 'brand-id',
+        status: 'active',
+        availability: 'unavailable',
+        search: 'rice',
+      },
+      0,
+      20,
+      tx as unknown as Prisma.TransactionClient,
+    );
+
+    const search = {
+      AND: [
+        {
+          OR: [
+            { name: { contains: 'rice', mode: 'insensitive' } },
+            { code: { contains: 'rice', mode: 'insensitive' } },
+          ],
+        },
+      ],
+    };
+    const where = {
+      is_active: true,
+      ...search,
+      brand_id: 'brand-id',
+      is_available: false,
+    };
+    expect(tx.menuItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
+        orderBy: [
+          { brand: { name: 'asc' } },
+          { name: 'asc' },
+          { menu_item_id: 'asc' },
+        ],
+        skip: 0,
+        take: 20,
+      }),
+    );
+    expect(tx.menuItem.count).toHaveBeenCalledWith({ where });
+    expect(tx.menuItem.groupBy).toHaveBeenCalledWith({
+      by: ['brand_id', 'is_available'],
+      where: { is_active: true, ...search },
+      _count: { _all: true },
+    });
+    expect(result).toEqual({
+      entries: [
+        {
+          menu_item_id: 'menu-id',
+          recipe: row.recipe,
+          menuChannels: row.menu_item_channels_menu_item,
+          menuItemModifiers: row.menu_item_modifiers_menu_item,
+        },
+      ],
+      total: 1,
+      groups: [{ brand_id: 'brand-id', is_available: false, count: 2 }],
+    });
   });
 });

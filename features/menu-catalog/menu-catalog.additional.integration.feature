@@ -144,3 +144,30 @@ Feature: Additional menu catalog integration coverage
     Given no session, or a cashier session
     When the catalog entry is patched
     Then the response is 401 or 403 before calling the service
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.http.spec.ts
+  # Context: Menu catalog HTTP endpoints
+  @IT-MCAT-016
+  Scenario: Accept an image URL or upload key as the photo
+    Test Case ID: IT-MCAT-016
+    Given a new catalog entry whose photo is an upload key, a malformed key, or not a URL
+    When it is created
+    Then an upload key is accepted and the others return 400 before calling the service
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.http.spec.ts
+  # Context: Menu catalog HTTP endpoints
+  @IT-MCAT-017
+  Scenario: List every brand menu with filters
+    Test Case ID: IT-MCAT-017
+    Given an authenticated user and optional brand, status, availability, search and paging filters
+    When the cross-brand menu is requested
+    Then the response is 200 and the service receives the filters with active and all as defaults
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.http.spec.ts
+  # Context: Menu catalog HTTP endpoints
+  @IT-MCAT-018
+  Scenario: Reject invalid menu filters
+    Test Case ID: IT-MCAT-018
+    Given a malformed brand ID, an unknown status or availability, or a limit above 100
+    When the cross-brand menu is requested
+    Then the response is 400 before calling the service

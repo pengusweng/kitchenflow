@@ -309,3 +309,61 @@ Feature: Additional menu catalog unit coverage
     Given a channel override
     When it is deleted permanently
     Then the row is removed so the channel can be added again
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-034
+  Scenario: Save a photo the editor uploaded
+    Test Case ID: UT-MCAT-034
+    Given an update whose photo is the key of an image the editor uploaded
+    When the catalog entry is updated
+    Then the upload is checked to belong to the editor before the key is saved
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog-update.service.spec.ts
+  # Context: MenuCatalogService update
+  @UT-MCAT-035
+  Scenario: Reject a missing or foreign photo upload
+    Test Case ID: UT-MCAT-035
+    Given a photo key that is missing or was uploaded by someone else
+    When the catalog entry is updated
+    Then ASSET_NOT_FOUND is returned before opening a transaction
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.service.spec.ts
+  # Context: MenuCatalogService cross-brand menu
+  @UT-MCAT-036
+  Scenario: Count every brand and the chosen brand availability
+    Test Case ID: UT-MCAT-036
+    Given menu item groups across two brands and a brand filter
+    When the cross-brand menu is listed
+    Then each brand and "all" report their total and unavailable items
+    And availability counts cover only the chosen brand
+    And uploaded image keys come back as download URLs
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.service.spec.ts
+  # Context: MenuCatalogService cross-brand menu
+  @UT-MCAT-037
+  Scenario: Count availability across every brand
+    Test Case ID: UT-MCAT-037
+    Given no brand filter
+    When the cross-brand menu is listed
+    Then availability counts cover every brand
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.service.spec.ts
+  # Context: MenuCatalogService cross-brand menu
+  @UT-MCAT-038
+  Scenario: Reject cross-brand pagination overflow
+    Test Case ID: UT-MCAT-038
+    Given a page number whose offset overflows
+    When the cross-brand menu is listed
+    Then PAGINATION_UNSUPPORTED_RANGE is returned before querying
+
+  # Jest: server/src/modules/menu/menu-catalog/tests/menu-catalog.service.spec.ts
+  # Context: MenuCatalogRepository cross-brand menu
+  @UT-MCAT-039
+  Scenario: Filter the page but count without brand and availability
+    Test Case ID: UT-MCAT-039
+    Given brand, status, availability and search filters
+    When the repository lists the cross-brand menu
+    Then the page and total use every filter, in brand then name order
+    And the counts use only status and search
+    And each row carries its recipe, channels and modifiers

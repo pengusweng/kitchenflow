@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../../shared/prisma/prisma.module';
 import { StorageModule } from '../../../shared/storage/storage.module';
+import { AssetsModule } from '../../assets/assets.module';
 import { BrandsModule } from '../../brands/brands.module';
 import { RecipesModule } from '../../recipe/recipes/recipes.module';
 import { MenuChannelsModule } from '../menu-channels/menu-channels.module';
@@ -14,6 +15,7 @@ import { MenuCatalogService } from './menu-catalog.service';
 @Module({
   imports: [
     PrismaModule,
+    AssetsModule,
     BrandsModule,
     ModifiersModule,
     MenuItemsModule,
