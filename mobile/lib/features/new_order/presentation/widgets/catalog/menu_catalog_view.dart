@@ -262,9 +262,15 @@ class MenuCatalogView extends ConsumerWidget {
                             childAspectRatio: 1.0,
                           ),
                     itemCount: pageItems.length,
-                    itemBuilder: (context, index) => MenuItemGridCard(
-                      item: pageItems[index],
-                      channel: selectedChannel,
+                    itemBuilder: (context, index) => _AnimatedCatalogItem(
+                      key: ValueKey(
+                        'grid-$currentPage-${pageItems[index].id}',
+                      ),
+                      index: index,
+                      child: MenuItemGridCard(
+                        item: pageItems[index],
+                        channel: selectedChannel,
+                      ),
                     ),
                   );
                 }
@@ -279,20 +285,32 @@ class MenuCatalogView extends ConsumerWidget {
                               mainAxisExtent: 180.0,
                             ),
                         itemCount: pageItems.length,
-                        itemBuilder: (context, index) => MenuItemCard(
-                          item: pageItems[index],
-                          channel: selectedChannel,
-                          compact: false,
+                        itemBuilder: (context, index) => _AnimatedCatalogItem(
+                          key: ValueKey(
+                            'list-wide-$currentPage-${pageItems[index].id}',
+                          ),
+                          index: index,
+                          child: MenuItemCard(
+                            item: pageItems[index],
+                            channel: selectedChannel,
+                            compact: false,
+                          ),
                         ),
                       )
                     : SliverList.separated(
                         itemCount: pageItems.length,
                         separatorBuilder: (context, index) =>
                             const SizedBox(height: 12.0),
-                        itemBuilder: (context, index) => MenuItemCard(
-                          item: pageItems[index],
-                          channel: selectedChannel,
-                          compact: true,
+                        itemBuilder: (context, index) => _AnimatedCatalogItem(
+                          key: ValueKey(
+                            'list-compact-$currentPage-${pageItems[index].id}',
+                          ),
+                          index: index,
+                          child: MenuItemCard(
+                            item: pageItems[index],
+                            channel: selectedChannel,
+                            compact: true,
+                          ),
                         ),
                       );
               },
@@ -321,6 +339,54 @@ class MenuCatalogView extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Choreographed staggered entrance animation when switching between Grid and
+/// List view modes (or pages), following [KkfcMotion] tokens:
+/// - 240ms screen transition duration (`KkfcMotion.durScreen`)
+/// - 18ms row/card stagger (`KkfcMotion.stagger`), capped at 10 items
+/// - 6px vertical peer rise (`KkfcMotion.peerOffset`) + subtle scale & fade
+class _AnimatedCatalogItem extends StatelessWidget {
+  const _AnimatedCatalogItem({
+    super.key,
+    required this.index,
+    required this.child,
+  });
+
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final staggeredIndex = index.clamp(0, KkfcMotion.staggerMaxRows);
+    final delayMs = staggeredIndex * KkfcMotion.stagger.inMilliseconds;
+    final baseMs = KkfcMotion.durScreen.inMilliseconds;
+    final totalMs = baseMs + delayMs;
+    final startFraction = totalMs > 0 ? delayMs / totalMs : 0.0;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: totalMs),
+      builder: (context, value, child) {
+        final rawProgress = startFraction >= 1.0
+            ? 1.0
+            : ((value - startFraction) / (1.0 - startFraction)).clamp(0.0, 1.0);
+        final curved = Curves.easeOutCubic.transform(rawProgress);
+
+        return Opacity(
+          opacity: curved,
+          child: Transform.translate(
+            offset: Offset(0.0, (1.0 - curved) * KkfcMotion.peerOffset),
+            child: Transform.scale(
+              scale: 0.96 + (0.04 * curved),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: child,
     );
   }
 }

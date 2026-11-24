@@ -4,53 +4,75 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 
-/// Icon-only segmented view mode toggle allowing the cashier to switch seamlessly
-/// between Grid view and List view for the menu catalog.
+/// Icon-only segmented view mode toggle with a spring-animated sliding pill
+/// indicator allowing the cashier to switch seamlessly between Grid view and
+/// List view for the menu catalog.
 class CatalogViewModeToggle extends ConsumerWidget {
   const CatalogViewModeToggle({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final viewMode = ref.watch(menuViewModeProvider);
+    final isGrid = viewMode == MenuViewMode.grid;
 
     return Container(
       height: 40.0,
+      width: 77.0,
       decoration: BoxDecoration(
         color: KkfcColors.canvasSunken,
         borderRadius: BorderRadius.circular(KkfcRadius.sm),
       ),
       padding: const EdgeInsets.all(3.0),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
         children: [
-          _ToggleSegment(
-            key: const ValueKey('menu-view-mode-grid'),
-            icon: Icons.grid_view_rounded,
-            isSelected: viewMode == MenuViewMode.grid,
-            tooltip: 'Grid view',
-            onTap: () {
-              if (viewMode != MenuViewMode.grid) {
-                HapticFeedback.selectionClick();
-                ref
-                    .read(menuViewModeProvider.notifier)
-                    .set(MenuViewMode.grid);
-              }
-            },
+          // Sliding active selection pill with soft spring motion
+          AnimatedAlign(
+            duration: KkfcMotion.durRelease,
+            curve: KkfcMotion.easeSpring,
+            alignment: isGrid ? Alignment.centerLeft : Alignment.centerRight,
+            child: Container(
+              width: 34.0,
+              height: 34.0,
+              decoration: BoxDecoration(
+                color: KkfcColors.selected,
+                borderRadius: BorderRadius.circular(KkfcRadius.sm - 2),
+                boxShadow: KkfcElevation.shadow1,
+              ),
+            ),
           ),
-          const SizedBox(width: 3.0),
-          _ToggleSegment(
-            key: const ValueKey('menu-view-mode-list'),
-            icon: Icons.view_list_rounded,
-            isSelected: viewMode == MenuViewMode.list,
-            tooltip: 'List view',
-            onTap: () {
-              if (viewMode != MenuViewMode.list) {
-                HapticFeedback.selectionClick();
-                ref
-                    .read(menuViewModeProvider.notifier)
-                    .set(MenuViewMode.list);
-              }
-            },
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ToggleSegment(
+                key: const ValueKey('menu-view-mode-grid'),
+                icon: Icons.grid_view_rounded,
+                isSelected: isGrid,
+                tooltip: 'Grid view',
+                onTap: () {
+                  if (!isGrid) {
+                    HapticFeedback.selectionClick();
+                    ref
+                        .read(menuViewModeProvider.notifier)
+                        .set(MenuViewMode.grid);
+                  }
+                },
+              ),
+              const SizedBox(width: 3.0),
+              _ToggleSegment(
+                key: const ValueKey('menu-view-mode-list'),
+                icon: Icons.view_list_rounded,
+                isSelected: !isGrid,
+                tooltip: 'List view',
+                onTap: () {
+                  if (isGrid) {
+                    HapticFeedback.selectionClick();
+                    ref
+                        .read(menuViewModeProvider.notifier)
+                        .set(MenuViewMode.list);
+                  }
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -58,7 +80,7 @@ class CatalogViewModeToggle extends ConsumerWidget {
   }
 }
 
-class _ToggleSegment extends StatelessWidget {
+class _ToggleSegment extends StatefulWidget {
   const _ToggleSegment({
     super.key,
     required this.icon,
@@ -73,45 +95,44 @@ class _ToggleSegment extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_ToggleSegment> createState() => _ToggleSegmentState();
+}
+
+class _ToggleSegmentState extends State<_ToggleSegment> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final selectedBg = const Color(0xFF1D2940);
-    final selectedFg = Colors.white;
-    final unselectedFg = const Color(0xFF586579);
+    final fg = widget.isSelected ? Colors.white : KkfcColors.ink3;
 
     return Semantics(
       button: true,
-      selected: isSelected,
-      label: tooltip,
+      selected: widget.isSelected,
+      label: widget.tooltip,
       child: Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(KkfcRadius.sm - 2),
-            onTap: onTap,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
+        message: widget.tooltip,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapUp: (_) => setState(() => _pressed = false),
+          onTapCancel: () => setState(() => _pressed = false),
+          onTap: widget.onTap,
+          child: AnimatedScale(
+            scale: _pressed ? KkfcMotion.pressScale : 1.0,
+            duration: _pressed ? KkfcMotion.durPress : KkfcMotion.durRelease,
+            curve: _pressed ? KkfcMotion.easeOut : KkfcMotion.easeSpring,
+            child: SizedBox(
               width: 34.0,
               height: 34.0,
-              decoration: BoxDecoration(
-                color: isSelected ? selectedBg : Colors.transparent,
-                borderRadius: BorderRadius.circular(KkfcRadius.sm - 2),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: selectedBg.withValues(alpha: 0.22),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ]
-                    : null,
-              ),
               child: Center(
-                child: Icon(
-                  icon,
-                  size: 18.0,
-                  color: isSelected ? selectedFg : unselectedFg,
+                child: AnimatedSwitcher(
+                  duration: KkfcMotion.durMicro,
+                  child: Icon(
+                    widget.icon,
+                    key: ValueKey('${widget.icon.codePoint}-${widget.isSelected}'),
+                    size: 18.0,
+                    color: fg,
+                  ),
                 ),
               ),
             ),
