@@ -6,13 +6,24 @@ import SelectField from "@/src/components/ui/atoms/select-field";
 import Textarea from "@/src/components/ui/atoms/textarea";
 import FormField, { fieldMessageId } from "@/src/features/brands/components/molecules/form-field";
 import LogoField, { type LogoPreview } from "@/src/features/brands/components/molecules/logo-field";
-import type { MenuModifierOption } from "../../utils/menu";
+import { DELIVERY_CHANNELS, type MenuModifierOption } from "../../utils/menu";
 import { LIMITS, type MenuItemFormErrors, type MenuItemFormValues } from "../../utils/menu-form";
-import ModifierEditor from "../molecules/modifier-editor";
+import ChannelEditor, { channelPriceId } from "../molecules/channel-editor";
+import ModifierEditor, { modifierPriceId } from "../molecules/modifier-editor";
 import PriceInput from "../molecules/price-input";
 
 /** Field ids in form order, so a failed save can move focus to the first problem. */
 export const FIELD_ORDER = ["name", "code", "basePrice", "servingDescription", "recipeId", "description"] as const;
+
+/** The id of the first field with a problem, in the order the form shows them. */
+export function firstProblemId(idPrefix: string, errors: MenuItemFormErrors): string | undefined {
+  const field = FIELD_ORDER.find((name) => name in errors);
+  if (field) return `${idPrefix}-${field}`;
+  const channel = DELIVERY_CHANNELS.find((c) => errors.channels?.[c]);
+  if (channel) return channelPriceId(channel);
+  const modifier = Object.keys(errors.modifiers ?? {})[0];
+  return modifier ? modifierPriceId(modifier) : undefined;
+}
 
 type MenuItemFieldsProps = {
   /** Prefixes every field id, e.g. "edit-menu-item" gives "edit-menu-item-name". */
@@ -171,6 +182,15 @@ export default function MenuItemFields({
           aria-describedby={`${id("description")}-message`}
         />
       </FormField>
+
+      <div className="border-t border-hairline pt-5">
+        <ChannelEditor
+          drafts={values.channels}
+          onChange={(channels) => set("channels", channels)}
+          basePrice={values.basePrice}
+          errors={errors.channels}
+        />
+      </div>
 
       <div className="border-t border-hairline pt-5">
         <ModifierEditor

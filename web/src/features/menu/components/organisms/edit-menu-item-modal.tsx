@@ -26,8 +26,7 @@ import {
   type MenuItemFormErrors,
   type MenuItemFormValues,
 } from "../../utils/menu-form";
-import { modifierPriceId } from "../molecules/modifier-editor";
-import MenuItemFields, { FIELD_ORDER } from "./menu-item-fields";
+import MenuItemFields, { firstProblemId } from "./menu-item-fields";
 
 type EditMenuItemModalProps = {
   item: MenuItem | null;
@@ -112,9 +111,8 @@ function EditMenuItemForm({
     setSubmitted(true);
     const found = validateMenuItemForm(values);
     if (hasErrors(found)) {
-      const first = FIELD_ORDER.find((name) => name in found);
-      const firstModifier = Object.keys(found.modifiers ?? {})[0];
-      document.getElementById(first ? `${ID}-${first}` : modifierPriceId(firstModifier))?.focus();
+      const target = firstProblemId(ID, found);
+      if (target) document.getElementById(target)?.focus();
       return;
     }
     setSaving(true);
@@ -148,7 +146,7 @@ function EditMenuItemForm({
 
       <div className="flex min-h-0 flex-col gap-5 overflow-y-auto overscroll-contain px-6 pt-5 pb-6">
         <DialogDescription className="text-sm leading-relaxed text-ink-muted">
-          Update {item.name}&apos;s details and the modifiers the counter can add to it.
+          Update {item.name}&apos;s details, delivery prices and the modifiers the counter can add to it.
         </DialogDescription>
 
         <MenuItemFields

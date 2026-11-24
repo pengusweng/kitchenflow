@@ -184,14 +184,72 @@ describe("toUpdatePayload", () => {
   });
 });
 
+describe("delivery channels", () => {
+  const WITH_CHANNELS: MenuItem = {
+    ...ITEM,
+    channels: [
+      { channel: "DINE_IN", price: 189.5, available: true, overrideId: null },
+      { channel: "TAKEAWAY", price: 189.5, available: true, overrideId: null },
+      { channel: "GRABFOOD", price: 219, available: true, overrideId: "c-grab" },
+      { channel: "FOODPANDA", price: 189.5, available: true, overrideId: null },
+    ],
+  };
+
+  test("a channel without its own setting starts blank and on", () => {
+    expect(toFormValues(WITH_CHANNELS).channels).toEqual([
+      { channel: "GRABFOOD", price: "219", available: true, overrideId: "c-grab" },
+      { channel: "FOODPANDA", price: "", available: true, overrideId: null },
+    ]);
+  });
+
+  test("an untouched channel sends nothing", () => {
+    expect(toUpdatePayload(WITH_CHANNELS, toFormValues(WITH_CHANNELS), null)).toEqual({});
+  });
+
+  test("reprices, switches off and adds channel settings", () => {
+    const values = toFormValues(WITH_CHANNELS);
+    values.channels = [
+      { ...values.channels[0], price: "229", available: false },
+      { ...values.channels[1], price: "199" },
+    ];
+    expect(toUpdatePayload(WITH_CHANNELS, values, null)).toEqual({
+      menu_channel: {
+        update: [{ menu_item_channel_id: "c-grab", price: 229, is_available: false }],
+        create: [{ order_channel: "FOODPANDA", price: 199, is_available: true }],
+      },
+    });
+  });
+
+  test("clearing a price on a channel that sells drops its setting", () => {
+    const values = toFormValues(WITH_CHANNELS);
+    values.channels[0] = { ...values.channels[0], price: "" };
+    expect(toUpdatePayload(WITH_CHANNELS, values, null)).toEqual({ menu_channel: { delete: ["c-grab"] } });
+  });
+
+  test("switching off a channel with no price of its own pins it at the base price", () => {
+    const values = toFormValues(WITH_CHANNELS);
+    values.channels[1] = { ...values.channels[1], available: false };
+    expect(toUpdatePayload(WITH_CHANNELS, values, null)).toEqual({
+      menu_channel: { create: [{ order_channel: "FOODPANDA", price: 189.5, is_available: false }] },
+    });
+  });
+
+  test("a channel price must be a peso amount when given", () => {
+    const values = toFormValues(WITH_CHANNELS);
+    values.channels[0] = { ...values.channels[0], price: "abc" };
+    expect(Object.keys(validateMenuItemForm(values).channels ?? {})).toEqual(["GRABFOOD"]);
+  });
+});
+
 describe("toCreatePayload", () => {
-  test("starts with no channel overrides and every kept modifier", () => {
+  test("saves only channels with their own price or switched off, and every kept modifier", () => {
     const values = {
       ...emptyFormValues(),
       name: " Kimchi Rice ",
       code: "gc-kimchi-rice",
       basePrice: "189.50",
       recipeId: "r-kimchi",
+      channels: emptyFormValues().channels.map((c) => (c.channel === "GRABFOOD" ? { ...c, price: "219" } : c)),
       modifiers: [{ ...newModifierDraft(CHEESE), price: "0" }],
     };
     expect(toCreatePayload("b-gc", values, "uploads/u/p.jpg")).toEqual({
@@ -205,7 +263,7 @@ describe("toCreatePayload", () => {
         base_price: 189.5,
         img_url: "uploads/u/p.jpg",
       },
-      menu_channel: [],
+      menu_channel: [{ order_channel: "GRABFOOD", price: 219, is_available: true }],
       menu_item_modifier: [{ modifier_id: "m-cheese", additional_price: 0 }],
     });
   });

@@ -26,9 +26,8 @@ import {
   type MenuItemFormValues,
   type NewMenuItemErrors,
 } from "../../utils/menu-form";
-import { modifierPriceId } from "../molecules/modifier-editor";
 import BrandSelect from "@/src/components/ui/molecules/brand-select";
-import MenuItemFields, { FIELD_ORDER } from "./menu-item-fields";
+import MenuItemFields, { firstProblemId } from "./menu-item-fields";
 
 type CreateMenuItemModalProps = {
   open: boolean;
@@ -175,7 +174,7 @@ function CreateMenuItemForm({
 
       <div className="flex min-h-0 flex-col gap-5 overflow-y-auto overscroll-contain px-6 pt-5 pb-6">
         <DialogDescription className="text-sm leading-relaxed text-ink-muted">
-          New items start active and available, at the base price on every channel.
+          New items start active and available.
         </DialogDescription>
 
         <FormField id={`${ID}-brand`} label="Brand" error={errors.brand}>
@@ -240,7 +239,6 @@ function focusFirstProblem(found: NewMenuItemErrors) {
     // The file input itself is hidden; its zone's button opens the picker.
     return document.getElementById(`${ID}-photo`)?.parentElement?.querySelector("button")?.focus();
   }
-  const first = FIELD_ORDER.find((name) => name in found);
-  const firstModifier = Object.keys(found.modifiers ?? {})[0];
-  document.getElementById(first ? `${ID}-${first}` : modifierPriceId(firstModifier))?.focus();
+  const target = firstProblemId(ID, found);
+  if (target) document.getElementById(target)?.focus();
 }
