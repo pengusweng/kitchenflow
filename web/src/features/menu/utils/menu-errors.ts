@@ -34,6 +34,12 @@ export function menuSaveError(error: unknown): MenuSaveError {
       return {
         message: "This item is inactive or no longer exists. Close this and reload the menu.",
       };
+    case "DUPLICATE_ORDER_CHANNEL":
+    case "MENU_ITEM_CHANNEL_NOT_FOUND":
+    case "CONFLICTING_CHANNEL_MUTATIONS":
+      return {
+        message: "Someone else changed this item's delivery channels. Close this and reload the menu.",
+      };
     case "DUPLICATE_MENU_ITEM_MODIFIER":
       return {
         message: "A modifier is on this item twice. Remove the extra one and try again.",

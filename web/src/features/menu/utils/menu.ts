@@ -28,10 +28,16 @@ export type MenuBrand = {
   accent: string;
 };
 
+/** Delivery platforms can sell an item at their own price or not at all; the counter always uses the base price. */
+export type DeliveryChannel = "GRABFOOD" | "FOODPANDA";
+export const DELIVERY_CHANNELS: DeliveryChannel[] = ["GRABFOOD", "FOODPANDA"];
+
 export type MenuItemChannel = {
   channel: Channel;
   price: number;
   available: boolean;
+  /** The delivery channel's own setting, when it has one; null means it follows the base price. */
+  overrideId: string | null;
 };
 
 /** An add-on or change the counter can apply to this item, e.g. "Extra rice". */
@@ -137,6 +143,7 @@ export function toMenuItem(record: MenuEntryRecord, brandFor: (id: string) => Me
         channel,
         price: override?.price ?? record.base_price,
         available: override?.is_available ?? true,
+        overrideId: override?.menu_item_channel_id ?? null,
       };
     }),
     modifiers: record.menuItemModifiers.map((m) => ({

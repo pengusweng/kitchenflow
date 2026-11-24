@@ -1,4 +1,4 @@
-import type { MenuItem, MenuModifierOption } from "./menu";
+import { DELIVERY_CHANNELS, type DeliveryChannel, type MenuItem, type MenuModifierOption } from "./menu";
 
 /** A modifier row in the edit form. Removing a saved one only marks it, so it can be undone before saving. */
 export type ModifierDraft = {
@@ -17,6 +17,16 @@ export type ModifierDraft = {
   removed: boolean;
 };
 
+/** A delivery channel in the form. Blank price and on means it follows the base price. */
+export type ChannelDraft = {
+  channel: DeliveryChannel;
+  /** Its own price as typed; blank sells at the base price. */
+  price: string;
+  available: boolean;
+  /** The saved setting this edits, if there is one. */
+  overrideId: string | null;
+};
+
 export type MenuItemFormValues = {
   name: string;
   code: string;
@@ -24,6 +34,7 @@ export type MenuItemFormValues = {
   servingDescription: string;
   description: string;
   recipeId: string;
+  channels: ChannelDraft[];
   modifiers: ModifierDraft[];
 };
 
@@ -32,6 +43,7 @@ type FieldName = "name" | "code" | "basePrice" | "servingDescription" | "descrip
 export type MenuItemFormErrors = Partial<Record<FieldName, string>> & {
   /** Keyed by modifier draft id. */
   modifiers?: Record<string, string>;
+  channels?: Partial<Record<DeliveryChannel, string>>;
 };
 
 // Same limits as the menu items API.
@@ -65,6 +77,12 @@ export function toFormValues(item: MenuItem): MenuItemFormValues {
     servingDescription: item.servingDescription ?? "",
     description: item.description ?? "",
     recipeId: item.recipe.id,
+    channels: DELIVERY_CHANNELS.map((channel) => {
+      const saved = item.channels.find((c) => c.channel === channel);
+      return saved?.overrideId
+        ? { channel, price: priceText(saved.price), available: saved.available, overrideId: saved.overrideId }
+        : { channel, price: "", available: true, overrideId: null };
+    }),
     modifiers: item.modifiers.map((m) => ({
       id: m.id,
       modifierId: m.modifierId,
@@ -88,6 +106,7 @@ export function emptyFormValues(): MenuItemFormValues {
     servingDescription: "",
     description: "",
     recipeId: "",
+    channels: DELIVERY_CHANNELS.map((channel) => ({ channel, price: "", available: true, overrideId: null })),
     modifiers: [],
   };
 }
@@ -154,6 +173,13 @@ export function validateMenuItemForm(values: MenuItemFormValues): MenuItemFormEr
   }
   if (Object.keys(modifiers).length > 0) errors.modifiers = modifiers;
 
+  const channels: Partial<Record<DeliveryChannel, string>> = {};
+  for (const draft of values.channels) {
+    if (draft.price.trim() && parsePrice(draft.price) === null)
+      channels[draft.channel] = "Enter a price like 219 or 219.50, or leave it blank for the base price.";
+  }
+  if (Object.keys(channels).length > 0) errors.channels = channels;
+
   return errors;
 }
 
@@ -196,16 +222,22 @@ export type MenuItemFieldsPayload = {
 };
 
 type AddModifier = { modifier_id: string; additional_price: number };
+type ChannelSetting = { order_channel: DeliveryChannel; price: number; is_available: boolean };
 
 export type CreateMenuItemPayload = {
   menu_item: MenuItemFieldsPayload & { brand_id: string };
-  menu_channel: [];
+  menu_channel: ChannelSetting[];
   menu_item_modifier: AddModifier[];
 };
 
-/** PATCH /menu-catalog/:id: changed item fields, plus which add-ons to add, reprice and remove. */
+/** PATCH /menu-catalog/:id: changed item fields, plus which channel settings and add-ons to add, change and remove. */
 export type UpdateMenuItemPayload = {
   menu_item?: Partial<MenuItemFieldsPayload>;
+  menu_channel?: {
+    create?: ChannelSetting[];
+    update?: { menu_item_channel_id: string; price: number; is_available: boolean }[];
+    delete?: string[];
+  };
   menu_item_modifier?: {
     create?: AddModifier[];
     update?: { menu_item_modifier_id: string; additional_price: number }[];
@@ -228,11 +260,26 @@ function itemFields(values: MenuItemFormValues): ItemFields {
 
 const addOnPrice = (draft: ModifierDraft) => parsePrice(draft.price) ?? 0;
 
-/** A new item starts with no channel overrides, so every channel sells it at the base price. */
+/**
+ * What a delivery channel needs saved, or null when it simply sells at the
+ * base price. Switching a channel off with no price of its own pins it at the
+ * base price, since a saved setting always has a price.
+ */
+function channelSetting(draft: ChannelDraft, values: MenuItemFormValues): ChannelSetting | null {
+  const price = draft.price.trim() ? parsePrice(draft.price) : null;
+  if (price === null && draft.available) return null;
+  return {
+    order_channel: draft.channel,
+    price: price ?? parsePrice(values.basePrice) ?? 0,
+    is_available: draft.available,
+  };
+}
+
+/** Only channels with their own price or switched off are saved; the rest sell at the base price. */
 export function toCreatePayload(brandId: string, values: MenuItemFormValues, imageKey: string): CreateMenuItemPayload {
   return {
     menu_item: { ...itemFields(values), brand_id: brandId, img_url: imageKey },
-    menu_channel: [],
+    menu_channel: values.channels.flatMap((d) => channelSetting(d, values) ?? []),
     menu_item_modifier: values.modifiers
       .filter((d) => !d.removed)
       .map((d) => ({
@@ -284,8 +331,26 @@ export function toUpdatePayload(
   if (update.length) modifiers.update = update;
   if (remove.length) modifiers.delete = remove;
 
+  const channels: NonNullable<UpdateMenuItemPayload["menu_channel"]> = {};
+  for (const draft of values.channels) {
+    const next = channelSetting(draft, values);
+    const saved = item.channels.find((c) => c.channel === draft.channel && c.overrideId === draft.overrideId);
+    if (!draft.overrideId || !saved) {
+      if (next) (channels.create ??= []).push(next);
+    } else if (!next) {
+      (channels.delete ??= []).push(draft.overrideId);
+    } else if (next.price !== saved.price || next.is_available !== saved.available) {
+      (channels.update ??= []).push({
+        menu_item_channel_id: draft.overrideId,
+        price: next.price,
+        is_available: next.is_available,
+      });
+    }
+  }
+
   return {
     ...(Object.keys(menuItem).length ? { menu_item: menuItem } : {}),
+    ...(Object.keys(channels).length ? { menu_channel: channels } : {}),
     ...(Object.keys(modifiers).length ? { menu_item_modifier: modifiers } : {}),
   };
 }
