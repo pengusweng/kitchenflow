@@ -221,6 +221,59 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'WT-MOB-WORKSPACE-007 arrow animates spin up on open and spins down on dismiss, with highlight removed',
+    (tester) async {
+      await pump(tester, UserRole.superadmin);
+
+      // Verify click highlight is removed via theme overrides
+      final theme = tester.widget<Theme>(
+        find.descendant(
+          of: find.byType(WorkspaceSwitcher),
+          matching: find.byType(Theme),
+        ),
+      );
+      expect(theme.data.highlightColor, Colors.transparent);
+      expect(theme.data.splashColor, Colors.transparent);
+      expect(theme.data.splashFactory, NoSplash.splashFactory);
+
+      final arrowFinder = find.byKey(const ValueKey('workspace-switcher-arrow'));
+      expect(arrowFinder, findsOneWidget);
+
+      // Initially closed: arrow points down (0.0 turns)
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.0);
+
+      // Tap to open popup menu
+      await tester.tap(find.byKey(const ValueKey('workspace-switcher')));
+      await tester.pump(); // Start rotation animation
+      await tester.pump(const Duration(milliseconds: 100)); // In flight
+
+      // Once settled, menu is open and arrow points up (0.5 turns)
+      await tester.pumpAndSettle();
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.5);
+
+      // Tap an option to select and dismiss
+      await tester.tap(find.byKey(const ValueKey('workspace-option-POS')));
+      await tester.pump(); // Start closing rotation animation
+      await tester.pumpAndSettle();
+
+      // Closed: arrow spins back down (0.0 turns)
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.0);
+
+      // Open again, then dismiss by tapping outside (barrier)
+      await tester.tap(find.byKey(const ValueKey('workspace-switcher')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.5);
+
+      // Tap modal barrier outside the menu (e.g. top right corner)
+      await tester.tapAt(const Offset(700, 10));
+      await tester.pumpAndSettle();
+
+      // Closed: arrow spins back down (0.0 turns)
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.0);
+    },
+  );
 }
 
 class _FixedRole extends UserRoleNotifier {

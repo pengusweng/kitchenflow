@@ -28,13 +28,26 @@ enum KkfcWorkspace {
 /// between the POS (menu / orders) and KDS (kitchen board) screens.
 ///
 /// Renders nothing for roles that cannot switch workspaces.
-class WorkspaceSwitcher extends ConsumerWidget {
+class WorkspaceSwitcher extends ConsumerStatefulWidget {
   const WorkspaceSwitcher({super.key, this.compact});
 
   /// Whether to render in a compact layout (e.g. on mobile/phone screens).
   ///
   /// Defaults to detecting automatically when screen width < 600px.
   final bool? compact;
+
+  @override
+  ConsumerState<WorkspaceSwitcher> createState() => _WorkspaceSwitcherState();
+}
+
+class _WorkspaceSwitcherState extends ConsumerState<WorkspaceSwitcher> {
+  bool _isOpen = false;
+
+  void _setOpen(bool isOpen) {
+    if (mounted && _isOpen != isOpen) {
+      setState(() => _isOpen = isOpen);
+    }
+  }
 
   KkfcWorkspace _currentWorkspace(BuildContext context) {
     final router = GoRouter.maybeOf(context);
@@ -45,101 +58,125 @@ class WorkspaceSwitcher extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final role = ref.watch(userRoleProvider);
     if (role == null || !role.canSwitchWorkspace) {
       return const SizedBox.shrink();
     }
 
-    final isCompact = compact ?? (MediaQuery.sizeOf(context).width < 600);
+    final isCompact =
+        widget.compact ?? (MediaQuery.sizeOf(context).width < 600);
     final current = _currentWorkspace(context);
 
     return Padding(
       padding: EdgeInsets.only(right: isCompact ? KkfcSpace.s4 : KkfcSpace.s8),
-      child: PopupMenuButton<KkfcWorkspace>(
-        key: const ValueKey('workspace-switcher'),
-        tooltip: 'Switch screen',
-        position: PopupMenuPosition.under,
-        initialValue: current,
-        onSelected: (target) {
-          if (target == current) return;
-          GoRouter.maybeOf(context)?.go(target.route);
-        },
-        itemBuilder: (context) => [
-          for (final workspace in KkfcWorkspace.values)
-            PopupMenuItem<KkfcWorkspace>(
-              key: ValueKey('workspace-option-${workspace.label}'),
-              value: workspace,
-              child: Row(
-                children: [
-                  Icon(workspace.icon, size: 18, color: KkfcColors.ink2),
-                  const SizedBox(width: KkfcSpace.s12),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          workspace.label,
-                          style: const TextStyle(
-                            fontFamily: KkfcFonts.ibmPlexSans,
-                            fontSize: KkfcTextSizes.textBase,
-                            fontWeight: KkfcFontWeights.bold,
-                            color: KkfcColors.ink,
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          highlightColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          focusColor: Colors.transparent,
+          splashFactory: NoSplash.splashFactory,
+        ),
+        child: PopupMenuButton<KkfcWorkspace>(
+          key: const ValueKey('workspace-switcher'),
+          tooltip: 'Switch screen',
+          position: PopupMenuPosition.under,
+          initialValue: current,
+          onOpened: () => _setOpen(true),
+          onCanceled: () => _setOpen(false),
+          onSelected: (target) {
+            _setOpen(false);
+            if (target == current) return;
+            GoRouter.maybeOf(context)?.go(target.route);
+          },
+          itemBuilder: (context) => [
+            for (final workspace in KkfcWorkspace.values)
+              PopupMenuItem<KkfcWorkspace>(
+                key: ValueKey('workspace-option-${workspace.label}'),
+                value: workspace,
+                child: Row(
+                  children: [
+                    Icon(workspace.icon, size: 18, color: KkfcColors.ink2),
+                    const SizedBox(width: KkfcSpace.s12),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            workspace.label,
+                            style: const TextStyle(
+                              fontFamily: KkfcFonts.ibmPlexSans,
+                              fontSize: KkfcTextSizes.textBase,
+                              fontWeight: KkfcFontWeights.bold,
+                              color: KkfcColors.ink,
+                            ),
                           ),
-                        ),
-                        Text(
-                          workspace.description,
-                          style: const TextStyle(
-                            fontFamily: KkfcFonts.ibmPlexSans,
-                            fontSize: KkfcTextSizes.textSm,
-                            color: KkfcColors.ink3,
+                          Text(
+                            workspace.description,
+                            style: const TextStyle(
+                              fontFamily: KkfcFonts.ibmPlexSans,
+                              fontSize: KkfcTextSizes.textSm,
+                              color: KkfcColors.ink3,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  if (workspace == current)
-                    const Icon(
-                      Icons.check_rounded,
-                      size: 18,
-                      color: KkfcColors.action,
-                    ),
-                ],
-              ),
-            ),
-        ],
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 6 : 12,
-            vertical: isCompact ? 3 : 7,
-          ),
-          decoration: BoxDecoration(
-            color: KkfcColors.shellRoleBg,
-            borderRadius: BorderRadius.circular(KkfcRadius.pill),
-            border: Border.all(color: KkfcColors.shellRoleBorder, width: 1.0),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(current.icon, size: isCompact ? 13 : 16, color: Colors.white),
-              SizedBox(width: isCompact ? 3 : 6),
-              Text(
-                current.label,
-                style: TextStyle(
-                  fontFamily: KkfcFonts.ibmPlexSans,
-                  fontSize: isCompact ? KkfcTextSizes.textXs : KkfcTextSizes.textMd,
-                  fontWeight: KkfcFontWeights.medium,
-                  color: Colors.white,
+                    if (workspace == current)
+                      const Icon(
+                        Icons.check_rounded,
+                        size: 18,
+                        color: KkfcColors.action,
+                      ),
+                  ],
                 ),
               ),
-              SizedBox(width: isCompact ? 2 : 4),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: isCompact ? 13 : 18,
-                color: Colors.white,
-              ),
-            ],
+          ],
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompact ? 6 : 12,
+              vertical: isCompact ? 3 : 7,
+            ),
+            decoration: BoxDecoration(
+              color: KkfcColors.shellRoleBg,
+              borderRadius: BorderRadius.circular(KkfcRadius.pill),
+              border: Border.all(color: KkfcColors.shellRoleBorder, width: 1.0),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  current.icon,
+                  size: isCompact ? 13 : 16,
+                  color: Colors.white,
+                ),
+                SizedBox(width: isCompact ? 3 : 6),
+                Text(
+                  current.label,
+                  style: TextStyle(
+                    fontFamily: KkfcFonts.ibmPlexSans,
+                    fontSize:
+                        isCompact ? KkfcTextSizes.textXs : KkfcTextSizes.textMd,
+                    fontWeight: KkfcFontWeights.medium,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: isCompact ? 2 : 4),
+                AnimatedRotation(
+                  key: const ValueKey('workspace-switcher-arrow'),
+                  turns: _isOpen ? 0.5 : 0.0,
+                  duration: KkfcMotion.durOverlay,
+                  curve: KkfcMotion.easeMove,
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: isCompact ? 13 : 18,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
