@@ -2,13 +2,14 @@ name: Android APK
 
 on:
   push:
-    branches: [main, development]
+    branches: [main, development, staging]
     paths:
       - 'mobile/**'
       - '!mobile/**/*.md'
       - '.github/workflows/android-release.yml'
       - '.github/scripts/configure-android-signing.py'
       - '.github/scripts/publish-android-release.cjs'
+      - '.github/scripts/android-build-config.cjs'
   workflow_dispatch:
 
 permissions:
@@ -25,11 +26,27 @@ jobs:
     timeout-minutes: 30
     outputs:
       build-number: ${{ steps.version.outputs.build_number }}
+      updates-enabled: ${{ steps.config.outputs.updates-enabled }}
     defaults:
       run:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Configure shared API and update channel
+        id: config
+        uses: actions/github-script@v7
+        env:
+          ANDROID_API_URL: ${{ vars.ANDROID_API_URL }}
+          ANDROID_UPDATE_BRANCH: ${{ vars.ANDROID_UPDATE_BRANCH }}
+        with:
+          script: |
+            const configure = require('./.github/scripts/android-build-config.cjs');
+            const config = configure({ branch: context.ref.replace('refs/heads/', ''), env: process.env });
+            core.setOutput('api-url', config.apiUrl);
+            core.setOutput('updates-enabled', String(config.updatesEnabled));
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -59,9 +76,9 @@ jobs:
         run: python3 ../.github/scripts/configure-android-signing.py
       - name: Build APK against the hosted API
         env:
-          API_URL: ${{ vars.ANDROID_API_URL || 'https://kkfc-demo-api.onrender.com/api' }}
+          API_URL: ${{ steps.config.outputs.api-url }}
           UPDATE_REPOSITORY: ${{ github.repository }}
-          UPDATES_ENABLED: ${{ github.ref_name == (vars.ANDROID_UPDATE_BRANCH || 'development') && 'true' || 'false' }}
+          UPDATES_ENABLED: ${{ steps.config.outputs.updates-enabled }}
           BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
         run: |
           flutter build apk --release \
@@ -88,7 +105,7 @@ jobs:
 
   publish:
     name: Publish optional app update
-    if: github.ref_name == (vars.ANDROID_UPDATE_BRANCH || 'development')
+    if: needs.build.outputs.updates-enabled == 'true'
     needs: build
     runs-on: ubuntu-24.04
     permissions:
