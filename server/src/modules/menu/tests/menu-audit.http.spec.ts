@@ -45,7 +45,7 @@ describe('Menu audit logging', () => {
   let role: UserRole;
   const audit = createAuditSpy();
   const services = {
-    catalog: mockService(['create', 'findAll']),
+    catalog: mockService(['create', 'findAll', 'update']),
     channels: mockService([
       'create',
       'findAll',
@@ -163,6 +163,13 @@ describe('Menu audit logging', () => {
       'MENU_CATALOG_ENTRY_CREATED',
       'menu_items',
       createdId,
+    ],
+    [
+      'PATCH',
+      `/menu-catalog/${routeId}`,
+      'MENU_CATALOG_ENTRY_UPDATED',
+      'menu_items',
+      routeId,
     ],
     ...crud('/menu-channels', 'MENU_ITEM_CHANNEL', 'menu_item_channels'),
     ...crud('/menu-items', 'MENU_ITEM', 'menu_items'),

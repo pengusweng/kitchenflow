@@ -1,10 +1,15 @@
-import { Audit, fromResult } from '../../../shared/audit/audit.decorator';
+import {
+  Audit,
+  fromParam,
+  fromResult,
+} from '../../../shared/audit/audit.decorator';
 import {
   Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -18,8 +23,10 @@ import {
   CreateMenuCatalogDocs,
   FindAllMenuCatalogDocs,
   MenuCatalogDocs,
+  UpdateMenuCatalogDocs,
 } from './docs/menu-catalog.docs';
 import { MenuCatalogSetupDTO } from './dto/menu-catalog-setup.dto';
+import { UpdateMenuCatalogDTO } from './dto/update-menu-catalog.dto';
 import { MenuCatalogService } from './menu-catalog.service';
 
 @Controller('menu-catalog')
@@ -50,5 +57,19 @@ export class MenuCatalogController {
     return this.menuCatalogService.findAll(brandId, query);
   }
 
-  // TODO: Create update endpoint with mutation similar to recipe
+  @Patch(':id')
+  @Audit({
+    action: 'MENU_CATALOG_ENTRY_UPDATED',
+    snapshot: 'update',
+    entity: 'menu_items',
+    id: fromParam('id'),
+  })
+  @UpdateMenuCatalogDocs()
+  @Roles(UserRole.SUPERADMIN)
+  async update(
+    @Param('id', ParseUUIDPipe) menuItemId: string,
+    @Body() dto: UpdateMenuCatalogDTO,
+  ) {
+    return this.menuCatalogService.update(menuItemId, dto);
+  }
 }

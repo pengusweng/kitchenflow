@@ -31,9 +31,10 @@ export class MenuCatalogRepository {
         );
       }
 
-      for (const modifier of dto.menu_item_modifier) {
-        await this.menuItemsModifiersRepository.create(
-          { ...modifier, menu_item_id: menuItem.menu_item_id },
+      if (dto.menu_item_modifier.length > 0) {
+        await this.menuItemsModifiersRepository.createMany(
+          menuItem.menu_item_id,
+          dto.menu_item_modifier,
           tx,
         );
       }

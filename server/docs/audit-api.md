@@ -211,6 +211,7 @@ Menu actions:
 | Action | Entity | Endpoint |
 | --- | --- | --- |
 | `MENU_CATALOG_ENTRY_CREATED` | `menu_items` | `POST /api/menu-catalog`. Entity is the new menu item. |
+| `MENU_CATALOG_ENTRY_UPDATED` | `menu_items` | `PATCH /api/menu-catalog/:id`. Snapshots cover the menu item's columns only; channel and modifier changes are not snapshotted. |
 | `MENU_ITEM_CREATED` | `menu_items` | `POST /api/menu-items`. Entity is the new record. |
 | `MENU_ITEM_UPDATED` | `menu_items` | `PATCH /api/menu-items/:id`. |
 | `MENU_ITEM_REACTIVATED` | `menu_items` | `PATCH /api/menu-items/reactivate/:id`. |

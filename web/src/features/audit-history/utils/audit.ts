@@ -64,6 +64,7 @@ const ACTION_LABEL: Record<string, string> = {
   BRAND_UPDATED: "Updated brand",
   BRAND_DEACTIVATED: "Deactivated brand",
   MENU_CATALOG_ENTRY_CREATED: "Added to menu catalog",
+  MENU_CATALOG_ENTRY_UPDATED: "Updated menu catalog entry",
   MENU_ITEM_CREATED: "Created menu item",
   MENU_ITEM_UPDATED: "Updated menu item",
   MENU_ITEM_AVAILABILITY_CHANGED: "Changed menu item availability",

@@ -43,7 +43,7 @@ describe('Menu catalog HTTP endpoints', () => {
       },
     ],
   };
-  const service = { create: jest.fn(), findAll: jest.fn() };
+  const service = { create: jest.fn(), findAll: jest.fn(), update: jest.fn() };
   const auth = { validateSession: jest.fn() };
   const brandLookup = jest.fn();
   const headers = {
@@ -83,6 +83,7 @@ describe('Menu catalog HTTP endpoints', () => {
     jest.resetAllMocks();
     service.create.mockResolvedValue(createdEntry);
     service.findAll.mockResolvedValue({ data: [], meta: { total: 0 } });
+    service.update.mockResolvedValue(createdEntry);
     auth.validateSession.mockResolvedValue({ user });
     brandLookup.mockResolvedValue({ brand_id: brandId });
   });
@@ -213,5 +214,101 @@ describe('Menu catalog HTTP endpoints', () => {
     const response = await fetch(`${url}/brand/invalid`, { headers });
     expect(response.status).toBe(400);
     expect(service.findAll).not.toHaveBeenCalled();
+  });
+
+  describe('PATCH /menu-catalog/:id', () => {
+    const menuItemId = '00000000-0000-4000-8000-000000000010';
+    const channelId = '00000000-0000-4000-8000-000000000011';
+    const assignmentId = '00000000-0000-4000-8000-000000000012';
+    const patch = (body: unknown, id = menuItemId, reqHeaders = headers) =>
+      fetch(`${url}/${id}`, {
+        method: 'PATCH',
+        headers: reqHeaders,
+        body: JSON.stringify(body),
+      });
+    const update = {
+      menu_item: { name: 'Garlic Rice', base_price: 110 },
+      menu_channel: {
+        create: [{ order_channel: 'FOODPANDA', price: 130 }],
+        update: [{ menu_item_channel_id: channelId, is_available: false }],
+        delete: [channelId],
+      },
+      menu_item_modifier: {
+        create: [{ modifier_id: dto.menu_item_modifier[0].modifier_id }],
+        update: [{ menu_item_modifier_id: assignmentId, additional_price: 15 }],
+        delete: [assignmentId],
+      },
+    };
+
+    it('IT-MCAT-012: passes item fields and child mutations to the service', async () => {
+      const response = await patch(update);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual(createdEntry);
+      expect(service.update).toHaveBeenCalledWith(menuItemId, update);
+    });
+
+    it.each([
+      { name: 'a brand change', body: { menu_item: { brand_id: brandId } } },
+      {
+        name: 'an order channel change on an existing override',
+        body: {
+          menu_channel: {
+            update: [
+              { menu_item_channel_id: channelId, order_channel: 'GRABFOOD' },
+            ],
+          },
+        },
+      },
+      {
+        name: 'a child list sent as an array',
+        body: { menu_channel: [{ order_channel: 'GRABFOOD', price: 1 }] },
+      },
+      {
+        name: 'a malformed delete ID',
+        body: { menu_item_modifier: { delete: ['invalid'] } },
+      },
+      {
+        name: 'an update without its ID',
+        body: { menu_item_modifier: { update: [{ additional_price: 1 }] } },
+      },
+      {
+        name: 'the same channel created twice',
+        body: {
+          menu_channel: {
+            create: [
+              { order_channel: 'GRABFOOD', price: 1 },
+              { order_channel: 'GRABFOOD', price: 2 },
+            ],
+          },
+        },
+      },
+    ])('IT-MCAT-013: rejects $name', async ({ body }) => {
+      const response = await patch(body);
+
+      expect(response.status).toBe(400);
+      expect(service.update).not.toHaveBeenCalled();
+    });
+
+    it('IT-MCAT-014: rejects a malformed menu item ID', async () => {
+      const response = await patch(update, 'invalid');
+
+      expect(response.status).toBe(400);
+      expect(service.update).not.toHaveBeenCalled();
+    });
+
+    it('IT-MCAT-015: requires authentication and the superadmin role', async () => {
+      const anonymous = await patch(update, menuItemId, {
+        'content-type': 'application/json',
+      } as typeof headers);
+      auth.validateSession.mockResolvedValue({
+        user: { ...user, role: UserRole.CASHIER_STAFF },
+      });
+      const cashier = await patch(update);
+
+      expect(anonymous.status).toBe(401);
+      expect(cashier.status).toBe(403);
+      expect(service.update).not.toHaveBeenCalled();
+    });
   });
 });
