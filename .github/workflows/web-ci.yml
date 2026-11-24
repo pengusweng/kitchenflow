@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   web-tests:
-    name: Lint, tests, build and browser smoke
+    name: Lint, tests, build and browser checks
     runs-on: ubuntu-24.04
     container:
       # Keep this version aligned with @playwright/test in web/package-lock.json.
@@ -21,9 +21,8 @@ jobs:
       run:
         working-directory: web
     env:
-      # The starter browser test does not call the API. Full-stack tests will
-      # need a running API and isolated test database at this address.
-      API_URL: http://127.0.0.1:3000
+      # Keep this aligned with the Playwright fixture for build-time API rewrites.
+      API_URL: http://127.0.0.1:3101
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +44,7 @@ jobs:
         run: npm run build
       - name: Type check app and test files
         run: npm run typecheck
-      - name: Browser smoke tests
+      - name: Browser smoke and end-to-end tests
         run: npm run test:e2e
       - name: Upload web test reports
         if: always()
