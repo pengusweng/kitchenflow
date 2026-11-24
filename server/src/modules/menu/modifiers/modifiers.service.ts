@@ -38,18 +38,13 @@ export class ModifiersService {
 
     this.logger.debug(`Finding modifier ${identifier}`);
 
-    const modifier =
+    const modifier = await this.modifiersRepository.findOne(
       typeof codeOrModifierId === 'string' && !isUUID(identifier)
-        ? await this.modifiersRepository.findOneModifierByCode(
-            identifier,
-            activeOnly,
-            tx,
-          )
-        : await this.modifiersRepository.findOneModifierByUID(
-            identifier,
-            activeOnly,
-            tx,
-          );
+        ? { code: identifier }
+        : { modifier_id: identifier },
+      activeOnly,
+      tx,
+    );
 
     assertExists(modifier, 'Modifier', identifier, this.logger);
 
@@ -115,8 +110,8 @@ export class ModifiersService {
   ) {
     this.logger.debug(`Updating modifier ${modifierId}`);
 
-    const modifier = await this.modifiersRepository.findOneModifierByUID(
-      modifierId,
+    const modifier = await this.modifiersRepository.findOne(
+      { modifier_id: modifierId },
       true,
       tx,
     );
@@ -135,8 +130,8 @@ export class ModifiersService {
   async reactivate(modifierId: string, tx?: Prisma.TransactionClient) {
     this.logger.debug(`Reactivating modifier ${modifierId}`);
 
-    const modifier = await this.modifiersRepository.findOneModifierByUID(
-      modifierId,
+    const modifier = await this.modifiersRepository.findOne(
+      { modifier_id: modifierId },
       false,
       tx,
     );
@@ -163,8 +158,8 @@ export class ModifiersService {
   async delete(modifierId: string, tx?: Prisma.TransactionClient) {
     this.logger.debug(`Deactivating modifier ${modifierId}`);
 
-    const modifier = await this.modifiersRepository.findOneModifierByUID(
-      modifierId,
+    const modifier = await this.modifiersRepository.findOne(
+      { modifier_id: modifierId },
       true,
       tx,
     );

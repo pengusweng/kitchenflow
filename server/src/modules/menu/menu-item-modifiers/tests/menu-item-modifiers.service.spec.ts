@@ -41,23 +41,21 @@ describe('MenuItemModifiersService operations', () => {
     menu_item_id: 'menu-id',
     modifier_id: 'modifier-id',
   };
-  const create = {
-    menu_item_id: 'menu-id',
-    modifier_id: 'modifier-id',
-    additional_price: 20,
-  };
+  const create = [
+    { modifier_id: 'modifier-id', additional_price: 20 },
+    { modifier_id: 'second-modifier-id' },
+  ];
   let repository: {
-    create: jest.Mock;
+    createMany: jest.Mock;
     findOne: jest.Mock;
     findOneWithModifier: jest.Mock;
     findAll: jest.Mock;
     findManyForMenuItem: jest.Mock;
     update: jest.Mock;
-    reactivate: jest.Mock;
     delete: jest.Mock;
   };
   let menuItems: { findOneMenuItemByUID: jest.Mock };
-  let modifiers: { findOneModifierByUID: jest.Mock };
+  let modifiers: { findOne: jest.Mock };
   let service: MenuItemModifiersService;
 
   beforeEach(() => {
@@ -65,7 +63,7 @@ describe('MenuItemModifiersService operations', () => {
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
     jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     repository = {
-      create: jest.fn().mockResolvedValue(assignment),
+      createMany: jest.fn().mockResolvedValue([assignment]),
       findOne: jest.fn().mockResolvedValue(assignment),
       findOneWithModifier: jest.fn().mockResolvedValue({
         ...assignment,
@@ -78,7 +76,6 @@ describe('MenuItemModifiersService operations', () => {
       update: jest
         .fn()
         .mockResolvedValue({ ...assignment, additional_price: 25 }),
-      reactivate: jest.fn().mockResolvedValue(assignment),
       delete: jest.fn().mockResolvedValue(assignment),
     };
     menuItems = {
@@ -89,7 +86,7 @@ describe('MenuItemModifiersService operations', () => {
       }),
     };
     modifiers = {
-      findOneModifierByUID: jest
+      findOne: jest
         .fn()
         .mockResolvedValue({ modifier_id: 'modifier-id', is_active: true }),
     };
@@ -102,38 +99,53 @@ describe('MenuItemModifiersService operations', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  it('UT-MIM-002: creates an assignment after checking the active menu item and modifier', async () => {
-    await expect(service.create(create)).resolves.toEqual(assignment);
+  it('UT-MIM-002: creates assignments after checking the active menu item and every modifier', async () => {
+    await expect(service.createMany('menu-id', create)).resolves.toEqual([
+      assignment,
+    ]);
     expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith(
       'menu-id',
       true,
       undefined,
     );
-    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith(
-      'modifier-id',
+    expect(modifiers.findOne).toHaveBeenNthCalledWith(
+      1,
+      { modifier_id: 'modifier-id' },
       true,
       undefined,
     );
-    expect(repository.create).toHaveBeenCalledWith(create, undefined);
+    expect(modifiers.findOne).toHaveBeenNthCalledWith(
+      2,
+      { modifier_id: 'second-modifier-id' },
+      true,
+      undefined,
+    );
+    expect(repository.createMany).toHaveBeenCalledWith(
+      'menu-id',
+      create,
+      undefined,
+    );
   });
 
   it('UT-MIM-003: rejects creation when the menu item is missing or inactive', async () => {
     menuItems.findOneMenuItemByUID.mockResolvedValue(null);
-    await expect(service.create(create)).rejects.toMatchObject({
+    await expect(service.createMany('menu-id', create)).rejects.toMatchObject({
       status: 404,
       response: { code: 'MENU_ITEM_NOT_FOUND' },
     });
-    expect(repository.create).not.toHaveBeenCalled();
-    expect(modifiers.findOneModifierByUID).not.toHaveBeenCalled();
+    expect(repository.createMany).not.toHaveBeenCalled();
+    expect(modifiers.findOne).not.toHaveBeenCalled();
   });
 
-  it('UT-MIM-004: rejects creation when the modifier is missing or inactive', async () => {
-    modifiers.findOneModifierByUID.mockResolvedValue(null);
-    await expect(service.create(create)).rejects.toMatchObject({
+  it('UT-MIM-004: rejects creation when a later modifier is missing or inactive', async () => {
+    modifiers.findOne
+      .mockResolvedValueOnce({ modifier_id: 'modifier-id', is_active: true })
+      .mockResolvedValueOnce(null);
+    await expect(service.createMany('menu-id', create)).rejects.toMatchObject({
       status: 404,
       response: { code: 'MODIFIER_NOT_FOUND' },
     });
-    expect(repository.create).not.toHaveBeenCalled();
+    expect(repository.createMany).not.toHaveBeenCalled();
   });
 
   it('UT-MIM-005: preserves duplicate-pair errors for the application exception filter', async () => {
@@ -141,8 +153,8 @@ describe('MenuItemModifiersService operations', () => {
       'Duplicate assignment',
       { code: 'P2002', clientVersion: '7.10.1' },
     );
-    repository.create.mockRejectedValueOnce(error);
-    await expect(service.create(create)).rejects.toBe(error);
+    repository.createMany.mockRejectedValueOnce(error);
+    await expect(service.createMany('menu-id', create)).rejects.toBe(error);
   });
 
   it('UT-MIM-006: finds an assignment together with its modifier', async () => {
@@ -232,8 +244,8 @@ describe('MenuItemModifiersService operations', () => {
       true,
       undefined,
     );
-    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith(
-      'modifier-id',
+    expect(modifiers.findOne).toHaveBeenCalledWith(
+      { modifier_id: 'modifier-id' },
       true,
       undefined,
     );
@@ -249,12 +261,12 @@ describe('MenuItemModifiersService operations', () => {
   it('UT-MIM-015: validates a replacement modifier instead of the previous modifier', async () => {
     const dto = { modifier_id: 'replacement-id', additional_price: 0 };
     await service.update('assignment-id', dto);
-    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith(
-      'replacement-id',
+    expect(modifiers.findOne).toHaveBeenCalledWith(
+      { modifier_id: 'replacement-id' },
       true,
       undefined,
     );
-    expect(modifiers.findOneModifierByUID).toHaveBeenCalledTimes(1);
+    expect(modifiers.findOne).toHaveBeenCalledTimes(1);
     expect(repository.update).toHaveBeenCalledWith(
       'assignment-id',
       dto,
@@ -262,52 +274,13 @@ describe('MenuItemModifiersService operations', () => {
     );
   });
 
-  it('UT-MIM-016: reactivates an unavailable assignment after checking its active references', async () => {
-    repository.findOne.mockResolvedValue({
-      ...assignment,
-      is_available: false,
-    });
-    await expect(service.reactivate('assignment-id')).resolves.toEqual(
-      assignment,
-    );
-    expect(repository.findOne).toHaveBeenCalledWith(
-      'assignment-id',
-      false,
-      undefined,
-    );
-    expect(menuItems.findOneMenuItemByUID).toHaveBeenCalledWith(
-      'menu-id',
-      true,
-      undefined,
-    );
-    expect(modifiers.findOneModifierByUID).toHaveBeenCalledWith(
-      'modifier-id',
-      true,
-      undefined,
-    );
-    expect(repository.reactivate).toHaveBeenCalledWith(
-      'assignment-id',
-      undefined,
-    );
-  });
-
-  it('UT-MIM-017: rejects reactivation of an already-available assignment before checking references', async () => {
-    await expect(service.reactivate('assignment-id')).rejects.toMatchObject({
-      status: 409,
-      response: { code: 'MENU_ITEM_MODIFIER_ALREADY_ACTIVE' },
-    });
-    expect(repository.reactivate).not.toHaveBeenCalled();
-    expect(menuItems.findOneMenuItemByUID).not.toHaveBeenCalled();
-    expect(modifiers.findOneModifierByUID).not.toHaveBeenCalled();
-  });
-
   it('UT-MIM-018: deletes an assignment even when its parent references are inactive', async () => {
     menuItems.findOneMenuItemByUID.mockResolvedValue(null);
-    modifiers.findOneModifierByUID.mockResolvedValue(null);
+    modifiers.findOne.mockResolvedValue(null);
     await expect(service.delete('assignment-id')).resolves.toEqual(assignment);
     expect(repository.delete).toHaveBeenCalledWith('assignment-id', undefined);
     expect(menuItems.findOneMenuItemByUID).not.toHaveBeenCalled();
-    expect(modifiers.findOneModifierByUID).not.toHaveBeenCalled();
+    expect(modifiers.findOne).not.toHaveBeenCalled();
   });
 
   const mutations = [
@@ -315,11 +288,6 @@ describe('MenuItemModifiersService operations', () => {
       name: 'update',
       record: assignment,
       run: () => service.update('assignment-id', { additional_price: 25 }),
-    },
-    {
-      name: 'reactivate',
-      record: { ...assignment, is_available: false },
-      run: () => service.reactivate('assignment-id'),
     },
     {
       name: 'delete',
@@ -337,10 +305,9 @@ describe('MenuItemModifiersService operations', () => {
         response: { code: 'MENU_ITEM_MODIFIER_NOT_FOUND' },
       });
       expect(repository.update).not.toHaveBeenCalled();
-      expect(repository.reactivate).not.toHaveBeenCalled();
       expect(repository.delete).not.toHaveBeenCalled();
       expect(menuItems.findOneMenuItemByUID).not.toHaveBeenCalled();
-      expect(modifiers.findOneModifierByUID).not.toHaveBeenCalled();
+      expect(modifiers.findOne).not.toHaveBeenCalled();
     },
   );
 
@@ -361,11 +328,6 @@ describe('MenuItemModifiersService operations', () => {
       run: () =>
         service.update('assignment-id', { modifier_id: 'replacement-id' }),
     },
-    {
-      name: 'reactivate',
-      record: { ...assignment, is_available: false },
-      run: () => service.reactivate('assignment-id'),
-    },
   ] as const;
 
   it.each(checkedMutations)(
@@ -378,8 +340,7 @@ describe('MenuItemModifiersService operations', () => {
         response: { code: 'MENU_ITEM_NOT_FOUND' },
       });
       expect(repository.update).not.toHaveBeenCalled();
-      expect(repository.reactivate).not.toHaveBeenCalled();
-      expect(modifiers.findOneModifierByUID).not.toHaveBeenCalled();
+      expect(modifiers.findOne).not.toHaveBeenCalled();
     },
   );
 
@@ -387,13 +348,12 @@ describe('MenuItemModifiersService operations', () => {
     'UT-MIM-022: $name rejects a missing or inactive modifier before writing',
     async ({ record, run }) => {
       repository.findOne.mockResolvedValue(record);
-      modifiers.findOneModifierByUID.mockResolvedValue(null);
+      modifiers.findOne.mockResolvedValue(null);
       await expect(run()).rejects.toMatchObject({
         status: 404,
         response: { code: 'MODIFIER_NOT_FOUND' },
       });
       expect(repository.update).not.toHaveBeenCalled();
-      expect(repository.reactivate).not.toHaveBeenCalled();
     },
   );
 });
@@ -407,7 +367,7 @@ describe('Menu item modifiers persistence', () => {
   let repository: MenuItemModifiersRepository;
   let prisma: {
     menuItemModifier: {
-      create: jest.Mock;
+      createManyAndReturn: jest.Mock;
       findUnique: jest.Mock;
       findMany: jest.Mock;
       count: jest.Mock;
@@ -420,7 +380,7 @@ describe('Menu item modifiers persistence', () => {
   beforeEach(() => {
     prisma = {
       menuItemModifier: {
-        create: jest.fn().mockResolvedValue(assignment),
+        createManyAndReturn: jest.fn().mockResolvedValue([assignment]),
         findUnique: jest.fn().mockResolvedValue(assignment),
         findMany: jest.fn().mockResolvedValue([assignment]),
         count: jest.fn().mockResolvedValue(1),
@@ -434,14 +394,27 @@ describe('Menu item modifiers persistence', () => {
     );
   });
 
-  it('UT-MIM-023: creates an assignment and leaves timestamps and availability to database defaults', async () => {
-    const dto = {
-      menu_item_id: 'menu-id',
-      modifier_id: 'modifier-id',
-      additional_price: 20,
-    };
-    await expect(repository.create(dto)).resolves.toEqual(assignment);
-    expect(prisma.menuItemModifier.create).toHaveBeenCalledWith({ data: dto });
+  it('UT-MIM-023: creates assignments in one insert for the menu item and leaves timestamps to database defaults', async () => {
+    await expect(
+      repository.createMany('menu-id', [
+        { modifier_id: 'modifier-id', additional_price: 20 },
+        { modifier_id: 'second-modifier-id' },
+      ]),
+    ).resolves.toEqual([assignment]);
+    expect(prisma.menuItemModifier.createManyAndReturn).toHaveBeenCalledWith({
+      data: [
+        {
+          menu_item_id: 'menu-id',
+          modifier_id: 'modifier-id',
+          additional_price: 20,
+        },
+        {
+          menu_item_id: 'menu-id',
+          modifier_id: 'second-modifier-id',
+          additional_price: undefined,
+        },
+      ],
+    });
   });
 
   it('UT-MIM-024: looks up, lists, and counts assignments without an availability filter', async () => {
@@ -538,16 +511,6 @@ describe('Menu item modifiers persistence', () => {
     },
   );
 
-  it('UT-MIM-029: reactivates an unavailable assignment without changing its references', async () => {
-    await expect(repository.reactivate('assignment-id')).resolves.toEqual(
-      assignment,
-    );
-    expect(prisma.menuItemModifier.update).toHaveBeenCalledWith({
-      where: { menu_item_modifier_id: 'assignment-id', is_available: false },
-      data: { is_available: true, modified_at: expect.any(Date) as Date },
-    });
-  });
-
   it('UT-MIM-030: permanently deletes an assignment', async () => {
     await expect(repository.delete('assignment-id')).resolves.toEqual(
       assignment,
@@ -561,15 +524,17 @@ describe('Menu item modifiers persistence', () => {
   it('UT-MIM-031: uses the supplied transaction client for all non-paginated operations', async () => {
     const tx = {
       menuItemModifier: {
-        create: jest.fn().mockResolvedValue(assignment),
+        createManyAndReturn: jest.fn().mockResolvedValue([assignment]),
         findUnique: jest.fn().mockResolvedValue(assignment),
         findMany: jest.fn().mockResolvedValue([assignment]),
         update: jest.fn().mockResolvedValue(assignment),
+        delete: jest.fn().mockResolvedValue(assignment),
       },
     };
     const transaction = tx as unknown as Prisma.TransactionClient;
-    await repository.create(
-      { menu_item_id: 'menu-id', modifier_id: 'modifier-id' },
+    await repository.createMany(
+      'menu-id',
+      [{ modifier_id: 'modifier-id' }],
       transaction,
     );
     await repository.findOne('assignment-id', transaction);
@@ -579,16 +544,17 @@ describe('Menu item modifiers persistence', () => {
       { additional_price: 20 },
       transaction,
     );
-    await repository.reactivate('assignment-id', transaction);
     await repository.delete('assignment-id', transaction);
-    expect(tx.menuItemModifier.create).toHaveBeenCalledTimes(1);
+    expect(tx.menuItemModifier.createManyAndReturn).toHaveBeenCalledTimes(1);
     expect(tx.menuItemModifier.findUnique).toHaveBeenCalledTimes(1);
     expect(tx.menuItemModifier.findMany).toHaveBeenCalledTimes(1);
-    expect(tx.menuItemModifier.update).toHaveBeenCalledTimes(3);
-    expect(prisma.menuItemModifier.create).not.toHaveBeenCalled();
+    expect(tx.menuItemModifier.update).toHaveBeenCalledTimes(1);
+    expect(tx.menuItemModifier.delete).toHaveBeenCalledTimes(1);
+    expect(prisma.menuItemModifier.createManyAndReturn).not.toHaveBeenCalled();
     expect(prisma.menuItemModifier.findUnique).not.toHaveBeenCalled();
     expect(prisma.menuItemModifier.findMany).not.toHaveBeenCalled();
     expect(prisma.menuItemModifier.update).not.toHaveBeenCalled();
+    expect(prisma.menuItemModifier.delete).not.toHaveBeenCalled();
   });
 
   it('UT-MIM-032: preserves database constraint errors for the application filters', async () => {

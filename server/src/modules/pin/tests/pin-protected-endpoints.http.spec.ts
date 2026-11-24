@@ -37,17 +37,15 @@ describe('PIN protection on business endpoints', () => {
     { method: 'post', path: '/brands' },
     { method: 'patch', path: `/brands/${id}` },
     { method: 'delete', path: `/brands/${id}` },
-    ...[
-      'menu-items',
-      'menu-channels',
-      'modifiers',
-      'menu-item-modifiers',
-    ].flatMap((resource) => [
+    ...['menu-items', 'menu-channels', 'modifiers'].flatMap((resource) => [
       { method: 'post' as const, path: `/${resource}` },
       { method: 'patch' as const, path: `/${resource}/${id}` },
       { method: 'patch' as const, path: `/${resource}/reactivate/${id}` },
       { method: 'delete' as const, path: `/${resource}/${id}` },
     ]),
+    // Assignments are created through the catalog and hard deleted.
+    { method: 'patch', path: `/menu-item-modifiers/${id}` },
+    { method: 'delete', path: `/menu-item-modifiers/${id}` },
   ];
   const body = { brand_id: brandId, menu_item_id: id, modifier_id: id };
   let app: INestApplication<Server>;

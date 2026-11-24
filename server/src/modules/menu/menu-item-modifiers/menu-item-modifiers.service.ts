@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { MenuItemModifiersRepository } from './menu-item-modifiers.repository';
 import { MenuItemsRepository } from '../menu-items/menu-items.repository';
@@ -142,9 +142,10 @@ export class MenuItemModifiersService {
       this.logger,
     );
 
+    // A replacement modifier must be active; otherwise recheck the current one.
     await this.assertActiveReferences(
       menuItemModifier.menu_item_id,
-      menuItemModifier.modifier_id,
+      dto.modifier_id ?? menuItemModifier.modifier_id,
       tx,
     );
 

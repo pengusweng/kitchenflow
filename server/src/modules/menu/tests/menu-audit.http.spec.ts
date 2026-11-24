@@ -74,12 +74,10 @@ describe('Menu audit logging', () => {
       'delete',
     ]),
     itemModifiers: mockService([
-      'create',
       'findAll',
       'findManyForMenuItem',
       'findOne',
       'update',
-      'reactivate',
       'delete',
     ]),
   };
@@ -181,10 +179,13 @@ describe('Menu audit logging', () => {
       routeId,
     ],
     ...crud('/modifiers', 'MODIFIER', 'modifiers'),
+    // Assignments are created through the catalog and have no reactivate route.
     ...crud(
       '/menu-item-modifiers',
       'MENU_ITEM_MODIFIER',
       'menu_item_modifiers',
+    ).filter(
+      ([method, path]) => method !== 'POST' && !path.includes('reactivate'),
     ),
   ])(
     'IT-MENU-001: Given a superadmin, When %s %s succeeds, Then audit %s on %s for the affected record',

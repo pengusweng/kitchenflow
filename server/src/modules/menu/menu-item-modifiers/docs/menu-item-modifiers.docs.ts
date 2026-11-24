@@ -42,30 +42,6 @@ export function MenuItemModifiersDocs() {
   );
 }
 
-export function CreateMenuItemModifierDocs() {
-  return applyDecorators(
-    ApiOperation({
-      summary: 'Assign a modifier to a menu item.',
-      description:
-        'Available to managers, recipe managers, and superadmins across brands. The menu item and modifier must be active. Additional price defaults to zero and availability defaults to true. Each menu item and modifier pair must be unique.',
-    }),
-    ApiResponse({
-      status: 201,
-      description:
-        'Created assignment. Decimal prices are serialized as strings.',
-      content: { 'application/json': { example: assignmentExample } },
-    }),
-    ApiResponse({
-      status: 404,
-      description: 'Menu item or modifier not found or inactive.',
-    }),
-    ApiResponse({
-      status: 409,
-      description: 'Modifier is already assigned to this menu item.',
-    }),
-  );
-}
-
 export function FindAllMenuItemModifiersDocs() {
   return applyDecorators(
     ApiOperation({
@@ -166,7 +142,7 @@ export function UpdateMenuItemModifierDocs() {
     ApiOperation({
       summary: 'Update a menu item modifier assignment.',
       description:
-        'Available to managers, recipe managers, and superadmins across brands. Only additional_price and modifier_id can change. The assignment must be available, and its menu item and resulting modifier must be active.',
+        'Available to managers, recipe managers, and superadmins across brands. Only additional_price and modifier_id can change. The menu item and the resulting modifier (the replacement when modifier_id is sent) must be active. To add assignments, use PATCH /menu-catalog/:id.',
     }),
     ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } }),
     ApiResponse({
@@ -191,38 +167,6 @@ export function UpdateMenuItemModifierDocs() {
       status: 409,
       description:
         'Replacement modifier is already assigned to this menu item.',
-    }),
-  );
-}
-
-export function ReactivateMenuItemModifierDocs() {
-  return applyDecorators(
-    ApiOperation({
-      summary: 'Reactivate a menu item modifier assignment.',
-      description:
-        'Available to managers, recipe managers, and superadmins across brands. Sets an unavailable assignment back to available after validating its active menu item and modifier.',
-    }),
-    ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } }),
-    ApiResponse({
-      status: 200,
-      description: 'Reactivated assignment with is_available set to true.',
-      content: {
-        'application/json': {
-          example: {
-            ...assignmentExample,
-            is_available: true,
-            modified_at: '2026-10-31T09:00:00.000Z',
-          },
-        },
-      },
-    }),
-    ApiResponse({
-      status: 404,
-      description: 'Assignment or active menu item/modifier not found.',
-    }),
-    ApiResponse({
-      status: 409,
-      description: 'Assignment is already available.',
     }),
   );
 }
