@@ -42,15 +42,6 @@ class CurrentMenuCard extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(compact ? KkfcRadius.sm : 10.0),
             border: Border.all(color: const Color(0xFFDDD6C9), width: 1.0),
-            boxShadow: compact
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ]
-                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

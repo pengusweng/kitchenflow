@@ -91,19 +91,10 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
                 borderRadius: BorderRadius.circular(KkfcRadius.sm),
                 border: Border.all(
                   color: _searchFocused
-                      ? const Color(0xFF1F66C9) // Focus Blue
-                      : const Color(0xFF76849A),
+                      ? KkfcColors.focus
+                      : KkfcColors.border,
                   width: _searchFocused ? 1.5 : 1.0,
                 ),
-                boxShadow: _searchFocused
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFF1F66C9).withValues(alpha: 0.15),
-                          blurRadius: 6,
-                          offset: const Offset(0, 1),
-                        ),
-                      ]
-                    : null,
               ),
               child: TextField(
                 controller: _searchController,
@@ -151,26 +142,15 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
                           splashRadius: 16.0,
                         )
                       : (showTrailingBadge
-                          ? Container(
-                              margin: const EdgeInsets.symmetric(
-                                vertical: 6.0,
-                                horizontal: 6.0,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6.0,
-                                vertical: 2.0,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF4EFE6),
-                                borderRadius: BorderRadius.circular(KkfcRadius.sm),
-                              ),
+                          ? Padding(
+                              padding: const EdgeInsets.only(right: 10.0),
                               child: Text(
                                 'Showing $visibleCount item${visibleCount == 1 ? '' : 's'}',
                                 style: const TextStyle(
                                   fontFamily: KkfcFonts.ibmPlexSans,
-                                  fontSize: 11.0,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF586579),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: KkfcColors.ink3,
                                 ),
                               ),
                             )

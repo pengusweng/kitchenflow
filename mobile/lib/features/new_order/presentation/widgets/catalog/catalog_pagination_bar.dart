@@ -6,7 +6,8 @@ import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 
-/// Pagination footer bar for the menu catalog (16 items per page).
+/// Simplified, low-chrome pagination footer that blends into the warm sand
+/// canvas (16 items per page).
 class CatalogPaginationBar extends StatelessWidget {
   const CatalogPaginationBar({
     super.key,
@@ -23,7 +24,11 @@ class CatalogPaginationBar extends StatelessWidget {
   final int pageSize;
   final ValueChanged<int> onPageChanged;
 
-  List<int?> _buildPageSequence(int current, int total, {required bool compact}) {
+  List<int?> _buildPageSequence(
+    int current,
+    int total, {
+    required bool compact,
+  }) {
     if (compact && total > 3) {
       return <int?>[current];
     }
@@ -52,7 +57,7 @@ class CatalogPaginationBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 360.0;
-        final showRangeSummary = constraints.maxWidth >= 440.0;
+        final showRangeSummary = constraints.maxWidth >= 420.0;
         final pages = _buildPageSequence(
           safeCurrentPage,
           safeTotalPages,
@@ -65,8 +70,8 @@ class CatalogPaginationBar extends StatelessWidget {
           style: const TextStyle(
             fontFamily: KkfcFonts.ibmPlexSans,
             fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF586579),
+            fontWeight: FontWeight.w500,
+            color: KkfcColors.ink3,
             fontFeatures: [FontFeature.tabularFigures()],
           ),
         );
@@ -81,19 +86,19 @@ class CatalogPaginationBar extends StatelessWidget {
               enabled: canGoPrev,
               onTap: () => onPageChanged(safeCurrentPage - 1),
             ),
-            const SizedBox(width: 6.0),
+            const SizedBox(width: 2.0),
             for (var i = 0; i < pages.length; i++) ...[
-              if (i > 0) const SizedBox(width: 4.0),
+              if (i > 0) const SizedBox(width: 2.0),
               if (pages[i] == null)
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4.0),
+                  padding: EdgeInsets.symmetric(horizontal: 6.0),
                   child: Text(
                     '…',
                     style: TextStyle(
                       fontFamily: KkfcFonts.ibmPlexSans,
-                      fontSize: 13.0,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF586579),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: KkfcColors.ink3,
                     ),
                   ),
                 )
@@ -105,19 +110,19 @@ class CatalogPaginationBar extends StatelessWidget {
                 ),
             ],
             if (isCompact && safeTotalPages > 3) ...[
-              const SizedBox(width: 6.0),
+              const SizedBox(width: 4.0),
               Text(
                 '/ $safeTotalPages',
                 style: const TextStyle(
                   fontFamily: KkfcFonts.ibmPlexSans,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF586579),
+                  fontSize: 12.0,
+                  fontWeight: FontWeight.w500,
+                  color: KkfcColors.ink3,
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),
             ],
-            const SizedBox(width: 6.0),
+            const SizedBox(width: 2.0),
             _PaginationNavButton(
               buttonKey: const ValueKey('menu-pagination-next'),
               icon: Icons.chevron_right_rounded,
@@ -130,11 +135,11 @@ class CatalogPaginationBar extends StatelessWidget {
 
         return Container(
           key: const ValueKey('menu-pagination-bar'),
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(KkfcRadius.sm),
-            border: Border.all(color: const Color(0xFFDDD6C9), width: 1.0),
+          padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(color: KkfcColors.divider, width: 1.0),
+            ),
           ),
           child: showRangeSummary
               ? Row(
@@ -168,7 +173,7 @@ class _PaginationNavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = enabled ? const Color(0xFF19293E) : const Color(0xFFB5AFA4);
+    final fg = enabled ? KkfcColors.ink2 : const Color(0xFFC2BBB0);
 
     return Semantics(
       button: true,
@@ -187,19 +192,9 @@ class _PaginationNavButton extends StatelessWidget {
                     onTap();
                   }
                 : null,
-            child: Ink(
-              width: 34.0,
-              height: 34.0,
-              decoration: BoxDecoration(
-                color: enabled ? const Color(0xFFF4EFE6) : const Color(0xFFF9F6F0),
-                borderRadius: BorderRadius.circular(KkfcRadius.sm),
-                border: Border.all(
-                  color: enabled
-                      ? const Color(0xFFDDD6C9)
-                      : const Color(0xFFEAE4D8),
-                  width: 1.0,
-                ),
-              ),
+            child: SizedBox(
+              width: 32.0,
+              height: 32.0,
               child: Center(
                 child: Icon(icon, size: 18.0, color: fg),
               ),
@@ -224,9 +219,8 @@ class _PaginationPageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const selectedBg = Color(0xFF1D2940);
-    final bg = isSelected ? selectedBg : Colors.white;
-    final fg = isSelected ? Colors.white : const Color(0xFF19293E);
+    final bg = isSelected ? KkfcColors.selected : Colors.transparent;
+    final fg = isSelected ? Colors.white : KkfcColors.ink2;
 
     return Semantics(
       button: true,
@@ -244,18 +238,14 @@ class _PaginationPageButton extends StatelessWidget {
             }
           },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+            duration: const Duration(milliseconds: 150),
             curve: Curves.easeOutCubic,
-            constraints: const BoxConstraints(minWidth: 34.0),
-            height: 34.0,
+            constraints: const BoxConstraints(minWidth: 32.0),
+            height: 32.0,
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(KkfcRadius.sm),
-              border: Border.all(
-                color: isSelected ? selectedBg : const Color(0xFFDDD6C9),
-                width: 1.0,
-              ),
             ),
             child: Center(
               child: Text(
@@ -263,7 +253,8 @@ class _PaginationPageButton extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: KkfcFonts.ibmPlexSans,
                   fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
+                  fontWeight:
+                      isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: fg,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),

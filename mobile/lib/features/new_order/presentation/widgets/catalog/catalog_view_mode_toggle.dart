@@ -16,12 +16,8 @@ class CatalogViewModeToggle extends ConsumerWidget {
     return Container(
       height: 40.0,
       decoration: BoxDecoration(
-        color: const Color(0xFFF0EAE1),
+        color: KkfcColors.canvasSunken,
         borderRadius: BorderRadius.circular(KkfcRadius.sm),
-        border: Border.all(
-          color: const Color(0xFFDDD6C9),
-          width: 1.0,
-        ),
       ),
       padding: const EdgeInsets.all(3.0),
       child: Row(
