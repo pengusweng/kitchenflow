@@ -247,20 +247,32 @@ class MenuCatalogView extends ConsumerWidget {
                 final pageItems = items.sublist(startIndex, endIndex);
 
                 if (viewMode == MenuViewMode.grid) {
+                  final screenWidth = MediaQuery.sizeOf(context).width;
+                  final isTabletOrDesktop = screenWidth >= 600.0;
+
+                  final gridDelegate = !isTabletOrDesktop
+                      ? const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12.0,
+                          mainAxisSpacing: 12.0,
+                          childAspectRatio: 1.0,
+                        )
+                      : (screenWidth >= 1400.0
+                          ? const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 220.0,
+                              crossAxisSpacing: 16.0,
+                              mainAxisSpacing: 16.0,
+                              childAspectRatio: 1.0,
+                            )
+                          : const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 16.0,
+                              mainAxisSpacing: 16.0,
+                              childAspectRatio: 1.0,
+                            ));
+
                   return SliverGrid.builder(
-                    gridDelegate: isWide
-                        ? const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 220.0,
-                            crossAxisSpacing: 16.0,
-                            mainAxisSpacing: 16.0,
-                            childAspectRatio: 1.0,
-                          )
-                        : const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12.0,
-                            mainAxisSpacing: 12.0,
-                            childAspectRatio: 1.0,
-                          ),
+                    gridDelegate: gridDelegate,
                     itemCount: pageItems.length,
                     itemBuilder: (context, index) => _AnimatedCatalogItem(
                       key: ValueKey(

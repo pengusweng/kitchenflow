@@ -48,6 +48,8 @@ class _MenuGridSkeletonState extends State<MenuGridSkeleton>
   @override
   Widget build(BuildContext context) {
     final isWide = widget.isWide ?? (MediaQuery.sizeOf(context).width >= 850.0);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isTabletOrDesktop = screenWidth >= 600.0;
 
     return Semantics(
       label: 'Loading menu',
@@ -55,23 +57,32 @@ class _MenuGridSkeletonState extends State<MenuGridSkeleton>
         animation: _shimmer,
         builder: (context, _) {
           if (widget.viewMode == MenuViewMode.grid) {
+            final gridDelegate = !isTabletOrDesktop
+                ? const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12.0,
+                    mainAxisSpacing: 12.0,
+                    childAspectRatio: 1.0,
+                  )
+                : (screenWidth >= 1400.0
+                    ? const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 220.0,
+                        crossAxisSpacing: 16.0,
+                        mainAxisSpacing: 16.0,
+                        childAspectRatio: 1.0,
+                      )
+                    : const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 16.0,
+                        mainAxisSpacing: 16.0,
+                        childAspectRatio: 1.0,
+                      ));
+
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: isWide
-                  ? const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 220.0,
-                      crossAxisSpacing: 16.0,
-                      mainAxisSpacing: 16.0,
-                      childAspectRatio: 1.0,
-                    )
-                  : const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12.0,
-                      mainAxisSpacing: 12.0,
-                      childAspectRatio: 1.0,
-                    ),
-              itemCount: isWide ? 6 : 4,
+              gridDelegate: gridDelegate,
+              itemCount: isTabletOrDesktop ? 8 : 4,
               itemBuilder: (context, index) => _SkeletonGridCard(
                 index: index,
                 shimmerValue: _shimmer.value,

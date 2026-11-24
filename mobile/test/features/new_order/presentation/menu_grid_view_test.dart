@@ -174,5 +174,148 @@ void main() {
         expect(find.byType(MenuItemGridCard), findsWidgets);
       },
     );
+
+    testWidgets(
+      'WT-MOB-GRID-008 Grid view displays exactly 4 cards per row on iPad vertical (portrait 768x1024)',
+      (tester) async {
+        const fiveItems = [
+          MenuItem(
+            id: 'item-1',
+            name: 'Item 1',
+            description: 'Item 1 desc',
+            pricesCentavos: {MenuChannel.dineIn: 10000},
+          ),
+          MenuItem(
+            id: 'item-2',
+            name: 'Item 2',
+            description: 'Item 2 desc',
+            pricesCentavos: {MenuChannel.dineIn: 10000},
+          ),
+          MenuItem(
+            id: 'item-3',
+            name: 'Item 3',
+            description: 'Item 3 desc',
+            pricesCentavos: {MenuChannel.dineIn: 10000},
+          ),
+          MenuItem(
+            id: 'item-4',
+            name: 'Item 4',
+            description: 'Item 4 desc',
+            pricesCentavos: {MenuChannel.dineIn: 10000},
+          ),
+          MenuItem(
+            id: 'item-5',
+            name: 'Item 5',
+            description: 'Item 5 desc',
+            pricesCentavos: {MenuChannel.dineIn: 10000},
+          ),
+        ];
+
+        tester.view.physicalSize = const Size(768, 1024);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+
+        final container = ProviderContainer(
+          overrides: [
+            menuItemsProvider.overrideWith((ref) async => fiveItems),
+            menuViewModeProvider.overrideWith(() => _TestViewModeNotifier(MenuViewMode.grid)),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: counterTheme,
+              home: const Scaffold(body: MenuScreen()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(MenuItemGridCard), findsNWidgets(5));
+
+        // First 4 cards must be on the EXACT same vertical row (identical dy)
+        final y1 = tester.getTopLeft(find.text('Item 1')).dy;
+        final y2 = tester.getTopLeft(find.text('Item 2')).dy;
+        final y3 = tester.getTopLeft(find.text('Item 3')).dy;
+        final y4 = tester.getTopLeft(find.text('Item 4')).dy;
+        expect(y2, equals(y1));
+        expect(y3, equals(y1));
+        expect(y4, equals(y1));
+
+        // The 5th card must wrap to row 2 (strictly greater dy)
+        final y5 = tester.getTopLeft(find.text('Item 5')).dy;
+        expect(y5, greaterThan(y1));
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-GRID-009 Grid view displays exactly 4 cards per row on iPad 11" vertical (portrait 834x1194)',
+      (tester) async {
+        const fourItems = [
+          MenuItem(
+            id: 'item-1',
+            name: 'Item 1',
+            description: 'Item 1 desc',
+            pricesCentavos: {MenuChannel.dineIn: 10000},
+          ),
+          MenuItem(
+            id: 'item-2',
+            name: 'Item 2',
+            description: 'Item 2 desc',
+            pricesCentavos: {MenuChannel.dineIn: 10000},
+          ),
+          MenuItem(
+            id: 'item-3',
+            name: 'Item 3',
+            description: 'Item 3 desc',
+            pricesCentavos: {MenuChannel.dineIn: 10000},
+          ),
+          MenuItem(
+            id: 'item-4',
+            name: 'Item 4',
+            description: 'Item 4 desc',
+            pricesCentavos: {MenuChannel.dineIn: 10000},
+          ),
+        ];
+
+        tester.view.physicalSize = const Size(834, 1194);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+
+        final container = ProviderContainer(
+          overrides: [
+            menuItemsProvider.overrideWith((ref) async => fourItems),
+            menuViewModeProvider.overrideWith(() => _TestViewModeNotifier(MenuViewMode.grid)),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: counterTheme,
+              home: const Scaffold(body: MenuScreen()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(MenuItemGridCard), findsNWidgets(4));
+
+        final y1 = tester.getTopLeft(find.text('Item 1')).dy;
+        final y2 = tester.getTopLeft(find.text('Item 2')).dy;
+        final y3 = tester.getTopLeft(find.text('Item 3')).dy;
+        final y4 = tester.getTopLeft(find.text('Item 4')).dy;
+        expect(y2, equals(y1));
+        expect(y3, equals(y1));
+        expect(y4, equals(y1));
+      },
+    );
   });
 }
