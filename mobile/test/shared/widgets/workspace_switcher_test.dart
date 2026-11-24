@@ -173,7 +173,9 @@ void main() {
 
         final container = ProviderContainer(
           overrides: [
-            userRoleProvider.overrideWith(() => _FixedRole(UserRole.superadmin)),
+            userRoleProvider.overrideWith(
+              () => _FixedRole(UserRole.superadmin),
+            ),
           ],
         );
         addTearDown(container.dispose);
@@ -182,9 +184,7 @@ void main() {
           UncontrolledProviderScope(
             container: container,
             child: const MaterialApp(
-              home: Scaffold(
-                appBar: AppHeader(title: 'Orders'),
-              ),
+              home: Scaffold(appBar: AppHeader(title: 'Orders')),
             ),
           ),
         );
@@ -194,7 +194,10 @@ void main() {
         expect(tester.takeException(), isNull);
 
         // Verify WorkspaceSwitcher, LogoutButton, and AppHeaderRoleChip are present
-        expect(find.byKey(const ValueKey('workspace-switcher')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('workspace-switcher')),
+          findsOneWidget,
+        );
         expect(find.byType(LogoutButton), findsOneWidget);
         expect(find.byType(AppHeaderRoleChip), findsOneWidget);
 
@@ -206,18 +209,29 @@ void main() {
         expect(roleTextFinder, findsOneWidget);
 
         final roleTextSize = tester.getSize(roleTextFinder);
-        expect(roleTextSize.width, greaterThan(30.0),
-            reason: 'Role pill text must not be crushed or hidden on $phoneSize');
+        expect(
+          roleTextSize.width,
+          greaterThan(30.0),
+          reason: 'Role pill text must not be crushed or hidden on $phoneSize',
+        );
 
         // WorkspaceSwitcher is compact
-        final switcherSize = tester.getSize(find.byKey(const ValueKey('workspace-switcher')));
-        expect(switcherSize.width, lessThan(90.0),
-            reason: 'WorkspaceSwitcher should have compact footprint');
+        final switcherSize = tester.getSize(
+          find.byKey(const ValueKey('workspace-switcher')),
+        );
+        expect(
+          switcherSize.width,
+          lessThan(90.0),
+          reason: 'WorkspaceSwitcher should have compact footprint',
+        );
 
         // LogoutButton is compact
         final logoutSize = tester.getSize(find.byType(LogoutButton));
-        expect(logoutSize.width, lessThanOrEqualTo(36.0),
-            reason: 'LogoutButton should have compact footprint');
+        expect(
+          logoutSize.width,
+          lessThanOrEqualTo(36.0),
+          reason: 'LogoutButton should have compact footprint',
+        );
       }
     },
   );
@@ -238,7 +252,9 @@ void main() {
       expect(theme.data.splashColor, Colors.transparent);
       expect(theme.data.splashFactory, NoSplash.splashFactory);
 
-      final arrowFinder = find.byKey(const ValueKey('workspace-switcher-arrow'));
+      final arrowFinder = find.byKey(
+        const ValueKey('workspace-switcher-arrow'),
+      );
       expect(arrowFinder, findsOneWidget);
 
       // Initially closed: arrow points down (0.0 turns)

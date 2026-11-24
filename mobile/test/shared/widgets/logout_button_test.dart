@@ -112,11 +112,7 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: LogoutButton(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: LogoutButton())),
       );
       await tester.pumpAndSettle();
 

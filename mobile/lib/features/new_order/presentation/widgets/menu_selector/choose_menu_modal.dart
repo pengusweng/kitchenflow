@@ -155,8 +155,9 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                           style: FilledButton.styleFrom(
                             backgroundColor: KkfcColors.shell,
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(KkfcRadius.md),
+                              borderRadius: BorderRadius.circular(
+                                KkfcRadius.md,
+                              ),
                             ),
                           ),
                           child: Text(
@@ -191,8 +192,9 @@ class _ChooseMenuModalState extends ConsumerState<ChooseMenuModal> {
                               width: 1.0,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(KkfcRadius.md),
+                              borderRadius: BorderRadius.circular(
+                                KkfcRadius.md,
+                              ),
                             ),
                           ),
                           child: const Text(

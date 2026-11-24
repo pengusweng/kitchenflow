@@ -65,10 +65,7 @@ void main() {
         expect(find.text('3 ASSIGNED BRANDS'), findsNothing);
         expect(find.byIcon(Icons.storefront_outlined), findsNothing);
         expect(find.text('Choose provider'), findsOneWidget);
-        expect(
-          find.text('Choose the provider for this menu.'),
-          findsOneWidget,
-        );
+        expect(find.text('Choose the provider for this menu.'), findsOneWidget);
 
         // 2. All 3 brand cards are rendered with proper brand names
         expect(find.text('Gamcheon'), findsOneWidget);
@@ -162,9 +159,7 @@ void main() {
 
         // 8. Tap Aurelia's Inasal to select it
         await tester.tap(
-          find.byKey(
-            ValueKey('select-provider-${sampleAssignedBrands[1].id}'),
-          ),
+          find.byKey(ValueKey('select-provider-${sampleAssignedBrands[1].id}')),
         );
         await tester.pumpAndSettle();
 

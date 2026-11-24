@@ -129,7 +129,9 @@ class _ToggleSegmentState extends State<_ToggleSegment> {
                   duration: KkfcMotion.durMicro,
                   child: Icon(
                     widget.icon,
-                    key: ValueKey('${widget.icon.codePoint}-${widget.isSelected}'),
+                    key: ValueKey(
+                      '${widget.icon.codePoint}-${widget.isSelected}',
+                    ),
                     size: 18.0,
                     color: fg,
                   ),

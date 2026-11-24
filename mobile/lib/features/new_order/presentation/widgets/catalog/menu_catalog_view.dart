@@ -228,8 +228,10 @@ class MenuCatalogView extends ConsumerWidget {
                 }
 
                 final startIndex = (currentPage - 1) * kMenuItemsPerPage;
-                final endIndex =
-                    (startIndex + kMenuItemsPerPage).clamp(0, items.length);
+                final endIndex = (startIndex + kMenuItemsPerPage).clamp(
+                  0,
+                  items.length,
+                );
                 final pageItems = items.sublist(startIndex, endIndex);
 
                 if (viewMode == MenuViewMode.grid) {
@@ -244,26 +246,24 @@ class MenuCatalogView extends ConsumerWidget {
                           childAspectRatio: 1.0,
                         )
                       : (screenWidth >= 1400.0
-                          ? const SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: 220.0,
-                              crossAxisSpacing: 16.0,
-                              mainAxisSpacing: 16.0,
-                              childAspectRatio: 1.0,
-                            )
-                          : const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 4,
-                              crossAxisSpacing: 16.0,
-                              mainAxisSpacing: 16.0,
-                              childAspectRatio: 1.0,
-                            ));
+                            ? const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 220.0,
+                                crossAxisSpacing: 16.0,
+                                mainAxisSpacing: 16.0,
+                                childAspectRatio: 1.0,
+                              )
+                            : const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4,
+                                crossAxisSpacing: 16.0,
+                                mainAxisSpacing: 16.0,
+                                childAspectRatio: 1.0,
+                              ));
 
                   return SliverGrid.builder(
                     gridDelegate: gridDelegate,
                     itemCount: pageItems.length,
                     itemBuilder: (context, index) => _AnimatedCatalogItem(
-                      key: ValueKey(
-                        'grid-$currentPage-${pageItems[index].id}',
-                      ),
+                      key: ValueKey('grid-$currentPage-${pageItems[index].id}'),
                       index: index,
                       child: MenuItemGridCard(
                         item: pageItems[index],
@@ -377,10 +377,7 @@ class _AnimatedCatalogItem extends StatelessWidget {
           opacity: curved,
           child: Transform.translate(
             offset: Offset(0.0, (1.0 - curved) * KkfcMotion.peerOffset),
-            child: Transform.scale(
-              scale: 0.96 + (0.04 * curved),
-              child: child,
-            ),
+            child: Transform.scale(scale: 0.96 + (0.04 * curved), child: child),
           ),
         );
       },

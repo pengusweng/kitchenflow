@@ -69,8 +69,11 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
     });
 
     final hideUnavailable = ref.watch(hideUnavailableProvider);
-    final visibleCount =
-        ref.watch(visibleMenuItemsProvider).asData?.value.length;
+    final visibleCount = ref
+        .watch(visibleMenuItemsProvider)
+        .asData
+        ?.value
+        .length;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -78,7 +81,8 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
 
         final searchField = LayoutBuilder(
           builder: (context, searchConstraints) {
-            final showTrailingBadge = searchConstraints.maxWidth >= 170.0 &&
+            final showTrailingBadge =
+                searchConstraints.maxWidth >= 170.0 &&
                 _searchController.text.isEmpty &&
                 visibleCount != null;
 
@@ -91,9 +95,7 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(KkfcRadius.sm),
                 border: Border.all(
-                  color: _searchFocused
-                      ? KkfcColors.focus
-                      : KkfcColors.border,
+                  color: _searchFocused ? KkfcColors.focus : KkfcColors.border,
                   width: _searchFocused ? 1.5 : 1.0,
                 ),
               ),
@@ -111,7 +113,8 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
                   isDense: true,
                   hintText: showTrailingBadge
                       ? 'Search...'
-                      : (visibleCount != null && searchConstraints.maxWidth >= 130.0
+                      : (visibleCount != null &&
+                                searchConstraints.maxWidth >= 130.0
                             ? 'Search $visibleCount items...'
                             : 'Search...'),
                   hintStyle: const TextStyle(
@@ -143,23 +146,23 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
                           splashRadius: 16.0,
                         )
                       : (showTrailingBadge
-                          ? Center(
-                              widthFactor: 1.0,
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 10.0),
-                                child: Text(
-                                  'Showing $visibleCount item${visibleCount == 1 ? '' : 's'}',
-                                  style: const TextStyle(
-                                    fontFamily: KkfcFonts.ibmPlexSans,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: KkfcColors.ink3,
-                                    height: 1.0,
+                            ? Center(
+                                widthFactor: 1.0,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 10.0),
+                                  child: Text(
+                                    'Showing $visibleCount item${visibleCount == 1 ? '' : 's'}',
+                                    style: const TextStyle(
+                                      fontFamily: KkfcFonts.ibmPlexSans,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: KkfcColors.ink3,
+                                      height: 1.0,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            )
-                          : null),
+                              )
+                            : null),
                   filled: false,
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -248,7 +251,9 @@ class _CatalogSearchBarState extends ConsumerState<CatalogSearchBar> {
                       Text(
                         hideUnavailable
                             ? (isNarrow ? 'Available' : 'Available only')
-                            : (isNarrow ? 'Unavailable' : 'Include unavailable'),
+                            : (isNarrow
+                                  ? 'Unavailable'
+                                  : 'Include unavailable'),
                         style: TextStyle(
                           fontFamily: KkfcFonts.ibmPlexSans,
                           fontSize: isNarrow ? 11.5 : 12.5,

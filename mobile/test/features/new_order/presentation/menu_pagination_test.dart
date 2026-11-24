@@ -37,19 +37,14 @@ Future<ProviderContainer> _pumpMenuWithItems(
   addTearDown(tester.view.reset);
 
   final container = ProviderContainer(
-    overrides: [
-      menuItemsProvider.overrideWith((ref) async => items),
-    ],
+    overrides: [menuItemsProvider.overrideWith((ref) async => items)],
   );
   addTearDown(container.dispose);
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(
-        theme: counterTheme,
-        home: const MenuScreen(),
-      ),
+      child: MaterialApp(theme: counterTheme, home: const MenuScreen()),
     ),
   );
   await tester.pumpAndSettle();

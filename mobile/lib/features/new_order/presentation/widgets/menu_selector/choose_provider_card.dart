@@ -60,9 +60,7 @@ class ChooseProviderCard extends StatelessWidget {
           child: Stack(
             children: [
               // 0. Solid white under-layer guaranteeing WCAG contrast
-              const Positioned.fill(
-                child: ColoredBox(color: Colors.white),
-              ),
+              const Positioned.fill(child: ColoredBox(color: Colors.white)),
 
               // 1. Background Food Image from mobile/assets/bg/
               if (bgAsset != null)
@@ -167,8 +165,8 @@ class ChooseProviderCard extends StatelessWidget {
                   color: selected
                       ? Colors.white
                       : (isAuthorized
-                          ? KkfcColors.ink
-                          : KkfcColors.borderStrong),
+                            ? KkfcColors.ink
+                            : KkfcColors.borderStrong),
                 ),
               ),
             ),
@@ -199,9 +197,7 @@ class ChooseProviderCard extends StatelessWidget {
                   letterSpacing: 0.5,
                   color: selected
                       ? Colors.white
-                      : (isAuthorized
-                          ? brandColor
-                          : KkfcColors.borderStrong),
+                      : (isAuthorized ? brandColor : KkfcColors.borderStrong),
                 ),
               ),
             ),
@@ -231,9 +227,7 @@ class ChooseProviderCard extends StatelessWidget {
                     fontFamily: KkfcFonts.ibmPlexSans,
                     fontSize: 12.5,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected
-                        ? const Color(0xFF93C5FD)
-                        : KkfcColors.ink3,
+                    color: selected ? const Color(0xFF93C5FD) : KkfcColors.ink3,
                   ),
                 ),
               ),
@@ -272,20 +266,14 @@ class ChooseProviderCard extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10.0),
         child: Container(
-          constraints: const BoxConstraints(
-            maxHeight: 52.0,
-            maxWidth: 135.0,
-          ),
+          constraints: const BoxConstraints(maxHeight: 52.0, maxWidth: 135.0),
           child: Image.asset(
             logoAsset,
             fit: BoxFit.contain,
             filterQuality: FilterQuality.medium,
             gaplessPlayback: true,
             semanticLabel: brand.name,
-            errorBuilder: (_, _, _) => BrandLogo(
-              brand: brand,
-              height: 32.0,
-            ),
+            errorBuilder: (_, _, _) => BrandLogo(brand: brand, height: 32.0),
           ),
         ),
       );
@@ -313,11 +301,7 @@ class ChooseProviderCard extends StatelessWidget {
           shape: BoxShape.circle,
           color: Color(0xFF2563EB),
         ),
-        child: const Icon(
-          Icons.check_rounded,
-          size: 15.0,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.check_rounded, size: 15.0, color: Colors.white),
       );
     }
     return Container(
@@ -325,10 +309,7 @@ class ChooseProviderCard extends StatelessWidget {
       height: 24.0,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: KkfcColors.borderStrong,
-          width: 1.5,
-        ),
+        border: Border.all(color: KkfcColors.borderStrong, width: 1.5),
       ),
     );
   }

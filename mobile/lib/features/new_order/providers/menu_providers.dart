@@ -160,8 +160,9 @@ class MenuViewModeNotifier extends Notifier<MenuViewMode> {
 
   void set(MenuViewMode mode) => state = mode;
 
-  void toggle() =>
-      state = state == MenuViewMode.grid ? MenuViewMode.list : MenuViewMode.grid;
+  void toggle() => state = state == MenuViewMode.grid
+      ? MenuViewMode.list
+      : MenuViewMode.grid;
 }
 
 final menuViewModeProvider =

@@ -192,10 +192,7 @@ class AppHeader extends ConsumerWidget implements PreferredSizeWidget {
                   ),
                 if (showLogout) ...[
                   SizedBox(width: isCompact ? KkfcSpace.s4 : KkfcSpace.s8),
-                  LogoutButton(
-                    color: Colors.white,
-                    compact: isCompact,
-                  ),
+                  LogoutButton(color: Colors.white, compact: isCompact),
                 ],
               ],
             ),
@@ -291,8 +288,9 @@ class AppHeaderRoleChip extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontFamily: KkfcFonts.ibmPlexSans,
-                    fontSize:
-                        isCompact ? KkfcTextSizes.textXs : KkfcTextSizes.textMd,
+                    fontSize: isCompact
+                        ? KkfcTextSizes.textXs
+                        : KkfcTextSizes.textMd,
                     fontWeight: KkfcFontWeights.medium,
                     color: Colors.white,
                   ),

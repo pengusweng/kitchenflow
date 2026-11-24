@@ -48,9 +48,7 @@ class CurrentMenuCard extends StatelessWidget {
             children: [
               Flexible(
                 child: Text(
-                  showChannel
-                      ? '${brand.name} · ${channel.label}'
-                      : brand.name,
+                  showChannel ? '${brand.name} · ${channel.label}' : brand.name,
                   style: TextStyle(
                     fontFamily: KkfcFonts.ibmPlexSans,
                     fontSize: compact ? 13.5 : 15.0,

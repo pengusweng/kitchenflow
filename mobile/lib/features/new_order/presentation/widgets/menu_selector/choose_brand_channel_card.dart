@@ -88,10 +88,7 @@ class ChooseBrandChannelCard extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(6.0),
-                  border: Border.all(
-                    color: KkfcColors.border,
-                    width: 1.0,
-                  ),
+                  border: Border.all(color: KkfcColors.border, width: 1.0),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(5.0),
@@ -167,11 +164,7 @@ class ChooseBrandChannelCard extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 6.0),
               child: Row(
                 children: const [
-                  Icon(
-                    Icons.lock_outline,
-                    size: 16.0,
-                    color: KkfcColors.ink3,
-                  ),
+                  Icon(Icons.lock_outline, size: 16.0, color: KkfcColors.ink3),
                   SizedBox(width: 8.0),
                   Expanded(
                     child: Text(

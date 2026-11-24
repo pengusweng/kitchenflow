@@ -100,7 +100,8 @@ class LogoutButton extends ConsumerWidget {
         color ?? Theme.of(context).colorScheme.onInverseSurface;
     final isCompact = compact ?? (MediaQuery.sizeOf(context).width < 600);
 
-    final effectiveConstraints = constraints ??
+    final effectiveConstraints =
+        constraints ??
         (isCompact
             ? const BoxConstraints(minWidth: 32.0, minHeight: 32.0)
             : null);

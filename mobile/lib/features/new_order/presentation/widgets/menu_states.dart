@@ -65,28 +65,26 @@ class _MenuGridSkeletonState extends State<MenuGridSkeleton>
                     childAspectRatio: 1.0,
                   )
                 : (screenWidth >= 1400.0
-                    ? const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 220.0,
-                        crossAxisSpacing: 16.0,
-                        mainAxisSpacing: 16.0,
-                        childAspectRatio: 1.0,
-                      )
-                    : const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        crossAxisSpacing: 16.0,
-                        mainAxisSpacing: 16.0,
-                        childAspectRatio: 1.0,
-                      ));
+                      ? const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 220.0,
+                          crossAxisSpacing: 16.0,
+                          mainAxisSpacing: 16.0,
+                          childAspectRatio: 1.0,
+                        )
+                      : const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 16.0,
+                          mainAxisSpacing: 16.0,
+                          childAspectRatio: 1.0,
+                        ));
 
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: gridDelegate,
               itemCount: isTabletOrDesktop ? 8 : 4,
-              itemBuilder: (context, index) => _SkeletonGridCard(
-                index: index,
-                shimmerValue: _shimmer.value,
-              ),
+              itemBuilder: (context, index) =>
+                  _SkeletonGridCard(index: index, shimmerValue: _shimmer.value),
             );
           }
 
@@ -126,10 +124,7 @@ class _MenuGridSkeletonState extends State<MenuGridSkeleton>
 }
 
 class _SkeletonGridCard extends StatelessWidget {
-  const _SkeletonGridCard({
-    required this.index,
-    required this.shimmerValue,
-  });
+  const _SkeletonGridCard({required this.index, required this.shimmerValue});
 
   final int index;
   final double shimmerValue;

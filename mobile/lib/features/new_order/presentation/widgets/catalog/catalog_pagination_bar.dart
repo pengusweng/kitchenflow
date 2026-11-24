@@ -46,8 +46,9 @@ class CatalogPaginationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final safeTotalPages = totalPages < 1 ? 1 : totalPages;
     final safeCurrentPage = currentPage.clamp(1, safeTotalPages);
-    final startItem =
-        totalItems == 0 ? 0 : ((safeCurrentPage - 1) * pageSize) + 1;
+    final startItem = totalItems == 0
+        ? 0
+        : ((safeCurrentPage - 1) * pageSize) + 1;
     final endItem = (safeCurrentPage * pageSize).clamp(0, totalItems);
     final canGoPrev = safeCurrentPage > 1;
     final canGoNext = safeCurrentPage < safeTotalPages;
@@ -142,10 +143,7 @@ class CatalogPaginationBar extends StatelessWidget {
           child: showRangeSummary
               ? Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    rangeText,
-                    controls,
-                  ],
+                  children: [rangeText, controls],
                 )
               : Center(child: controls),
         );
@@ -193,9 +191,7 @@ class _PaginationNavButton extends StatelessWidget {
             child: SizedBox(
               width: 32.0,
               height: 32.0,
-              child: Center(
-                child: Icon(icon, size: 18.0, color: fg),
-              ),
+              child: Center(child: Icon(icon, size: 18.0, color: fg)),
             ),
           ),
         ),
@@ -251,8 +247,7 @@ class _PaginationPageButton extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: KkfcFonts.ibmPlexSans,
                   fontSize: 12.5,
-                  fontWeight:
-                      isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: fg,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),

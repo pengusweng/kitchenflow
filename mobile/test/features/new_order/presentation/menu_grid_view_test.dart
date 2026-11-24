@@ -39,7 +39,9 @@ Future<ProviderContainer> _pumpMenu(
   final container = ProviderContainer(
     overrides: [
       menuItemsProvider.overrideWith((ref) async => _sampleItems),
-      menuViewModeProvider.overrideWith(() => _TestViewModeNotifier(initialMode)),
+      menuViewModeProvider.overrideWith(
+        () => _TestViewModeNotifier(initialMode),
+      ),
     ],
   );
   addTearDown(container.dispose);
@@ -73,8 +75,14 @@ void main() {
         await _pumpMenu(tester);
 
         // Grid/List toggle exists
-        expect(find.byKey(const ValueKey('menu-view-mode-grid')), findsOneWidget);
-        expect(find.byKey(const ValueKey('menu-view-mode-list')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('menu-view-mode-grid')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('menu-view-mode-list')),
+          findsOneWidget,
+        );
 
         // Grid view cards are rendered with image, name, and price only
         expect(find.byType(MenuItemGridCard), findsWidgets);
@@ -86,8 +94,14 @@ void main() {
 
         // Strictly contains image, name, and price only:
         // Description must NOT be displayed in grid card
-        expect(find.text('Crispy savory pork belly with steamed rice and kimchi.'), findsNothing);
-        expect(find.text('Crispy scallion pancake with house chili dipping sauce.'), findsNothing);
+        expect(
+          find.text('Crispy savory pork belly with steamed rice and kimchi.'),
+          findsNothing,
+        );
+        expect(
+          find.text('Crispy scallion pancake with house chili dipping sauce.'),
+          findsNothing,
+        );
 
         // Add button must NOT be displayed in grid card
         expect(find.text('Add'), findsNothing);
@@ -106,7 +120,10 @@ void main() {
         // List view cards are rendered with description and Add button
         expect(find.byType(MenuItemCard), findsWidgets);
         expect(find.byType(MenuItemGridCard), findsNothing);
-        expect(find.text('Crispy savory pork belly with steamed rice and kimchi.'), findsOneWidget);
+        expect(
+          find.text('Crispy savory pork belly with steamed rice and kimchi.'),
+          findsOneWidget,
+        );
         expect(find.text('Add'), findsWidgets);
       },
     );
@@ -127,7 +144,10 @@ void main() {
         // Grid view is restored
         expect(find.byType(MenuItemGridCard), findsWidgets);
         expect(find.byType(MenuItemCard), findsNothing);
-        expect(find.text('Crispy savory pork belly with steamed rice and kimchi.'), findsNothing);
+        expect(
+          find.text('Crispy savory pork belly with steamed rice and kimchi.'),
+          findsNothing,
+        );
       },
     );
 
@@ -151,7 +171,11 @@ void main() {
     testWidgets(
       'WT-MOB-GRID-005 Grid view does not overflow on standard phone layout',
       (tester) async {
-        await _pumpMenu(tester, size: const Size(390, 844), initialMode: MenuViewMode.grid);
+        await _pumpMenu(
+          tester,
+          size: const Size(390, 844),
+          initialMode: MenuViewMode.grid,
+        );
         expect(tester.takeException(), isNull);
         expect(find.byType(MenuItemGridCard), findsWidgets);
       },
@@ -160,7 +184,11 @@ void main() {
     testWidgets(
       'WT-MOB-GRID-006 Grid view does not overflow on narrow phone layout',
       (tester) async {
-        await _pumpMenu(tester, size: const Size(320, 640), initialMode: MenuViewMode.grid);
+        await _pumpMenu(
+          tester,
+          size: const Size(320, 640),
+          initialMode: MenuViewMode.grid,
+        );
         expect(tester.takeException(), isNull);
         expect(find.byType(MenuItemGridCard), findsWidgets);
       },
@@ -169,7 +197,11 @@ void main() {
     testWidgets(
       'WT-MOB-GRID-007 Grid view renders cleanly on wide desktop screen',
       (tester) async {
-        await _pumpMenu(tester, size: const Size(1280, 800), initialMode: MenuViewMode.grid);
+        await _pumpMenu(
+          tester,
+          size: const Size(1280, 800),
+          initialMode: MenuViewMode.grid,
+        );
         expect(tester.takeException(), isNull);
         expect(find.byType(MenuItemGridCard), findsWidgets);
       },
@@ -218,7 +250,9 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             menuItemsProvider.overrideWith((ref) async => fiveItems),
-            menuViewModeProvider.overrideWith(() => _TestViewModeNotifier(MenuViewMode.grid)),
+            menuViewModeProvider.overrideWith(
+              () => _TestViewModeNotifier(MenuViewMode.grid),
+            ),
           ],
         );
         addTearDown(container.dispose);
@@ -289,7 +323,9 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             menuItemsProvider.overrideWith((ref) async => fourItems),
-            menuViewModeProvider.overrideWith(() => _TestViewModeNotifier(MenuViewMode.grid)),
+            menuViewModeProvider.overrideWith(
+              () => _TestViewModeNotifier(MenuViewMode.grid),
+            ),
           ],
         );
         addTearDown(container.dispose);

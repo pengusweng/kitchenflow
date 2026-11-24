@@ -157,8 +157,9 @@ class _WorkspaceSwitcherState extends ConsumerState<WorkspaceSwitcher> {
                   current.label,
                   style: TextStyle(
                     fontFamily: KkfcFonts.ibmPlexSans,
-                    fontSize:
-                        isCompact ? KkfcTextSizes.textXs : KkfcTextSizes.textMd,
+                    fontSize: isCompact
+                        ? KkfcTextSizes.textXs
+                        : KkfcTextSizes.textMd,
                     fontWeight: KkfcFontWeights.medium,
                     color: Colors.white,
                   ),
