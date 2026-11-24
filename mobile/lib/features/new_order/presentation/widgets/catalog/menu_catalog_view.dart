@@ -4,6 +4,7 @@ import 'package:mobile/features/app_updates/optional_update_notice.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/presentation/widgets/brands/brand_switch_confirm_dialog.dart';
+import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_pagination_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_search_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_view_mode_toggle.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_item_card.dart';
@@ -32,7 +33,13 @@ class MenuCatalogView extends ConsumerWidget {
     final assignedBrands = ref.watch(assignedBrandsProvider);
     final selectedChannel = ref.watch(menuChannelProvider);
     final visibleItems = ref.watch(visibleMenuItemsProvider);
-    final visibleCount = visibleItems.asData?.value.length;
+    final allItems = visibleItems.asData?.value;
+    final totalItems = allItems?.length ?? 0;
+    final totalPages = totalItems == 0
+        ? 1
+        : ((totalItems - 1) ~/ kMenuItemsPerPage) + 1;
+    final currentPage = ref.watch(menuPageProvider).clamp(1, totalPages);
+    final hasPagination = allItems != null && allItems.isNotEmpty;
     final viewMode = ref.watch(menuViewModeProvider);
 
     return RefreshIndicator(
@@ -156,7 +163,7 @@ class MenuCatalogView extends ConsumerWidget {
               isWide ? KkfcSpace.s20 : KkfcSpace.s16,
               KkfcSpace.s4,
               isWide ? KkfcSpace.s20 : KkfcSpace.s16,
-              bottomPadding,
+              hasPagination ? KkfcSpace.s12 : bottomPadding,
             ),
             sliver: visibleItems.when(
               loading: () => SliverToBoxAdapter(
@@ -234,6 +241,11 @@ class MenuCatalogView extends ConsumerWidget {
                   );
                 }
 
+                final startIndex = (currentPage - 1) * kMenuItemsPerPage;
+                final endIndex =
+                    (startIndex + kMenuItemsPerPage).clamp(0, items.length);
+                final pageItems = items.sublist(startIndex, endIndex);
+
                 if (viewMode == MenuViewMode.grid) {
                   return SliverGrid.builder(
                     gridDelegate: isWide
@@ -249,9 +261,9 @@ class MenuCatalogView extends ConsumerWidget {
                             mainAxisSpacing: 12.0,
                             childAspectRatio: 1.0,
                           ),
-                    itemCount: items.length,
+                    itemCount: pageItems.length,
                     itemBuilder: (context, index) => MenuItemGridCard(
-                      item: items[index],
+                      item: pageItems[index],
                       channel: selectedChannel,
                     ),
                   );
@@ -266,19 +278,19 @@ class MenuCatalogView extends ConsumerWidget {
                               mainAxisSpacing: 16.0,
                               mainAxisExtent: 180.0,
                             ),
-                        itemCount: items.length,
+                        itemCount: pageItems.length,
                         itemBuilder: (context, index) => MenuItemCard(
-                          item: items[index],
+                          item: pageItems[index],
                           channel: selectedChannel,
                           compact: false,
                         ),
                       )
                     : SliverList.separated(
-                        itemCount: items.length,
+                        itemCount: pageItems.length,
                         separatorBuilder: (context, index) =>
                             const SizedBox(height: 12.0),
                         itemBuilder: (context, index) => MenuItemCard(
-                          item: items[index],
+                          item: pageItems[index],
                           channel: selectedChannel,
                           compact: true,
                         ),
@@ -286,6 +298,27 @@ class MenuCatalogView extends ConsumerWidget {
               },
             ),
           ),
+
+          // 4. Pagination Footer Bar (16 items per page limit)
+          if (hasPagination)
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                isWide ? KkfcSpace.s20 : KkfcSpace.s16,
+                0.0,
+                isWide ? KkfcSpace.s20 : KkfcSpace.s16,
+                bottomPadding,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: CatalogPaginationBar(
+                  currentPage: currentPage,
+                  totalPages: totalPages,
+                  totalItems: totalItems,
+                  onPageChanged: (page) {
+                    ref.read(menuPageProvider.notifier).setPage(page);
+                  },
+                ),
+              ),
+            ),
         ],
       ),
     );
