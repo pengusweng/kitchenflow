@@ -1561,6 +1561,74 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     ).toBe(400);
   });
 
+  it("IT-ORD-050: Given today's orders in every payment and lifecycle state, When listing GET /orders/unpaid/today, Then only confirmed unpaid orders from today are returned, oldest first", async () => {
+    const confirm = async (payment_status: 'PAID' | 'UNPAID') => {
+      const body = await draft();
+      expect(
+        (
+          await request(
+            `${ordersPath()}/${body.order_id}/confirm`,
+            'POST',
+            { payment_method: 'CASH', payment_status },
+            1,
+          )
+        ).status,
+      ).toBe(200);
+      return body.order_id;
+    };
+    await draft();
+    const oldest = await confirm('UNPAID');
+    const newest = await confirm('UNPAID');
+    await confirm('PAID');
+    const cancelled = await confirm('UNPAID');
+    await prisma.order.update({
+      where: { order_id: cancelled },
+      data: { status: 'CANCELLED' },
+    });
+    const yesterday = await confirm('UNPAID');
+    await prisma.order.update({
+      where: { order_id: yesterday },
+      data: { order_date: new Date('2000-01-01T00:00:00.000Z') },
+    });
+
+    type Page = {
+      data: Record<string, unknown>[];
+      meta: Record<string, number>;
+    };
+    const list = async (query: string) => {
+      const response = await request(`/orders/unpaid/today?${query}`);
+      expect(response.status).toBe(200);
+      return (await response.json()) as Page;
+    };
+    // Every fixture order code starts with the fixture brand's unique code.
+    const brandSearch = `search=${fixture.brand.code}-`;
+
+    const { data: rows, meta } = await list(`${brandSearch}&limit=100`);
+    expect(rows.map((row) => row.order_id)).toEqual([oldest, newest]);
+    expect(meta).toEqual({ page: 1, limit: 100, total: 2, totalPages: 1 });
+    expect(rows[0]).toMatchObject({
+      status: 'CONFIRMED',
+      payment_status: 'UNPAID',
+      brand: {
+        brand_id: fixture.brand.brand_id,
+        code: fixture.brand.code,
+        name: fixture.brand.name,
+      },
+    });
+    expect(rows[0]).not.toHaveProperty('create_request_hash');
+    expect(rows[0]).not.toHaveProperty('order_items_order');
+
+    const second = await list(`${brandSearch}&page=2&limit=1`);
+    expect(second.data.map((row) => row.order_id)).toEqual([newest]);
+    expect(second.meta).toEqual({ page: 2, limit: 1, total: 2, totalPages: 2 });
+
+    const { order_code } = await savedOrder(newest);
+    const searched = await list(
+      `search=${encodeURIComponent(`  ${order_code.toLowerCase()} `)}`,
+    );
+    expect(searched.data.map((row) => row.order_id)).toEqual([newest]);
+  });
+
   it('IT-ORD-021: assigns consecutive daily codes across channels and keeps cancelled draft numbers', async () => {
     const first = await draft();
     const saved = await savedOrder(first.order_id);
@@ -1997,8 +2065,9 @@ describe('All orders HTTP API', () => {
   ];
   const auth = { validateSession: jest.fn() };
   const prisma = {};
-  const service = { findOverview: jest.fn() };
+  const service = { findOverview: jest.fn(), findUnpaidToday: jest.fn() };
   const findOverviewMethod = service.findOverview;
+  const findUnpaidTodayMethod = service.findUnpaidToday;
   let app: INestApplication;
   let url: string;
 
@@ -2029,6 +2098,7 @@ describe('All orders HTTP API', () => {
     jest.resetAllMocks();
     signInAs(UserRole.CASHIER_STAFF);
     findOverviewMethod.mockResolvedValue({ data: [], meta: { total: 0 } });
+    findUnpaidTodayMethod.mockResolvedValue([]);
   });
 
   afterAll(async () => app?.close());
@@ -2103,4 +2173,55 @@ describe('All orders HTTP API', () => {
       expect(findOverviewMethod).not.toHaveBeenCalled();
     },
   );
+
+  it.each(
+    Object.values(UserRole).map((role) => [
+      role,
+      allowedRoles.includes(role) ? 200 : 403,
+    ]),
+  )(
+    "IT-ORD-051: Given %s, When listing today's unpaid orders, Then return %i",
+    async (role, status) => {
+      signInAs(role);
+      expect((await listOrders('/unpaid/today')).status).toBe(status);
+      expect(findUnpaidTodayMethod).toHaveBeenCalledTimes(
+        status === 200 ? 1 : 0,
+      );
+    },
+  );
+
+  it.each(allowedRoles)(
+    "IT-ORD-053: Given %s, When listing today's unpaid orders with a query, Then pass the typed, trimmed query to the service",
+    async (role) => {
+      signInAs(role);
+      const response = await listOrders(
+        '/unpaid/today?page=3&limit=20&search=%20gc-01%20',
+      );
+      expect(response.status).toBe(200);
+      expect(findUnpaidTodayMethod).toHaveBeenCalledWith({
+        page: 3,
+        limit: 20,
+        search: 'gc-01',
+      });
+    },
+  );
+
+  it.each([
+    '?page=0',
+    '?limit=101',
+    '?search=' + 'x'.repeat(65),
+    '?status=CONFIRMED',
+    '?payment_status=PAID',
+  ])(
+    "IT-ORD-054: Given the invalid query %s, When listing today's unpaid orders, Then return 400",
+    async (query) => {
+      expect((await listOrders(`/unpaid/today${query}`)).status).toBe(400);
+      expect(findUnpaidTodayMethod).not.toHaveBeenCalled();
+    },
+  );
+
+  it("IT-ORD-052: Given no session, When listing today's unpaid orders, Then return 401", async () => {
+    expect((await listOrders('/unpaid/today', false)).status).toBe(401);
+    expect(findUnpaidTodayMethod).not.toHaveBeenCalled();
+  });
 });

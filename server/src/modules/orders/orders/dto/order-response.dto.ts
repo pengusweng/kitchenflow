@@ -255,6 +255,17 @@ export class OrdersPageResponseDTO {
   meta: OrdersPageMetaDTO;
 }
 
+export class UnpaidOrdersPageMetaDTO extends OmitType(OrdersPageMetaDTO, [
+  'counts',
+] as const) {}
+
+export class UnpaidOrdersPageResponseDTO {
+  @ApiProperty({ type: [OrderSummaryResponseDTO] })
+  data: OrderSummaryResponseDTO[];
+  @ApiProperty({ type: UnpaidOrdersPageMetaDTO })
+  meta: UnpaidOrdersPageMetaDTO;
+}
+
 export class CreateOrderConflictResponseDTO {
   @ApiProperty({ example: 409, enum: [409] })
   statusCode: number;

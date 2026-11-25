@@ -228,6 +228,35 @@ export class OrdersRepository {
     };
   }
 
+  /** A page of confirmed orders still awaiting payment on one order_date, oldest first. */
+  async findUnpaid(
+    orderDate: Date,
+    search: string | undefined,
+    skip: number,
+    take: number,
+  ) {
+    const where: Prisma.OrderWhereInput = {
+      ...overviewWhere({ search, from: orderDate, to: orderDate }),
+      payment_status: PaymentStatus.UNPAID,
+      // Drafts have no payment yet and cancelled orders will never be paid.
+      status: { notIn: [OrderStatus.DRAFT, OrderStatus.CANCELLED] },
+    };
+    const [orders, total] = await this.prisma.$transaction(
+      [
+        this.prisma.order.findMany({
+          where,
+          skip,
+          take,
+          orderBy: [{ created_at: 'asc' }, { order_id: 'asc' }],
+          ...summaryQuery,
+        }),
+        this.prisma.order.count({ where }),
+      ],
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    return { orders, total };
+  }
+
   update(
     orderId: string,
     data: Prisma.OrderUncheckedUpdateInput,
