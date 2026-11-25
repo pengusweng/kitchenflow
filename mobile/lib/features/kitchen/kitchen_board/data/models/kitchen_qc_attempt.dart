@@ -79,6 +79,7 @@ class KitchenQcAttempt {
     this.startedAt,
     this.completedAt,
     this.rejections = const [],
+    this.reworkNotes,
   });
 
   final String qcAttemptId;
@@ -90,10 +91,37 @@ class KitchenQcAttempt {
   final DateTime? startedAt;
   final DateTime? completedAt;
   final List<KitchenQcRejection> rejections;
+  final String? reworkNotes;
 
   bool get isFailed => status.toUpperCase() == 'FAILED';
   bool get isPassed => status.toUpperCase() == 'PASSED';
   bool get isInProgress => status.toUpperCase() == 'IN_PROGRESS';
+
+  KitchenQcAttempt copyWith({
+    String? qcAttemptId,
+    String? kitchenTicketId,
+    int? attemptNumber,
+    String? status,
+    String? checkerId,
+    String? checkerName,
+    DateTime? startedAt,
+    DateTime? completedAt,
+    List<KitchenQcRejection>? rejections,
+    String? reworkNotes,
+  }) {
+    return KitchenQcAttempt(
+      qcAttemptId: qcAttemptId ?? this.qcAttemptId,
+      kitchenTicketId: kitchenTicketId ?? this.kitchenTicketId,
+      attemptNumber: attemptNumber ?? this.attemptNumber,
+      status: status ?? this.status,
+      checkerId: checkerId ?? this.checkerId,
+      checkerName: checkerName ?? this.checkerName,
+      startedAt: startedAt ?? this.startedAt,
+      completedAt: completedAt ?? this.completedAt,
+      rejections: rejections ?? this.rejections,
+      reworkNotes: reworkNotes ?? this.reworkNotes,
+    );
+  }
 
   /// Formatted time of when the attempt completed or started (e.g. "2:15 PM").
   String? get formattedTimeLabel {
@@ -139,6 +167,8 @@ class KitchenQcAttempt {
 
     final startedRaw = json['started_at'] as String?;
     final completedRaw = json['completed_at'] as String?;
+    final reworkNotes = (json['rework_notes'] as String?)?.trim() ??
+        (json['rework_note'] as String?)?.trim();
 
     return KitchenQcAttempt(
       qcAttemptId:
@@ -154,6 +184,7 @@ class KitchenQcAttempt {
       completedAt:
           completedRaw != null ? DateTime.tryParse(completedRaw) : null,
       rejections: rejections,
+      reworkNotes: reworkNotes,
     );
   }
 

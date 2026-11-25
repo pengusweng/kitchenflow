@@ -172,14 +172,26 @@ class KitchenBoardTicket {
       }
     }
 
+    final resolvedAttempts = sorted.map((a) {
+      if (a == latestFailed &&
+          (a.reworkNotes == null || a.reworkNotes!.trim().isEmpty) &&
+          reworkNotes != null &&
+          reworkNotes!.trim().isNotEmpty) {
+        return a.copyWith(reworkNotes: reworkNotes!.trim());
+      }
+      return a;
+    }).toList();
+
     return copyWith(
-      qcAttempts: sorted,
+      qcAttempts: resolvedAttempts,
       qcFailureCount: failedAttempts.length > qcFailureCount
           ? failedAttempts.length
           : qcFailureCount,
       qcReturnedReason: resolvedReason,
+      reworkNotes: reworkNotes,
       data: data.copyWith(
         qcReturnedReason: resolvedReason,
+        reworkNotes: reworkNotes,
         items: resolvedItems,
       ),
     );

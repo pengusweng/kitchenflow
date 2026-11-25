@@ -157,20 +157,26 @@ mixin KitchenBoardPreparationActions on Notifier<KitchenBoardState> {
       final effectiveQcReturnedReason = prevTicket.qcReturnedReason;
 
       final updatedTickets = tickets.map((t) {
-        if (t.kitchenTicketId == kitchenTicketId &&
-            (t.rawStatus.toUpperCase() == 'PREPARING' ||
-                t.rawStatus.toUpperCase() == 'REWORKING' ||
-                t.data.status == KkfcStatus.preparing ||
-                t.data.status == KkfcStatus.reworking)) {
+        if (t.kitchenTicketId == kitchenTicketId) {
           final clearedItems = t.data.items
               .map((it) => it.copyWith(clearFailReason: true))
               .toList();
+          final updatedAttempts = t.qcAttempts.map((a) {
+            if (a.isFailed &&
+                (a.reworkNotes == null || a.reworkNotes!.trim().isEmpty) &&
+                effectiveReworkNotes != null &&
+                effectiveReworkNotes.trim().isNotEmpty) {
+              return a.copyWith(reworkNotes: effectiveReworkNotes.trim());
+            }
+            return a;
+          }).toList();
           return t.copyWith(
             rawStatus: 'FOR_CHECKING',
             lane: KitchenBoardLane.qcCheck,
             clearQcAttemptId: true,
             qcReturnedReason: effectiveQcReturnedReason,
             reworkNotes: effectiveReworkNotes,
+            qcAttempts: updatedAttempts,
             data: t.data.copyWith(
               status: KkfcStatus.checking,
               qcReturnedReason: effectiveQcReturnedReason,
