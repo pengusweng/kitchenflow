@@ -228,4 +228,168 @@ void main() {
       expect(find.text('5:13'), findsOneWidget);
     });
   });
+
+  group('Kitchen Ticket Multi-Brand Display (Option A)', () {
+    const brandKk = AssignedBrand(id: 'brand-kk', code: 'KK', name: 'King Kungs Kafé');
+    const brandAi = AssignedBrand(id: 'brand-ai', code: 'AI', name: "Aurelia's Inasal");
+    const brandGc = AssignedBrand(id: 'brand-gc', code: 'GC', name: 'Gamcheon');
+
+    testWidgets('single-brand ticket displays standard single brand row', (tester) async {
+      final ticket = KitchenTicketData(
+        ticketNumber: 'T-010',
+        elapsed: const Duration(minutes: 1),
+        age: KitchenTicketAge.onTime,
+        status: KkfcStatus.queued,
+        channel: 'Dine-in',
+        reference: 'Table 1',
+        brand: brandKk,
+        items: const [KitchenTicketItem(quantity: 1, name: 'Latte')],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KitchenTicketCard(ticket: ticket),
+          ),
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-single')), findsOneWidget);
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')), findsNothing);
+      expect(find.text('KK'), findsOneWidget);
+      expect(find.text('King Kungs Kafé'), findsOneWidget);
+    });
+
+    testWidgets('multi-brand ticket displays header badges for all order brands in KitchenTicketCard', (tester) async {
+      final multiBrandTicket = KitchenTicketData(
+        ticketNumber: 'T-020',
+        elapsed: const Duration(minutes: 3),
+        age: KitchenTicketAge.onTime,
+        status: KkfcStatus.preparing,
+        channel: 'Takeaway',
+        reference: 'Call: Ana',
+        brand: brandKk,
+        brands: const [brandKk, brandAi, brandGc],
+        items: const [
+          KitchenTicketItem(quantity: 1, name: 'Iced Latte'),
+          KitchenTicketItem(quantity: 1, name: 'Inasal Pecho'),
+          KitchenTicketItem(quantity: 1, name: 'Samgyupsal Bowl'),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KitchenTicketCard(ticket: multiBrandTicket),
+          ),
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')), findsOneWidget);
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-single')), findsNothing);
+
+      // Verify all brand codes and names are present on the card header
+      expect(find.text('KK'), findsOneWidget);
+      expect(find.text('King Kungs Kafé'), findsOneWidget);
+      expect(find.text('AI'), findsOneWidget);
+      expect(find.text("Aurelia's Inasal"), findsOneWidget);
+      expect(find.text('GC'), findsOneWidget);
+      expect(find.text('Gamcheon'), findsOneWidget);
+    });
+
+    testWidgets('multi-brand ticket displays header badges in KitchenTicketDialogHeader', (tester) async {
+      final boardTicket = KitchenBoardTicket(
+        kitchenTicketId: 'ticket-multi',
+        orderId: 'order-multi',
+        orderCode: 'ORD-999',
+        lane: KitchenBoardLane.preparing,
+        rawStatus: 'PREPARING',
+        data: const KitchenTicketData(
+          ticketNumber: 'T-030',
+          elapsed: Duration(minutes: 7),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.preparing,
+          channel: 'GrabFood',
+          reference: '#GF-2002',
+          brand: brandKk,
+          brands: [brandKk, brandAi],
+          items: [
+            KitchenTicketItem(quantity: 2, name: 'Coffee'),
+            KitchenTicketItem(quantity: 1, name: 'Chicken'),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KitchenTicketDialogHeader(
+              ticket: boardTicket,
+              statusLabel: 'Preparing',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')), findsOneWidget);
+      expect(find.text('KK'), findsOneWidget);
+      expect(find.text('King Kungs Kafé'), findsOneWidget);
+      expect(find.text('AI'), findsOneWidget);
+      expect(find.text("Aurelia's Inasal"), findsOneWidget);
+    });
+
+    test('KitchenBoardTicket.tryFromApiJson parses multiple brands from API payload', () {
+      final json = {
+        'kitchen_ticket_id': 'ticket-json-1',
+        'order_id': 'order-json-1',
+        'order_code': 'ORD-MULTI-01',
+        'ticket_number': 'T-050',
+        'status': 'QUEUED',
+        'brands': [
+          {'code': 'KK', 'name': 'King Kungs Kafé', 'brand_id': 'brand-kk'},
+          {'code': 'AI', 'name': "Aurelia's Inasal", 'brand_id': 'brand-ai'},
+        ],
+        'items': [
+          {'quantity': 1, 'name': 'Coffee'},
+        ],
+      };
+
+      final parsed = KitchenBoardTicket.tryFromApiJson(json);
+      expect(parsed, isNotNull);
+      expect(parsed!.data.effectiveBrands.length, 2);
+      expect(parsed.data.effectiveBrands[0].code, 'KK');
+      expect(parsed.data.effectiveBrands[1].code, 'AI');
+      expect(parsed.data.isMultiBrand, isTrue);
+    });
+
+    test('KitchenBoardTicket.tryFromApiJson extracts multiple brands from order item metadata', () {
+      final json = {
+        'kitchen_ticket_id': 'ticket-json-2',
+        'order_id': 'order-json-2',
+        'order_code': 'ORD-MULTI-02',
+        'ticket_number': 'T-051',
+        'status': 'QUEUED',
+        'items': [
+          {
+            'quantity': 1,
+            'name': 'Bulgogi Bowl',
+            'brand': {'code': 'GC', 'name': 'Gamcheon', 'id': 'brand-gc'},
+          },
+          {
+            'quantity': 1,
+            'name': 'Inasal Leg',
+            'brand_code': 'AI',
+            'brand_name': "Aurelia's Inasal",
+          },
+        ],
+      };
+
+      final parsed = KitchenBoardTicket.tryFromApiJson(json);
+      expect(parsed, isNotNull);
+      expect(parsed!.data.effectiveBrands.length, 2);
+      expect(parsed.data.effectiveBrands[0].code, 'GC');
+      expect(parsed.data.effectiveBrands[1].code, 'AI');
+      expect(parsed.data.isMultiBrand, isTrue);
+    });
+  });
 }
