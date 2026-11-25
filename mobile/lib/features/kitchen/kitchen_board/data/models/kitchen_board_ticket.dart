@@ -115,7 +115,8 @@ class KitchenBoardTicket {
     final channel = _parseChannel({}, orderMap, fallbackChannel: data.channel);
     final reference = _parseReference({}, orderMap, channel, orderCode);
     final paymentStatus = _parsePaymentStatus({}, orderMap);
-    final brand = _parseBrand({}, orderMap, orderCode);
+    final brands = _parseBrands({}, orderMap, orderCode);
+    final brand = brands.isNotEmpty ? brands.first : _parseBrand({}, orderMap, orderCode);
 
     return copyWith(
       data: data.copyWith(
@@ -123,6 +124,7 @@ class KitchenBoardTicket {
         reference: reference,
         paymentStatus: paymentStatus,
         brand: brand,
+        brands: brands,
       ),
     );
   }
@@ -179,7 +181,10 @@ class KitchenBoardTicket {
         createdAtRaw != null ? DateTime.tryParse(createdAtRaw) : null;
     final elapsed = _parseElapsed(json, now: now ?? DateTime.now());
     final age = _parseAge(json, elapsed);
-    final brand = _parseBrand(json, orderMap, orderCode);
+    final brands = _parseBrands(json, orderMap, orderCode);
+    final brand = brands.isNotEmpty
+        ? brands.first
+        : _parseBrand(json, orderMap, orderCode);
     final channel = _parseChannel(json, orderMap);
     final reference = _parseReference(json, orderMap, channel, orderCode);
     final paymentStatus = _parsePaymentStatus(json, orderMap);
@@ -288,6 +293,7 @@ class KitchenBoardTicket {
         channel: channel,
         reference: reference,
         brand: brand,
+        brands: brands,
         items: items,
         paymentStatus: paymentStatus,
         qcReturnedReason: qcReturnedReason,
@@ -429,6 +435,84 @@ class KitchenBoardTicket {
             : 'Gamcheon',
       ),
     };
+  }
+
+  static List<AssignedBrand> _parseBrands(
+    Map<String, dynamic> json,
+    Map<String, dynamic>? orderMap,
+    String orderCode,
+  ) {
+    final collected = <String, AssignedBrand>{};
+
+    void addBrandObj(dynamic obj) {
+      if (obj is Map<String, dynamic>) {
+        final code = (obj['code'] as String?)?.trim() ??
+            (obj['brand_code'] as String?)?.trim();
+        final name = (obj['name'] as String?)?.trim() ??
+            (obj['brand_name'] as String?)?.trim();
+        final id = (obj['brand_id'] as String?) ??
+            (obj['id'] as String?) ??
+            (code != null ? 'brand-${code.toLowerCase()}' : null);
+        if (code != null && code.isNotEmpty && name != null && name.isNotEmpty) {
+          collected[code.toUpperCase()] = AssignedBrand(
+            id: id ?? 'brand-$code',
+            code: code.toUpperCase(),
+            name: name,
+          );
+        }
+      } else if (obj is Map) {
+        final code = (obj['code'] as String?)?.trim() ??
+            (obj['brand_code'] as String?)?.trim();
+        final name = (obj['name'] as String?)?.trim() ??
+            (obj['brand_name'] as String?)?.trim();
+        final id = (obj['brand_id'] as String?) ??
+            (obj['id'] as String?) ??
+            (code != null ? 'brand-${code.toLowerCase()}' : null);
+        if (code != null && code.isNotEmpty && name != null && name.isNotEmpty) {
+          collected[code.toUpperCase()] = AssignedBrand(
+            id: id ?? 'brand-$code',
+            code: code.toUpperCase(),
+            name: name,
+          );
+        }
+      } else if (obj is AssignedBrand) {
+        collected[obj.code.toUpperCase()] = obj;
+      }
+    }
+
+    // 1. Direct brands list on ticket or order
+    final rawBrands = json['brands'] ?? orderMap?['brands'];
+    if (rawBrands is List) {
+      for (final b in rawBrands) {
+        addBrandObj(b);
+      }
+    }
+
+    // 2. Brands attached to individual items
+    final rawItems = json['items'] ??
+        json['order_items'] ??
+        json['order_items_order'] ??
+        orderMap?['order_items_order'] ??
+        orderMap?['items'];
+    if (rawItems is List) {
+      for (final item in rawItems) {
+        if (item is Map) {
+          if (item['brand'] != null) {
+            addBrandObj(item['brand']);
+          } else if (item['brand_name'] != null || item['brand_code'] != null) {
+            addBrandObj(item);
+          }
+        }
+      }
+    }
+
+    // 3. Fallback to primary brand if none collected
+    if (collected.isEmpty) {
+      final primary = _parseBrand(json, orderMap, orderCode);
+      collected[primary.code.toUpperCase()] = primary;
+    }
+
+    return collected.values.toList(growable: false);
   }
 
   static String _parseChannel(

@@ -57,43 +57,107 @@ class KitchenTicketChannelLine extends StatelessWidget {
   }
 }
 
-/// [KK] King Kungs Kafé
+/// [KK] King Kungs Kafé · [AI] Aurelia's Inasal
 class KitchenTicketBrandRow extends StatelessWidget {
-  const KitchenTicketBrandRow({super.key, required this.brand});
+  const KitchenTicketBrandRow({
+    super.key,
+    this.brand,
+    this.brands,
+  }) : assert(
+         brand != null || brands != null,
+         'Either brand or brands must be provided',
+       );
 
-  final AssignedBrand brand;
+  final AssignedBrand? brand;
+  final List<AssignedBrand>? brands;
+
+  List<AssignedBrand> get _effectiveBrands {
+    if (brands != null && brands!.isNotEmpty) {
+      return brands!;
+    }
+    if (brand != null) {
+      return [brand!];
+    }
+    return const [];
+  }
+
+  static Widget _buildBrandBadge(String code) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: KkfcColors.surface,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: KkfcColors.ticketMuted, width: 1),
+      ),
+      child: Text(
+        code,
+        style: const TextStyle(
+          fontSize: KkfcTextSizes.textXs,
+          fontWeight: FontWeight.w700,
+          color: KkfcColors.ticketInk,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final list = _effectiveBrands;
+    if (list.length <= 1) {
+      final single = list.isNotEmpty
+          ? list.first
+          : const AssignedBrand(id: 'unknown', code: '??', name: 'Unknown');
+      return Row(
+        key: const ValueKey('kitchen-ticket-brand-row-single'),
+        children: [
+          _buildBrandBadge(single.code),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              single.name,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: KkfcColors.ticketBrandName,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Multi-brand layout (Option A): Badges in ticket header
+    return Wrap(
+      key: const ValueKey('kitchen-ticket-brand-row-multi'),
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: KkfcColors.ticketMuted, width: 1),
-          ),
-          child: Text(
-            brand.code,
-            style: const TextStyle(
-              fontSize: KkfcTextSizes.textXs,
-              fontWeight: FontWeight.w700,
-              color: KkfcColors.ticketInk,
+        for (final b in list)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: KkfcColors.canvasSunken,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: KkfcColors.border, width: 1),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildBrandBadge(b.code),
+                const SizedBox(width: 6),
+                Text(
+                  b.name,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: KkfcColors.ticketBrandName,
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            brand.name,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: KkfcColors.ticketBrandName,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
       ],
     );
   }

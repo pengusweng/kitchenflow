@@ -154,7 +154,10 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                 const SizedBox(height: 14),
 
                 // 2. Brand badge and name
-                KitchenTicketBrandRow(brand: widget.ticket.brand),
+                KitchenTicketBrandRow(
+                  brand: widget.ticket.brand,
+                  brands: widget.ticket.effectiveBrands,
+                ),
                 const SizedBox(height: 8),
 
                 // 3. Channel and reference line (🛍 Takeaway · Call: Ana)

@@ -48,6 +48,7 @@ class KitchenTicketData {
     required this.channel,
     required this.reference,
     required this.brand,
+    this.brands,
     required this.items,
     this.paymentStatus = 'Paid',
     this.qcReturnedReason,
@@ -62,11 +63,19 @@ class KitchenTicketData {
   final String channel; // "GrabFood"
   final String reference; // "#GF-1001"
   final AssignedBrand brand; // brand.code -> tag, brand.name -> label
+  final List<AssignedBrand>? brands;
   final List<KitchenTicketItem> items;
   final String paymentStatus;
   final String? qcReturnedReason;
   final String? reworkNotes;
   final DateTime? createdAt;
+
+  /// Returns all assigned brands for multi-brand orders, falling back to [brand].
+  List<AssignedBrand> get effectiveBrands =>
+      brands != null && brands!.isNotEmpty ? brands! : [brand];
+
+  /// Whether this ticket contains items across multiple brands.
+  bool get isMultiBrand => effectiveBrands.length > 1;
 
   /// Whether this ticket is a delivery channel (e.g. GrabFood or foodpanda).
   bool get isDelivery {
@@ -82,12 +91,16 @@ class KitchenTicketData {
     String? channel,
     String? reference,
     AssignedBrand? brand,
+    List<AssignedBrand>? brands,
     List<KitchenTicketItem>? items,
     String? paymentStatus,
     String? qcReturnedReason,
     String? reworkNotes,
     DateTime? createdAt,
   }) {
+    final newBrands = brands ?? this.brands;
+    final newBrand = brand ??
+        (brands != null && brands.isNotEmpty ? brands.first : this.brand);
     return KitchenTicketData(
       ticketNumber: ticketNumber ?? this.ticketNumber,
       elapsed: elapsed ?? this.elapsed,
@@ -95,7 +108,8 @@ class KitchenTicketData {
       status: status ?? this.status,
       channel: channel ?? this.channel,
       reference: reference ?? this.reference,
-      brand: brand ?? this.brand,
+      brand: newBrand,
+      brands: newBrands,
       items: items ?? this.items,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       qcReturnedReason: qcReturnedReason ?? this.qcReturnedReason,
