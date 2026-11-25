@@ -15,6 +15,7 @@ import 'package:mobile/features/new_order/presentation/pages/menu_screen.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_panel.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_search_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_item_card.dart';
+import 'package:mobile/features/new_order/presentation/widgets/menu_item_grid_card.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 import 'package:mobile/main.dart' as app;
@@ -111,11 +112,12 @@ void main() {
     (tester) async {
       final container = await _login(tester);
       final unavailable = _item(_unavailableId);
+      final unavailableWidget = tester.widget(unavailable);
+      final item = unavailableWidget is MenuItemCard
+          ? unavailableWidget.item
+          : (unavailableWidget as MenuItemGridCard).item;
       expect(
-        tester
-            .widget<MenuItemCard>(unavailable)
-            .item
-            .availabilityFor(MenuChannel.dineIn),
+        item.availabilityFor(MenuChannel.dineIn),
         isNot(MenuAvailability.available),
       );
       await _tap(tester, unavailable);
@@ -142,7 +144,9 @@ void main() {
 }
 
 Finder _item(String id) => find.byWidgetPredicate(
-  (widget) => widget is MenuItemCard && widget.item.id == id,
+  (widget) =>
+      (widget is MenuItemCard && widget.item.id == id) ||
+      (widget is MenuItemGridCard && widget.item.id == id),
 );
 
 Future<ProviderContainer> _login(WidgetTester tester) async {
