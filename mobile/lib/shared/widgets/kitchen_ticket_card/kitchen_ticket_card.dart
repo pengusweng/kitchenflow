@@ -316,26 +316,37 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                         onPressed: widget.onDetails,
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
+                            horizontal: 6,
                             vertical: 4,
                           ),
                           minimumSize: const Size(48, 44),
                           tapTargetSize: MaterialTapTargetSize.padded,
                           foregroundColor: KkfcColors.ticketSubtleInk,
                         ),
-                        child: const Text(
-                          'Details',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: KkfcColors.ticketSubtleInk,
+                        child: Container(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: KkfcColors.ticketSubtleInk,
+                                width: 1.2,
+                              ),
+                            ),
+                          ),
+                          child: const Text(
+                            'Details',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: KkfcColors.ticketSubtleInk,
+                            ),
                           ),
                         ),
                       ),
                       if (showAction) ...[
                         const SizedBox(width: 8),
-                        // Flexible so long labels wrap instead of overflowing at
-                        // large text scales.
+                        // Flexible so long labels scale down cleanly instead of
+                        // wrapping into multiple lines or overflowing.
                         Flexible(
                           child: _buildPrimaryActionButton(resolvedLabel),
                         ),
@@ -383,7 +394,7 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
         disabledForegroundColor: KkfcColors.ticketMuted,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         minimumSize: const Size(100, 42),
       ),
       child: widget.isActionLoading
@@ -395,15 +406,20 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                 color: KkfcColors.onSolid,
               ),
             )
-          : Text(
-              resolvedLabel,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: widget.isActionEnabled
-                    ? KkfcColors.onSolid
-                    : KkfcColors.ticketMuted,
+          : FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                resolvedLabel,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: widget.isActionEnabled
+                      ? KkfcColors.onSolid
+                      : KkfcColors.ticketMuted,
+                ),
               ),
             ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/core/models/brand_models.dart';
@@ -390,6 +391,108 @@ void main() {
       expect(parsed.data.effectiveBrands[0].code, 'GC');
       expect(parsed.data.effectiveBrands[1].code, 'AI');
       expect(parsed.data.isMultiBrand, isTrue);
+    });
+  });
+
+  group('Kitchen Ticket Card Action & Details Styling', () {
+    testWidgets('Details button has underline style with spacing', (tester) async {
+      const ticket = KitchenTicketData(
+        ticketNumber: 'T-099',
+        elapsed: Duration(minutes: 5),
+        age: KitchenTicketAge.onTime,
+        status: KkfcStatus.acknowledged,
+        channel: 'Dine-in',
+        reference: '#ORD-99',
+        brand: AssignedBrand(id: 'brand-kk', code: 'KK', name: 'King Kungs'),
+        items: [KitchenTicketItem(quantity: 1, name: 'Burger')],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KitchenTicketCard(
+              ticket: ticket,
+              onDetails: () {},
+              onAction: () {},
+            ),
+          ),
+        ),
+      );
+
+      final detailsFinder = find.text('Details');
+      expect(detailsFinder, findsOneWidget);
+
+      final containerFinder = find.ancestor(
+        of: detailsFinder,
+        matching: find.byType(Container),
+      );
+      expect(containerFinder, findsWidgets);
+
+      final underlineBox = tester.widget<Container>(containerFinder.first);
+      final decoration = underlineBox.decoration as BoxDecoration?;
+      expect(decoration?.border?.bottom, isNotNull);
+      expect(decoration!.border!.bottom.color, KkfcColors.ticketSubtleInk);
+
+      final padding = underlineBox.padding as EdgeInsets?;
+      expect(padding?.bottom, greaterThan(0));
+    });
+
+    testWidgets('Start Preparing CTA does not wrap to 2 lines on acknowledged ticket across narrow constraints', (tester) async {
+      const ticket = KitchenTicketData(
+        ticketNumber: 'T-099',
+        elapsed: Duration(minutes: 5),
+        age: KitchenTicketAge.onTime,
+        status: KkfcStatus.acknowledged,
+        channel: 'Dine-in',
+        reference: '#ORD-99',
+        brand: AssignedBrand(id: 'brand-kk', code: 'KK', name: 'King Kungs'),
+        items: [KitchenTicketItem(quantity: 1, name: 'Burger')],
+      );
+
+      // Test on standard minimum lane width (280px) and a very narrow screen (240px)
+      for (final width in [280.0, 240.0]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: width,
+                  child: KitchenTicketCard.board(
+                    ticket: ticket,
+                    onDetails: () {},
+                    onAction: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final ctaFinder = find.text('Start Preparing');
+        expect(ctaFinder, findsOneWidget);
+
+        final ctaText = tester.widget<Text>(ctaFinder);
+        expect(ctaText.maxLines, 1);
+        expect(ctaText.softWrap, false);
+
+        // Verify it is wrapped in a FittedBox with BoxFit.scaleDown
+        final fittedBoxFinder = find.ancestor(
+          of: ctaFinder,
+          matching: find.byType(FittedBox),
+        );
+        expect(fittedBoxFinder, findsOneWidget);
+        final fittedBox = tester.widget<FittedBox>(fittedBoxFinder);
+        expect(fittedBox.fit, BoxFit.scaleDown);
+
+        // Verify the rendered line count is 1
+        final renderParagraph = tester.renderObject<RenderParagraph>(ctaFinder);
+        final textPainter = TextPainter(
+          text: renderParagraph.text,
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+        )..layout(maxWidth: renderParagraph.constraints.maxWidth);
+        expect(textPainter.computeLineMetrics().length, 1);
+      }
     });
   });
 }
