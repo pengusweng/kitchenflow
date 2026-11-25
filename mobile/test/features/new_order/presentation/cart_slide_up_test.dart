@@ -75,10 +75,10 @@ void main() {
       // Initially no CartBar because cart is empty
       expect(find.byType(CartPanel), findsNothing);
 
-      // Tap Add to open customization dialog, then Add to order
-      final addBtn = find.text('Add');
-      expect(addBtn, findsOneWidget);
-      await tester.tap(addBtn);
+      // Tap item card to open customization dialog, then Add to order
+      final itemCard = find.text('Gamcheon Samgyupsal');
+      expect(itemCard, findsOneWidget);
+      await tester.tap(itemCard);
       await tester.pumpAndSettle();
 
       final addToOrderBtn = find.textContaining('Add to order');

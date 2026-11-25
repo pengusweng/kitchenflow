@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/features/app_updates/optional_update_notice.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
-import 'package:mobile/features/new_order/presentation/widgets/brands/brand_switch_confirm_dialog.dart';
+import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_pagination_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_search_bar.dart';
+import 'package:mobile/features/new_order/presentation/widgets/catalog/catalog_view_mode_toggle.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_item_card.dart';
+import 'package:mobile/features/new_order/presentation/widgets/menu_item_grid_card.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_selector/choose_menu_modal.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_selector/current_menu_card.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_states.dart';
@@ -30,7 +32,14 @@ class MenuCatalogView extends ConsumerWidget {
     final assignedBrands = ref.watch(assignedBrandsProvider);
     final selectedChannel = ref.watch(menuChannelProvider);
     final visibleItems = ref.watch(visibleMenuItemsProvider);
-    final visibleCount = visibleItems.asData?.value.length;
+    final allItems = visibleItems.asData?.value;
+    final totalItems = allItems?.length ?? 0;
+    final totalPages = totalItems == 0
+        ? 1
+        : ((totalItems - 1) ~/ kMenuItemsPerPage) + 1;
+    final currentPage = ref.watch(menuPageProvider).clamp(1, totalPages);
+    final hasPagination = allItems != null && allItems.isNotEmpty;
+    final viewMode = ref.watch(menuViewModeProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -49,69 +58,86 @@ class MenuCatalogView extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 isWide ? KkfcSpace.s20 : KkfcSpace.s16,
-                KkfcSpace.s16,
-                isWide ? KkfcSpace.s20 : KkfcSpace.s16,
                 KkfcSpace.s12,
+                isWide ? KkfcSpace.s20 : KkfcSpace.s16,
+                KkfcSpace.s8,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const OptionalUpdateNotice(),
-                  // Provider selection; channels are selected in order details.
-                  CurrentMenuCard(
-                    brand: activeBrand,
-                    channel: selectedChannel,
-                    showChannel: false,
-                    onTap: () async {
-                      final result = await showChooseMenuModal(
-                        context,
-                        brands: assignedBrands,
-                        currentBrand: activeBrand,
-                        currentChannel: selectedChannel,
-                        showChannels: false,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isSingleRow = constraints.maxWidth >= 720.0;
+
+                      final menuSelector = ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: 140.0,
+                          maxWidth: 220.0,
+                        ),
+                        child: CurrentMenuCard(
+                          brand: activeBrand,
+                          channel: selectedChannel,
+                          showChannel: false,
+                          compact: true,
+                          onTap: () async {
+                            final result = await showChooseMenuModal(
+                              context,
+                              brands: assignedBrands,
+                              currentBrand: activeBrand,
+                              currentChannel: selectedChannel,
+                              showChannels: false,
+                            );
+                            if (result == null ||
+                                result.brand.id == activeBrand.id ||
+                                (result.brand.code.isNotEmpty &&
+                                    result.brand.code.toUpperCase() ==
+                                        activeBrand.code.toUpperCase())) {
+                              return;
+                            }
+                            if (!context.mounted) return;
+
+                            ref
+                                .read(activeBrandProvider.notifier)
+                                .select(result.brand);
+                          },
+                        ),
                       );
-                      if (result == null ||
-                          result.brand.id == activeBrand.id ||
-                          (result.brand.code.isNotEmpty &&
-                              result.brand.code.toUpperCase() ==
-                                  activeBrand.code.toUpperCase())) {
-                        return;
-                      }
-                      if (!context.mounted) return;
 
-                      final cartCount = ref.read(cartCountProvider);
-                      if (cartCount > 0) {
-                        final confirmed = await showBrandSwitchConfirm(
-                          context,
-                          current: activeBrand,
-                          target: result.brand,
-                          cartCount: cartCount,
+                      if (isSingleRow) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            menuSelector,
+                            const SizedBox(width: 8.0),
+                            const Expanded(child: CatalogSearchBar()),
+                            const SizedBox(width: 8.0),
+                            const CatalogViewModeToggle(),
+                          ],
                         );
-                        if (confirmed != true) return;
-                        if (!context.mounted) return;
-                        ref.read(cartProvider.notifier).clear();
                       }
 
-                      ref
-                          .read(activeBrandProvider.notifier)
-                          .select(result.brand);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: menuSelector,
+                                ),
+                              ),
+                              const SizedBox(width: 8.0),
+                              const CatalogViewModeToggle(),
+                            ],
+                          ),
+                          const SizedBox(height: 8.0),
+                          const CatalogSearchBar(),
+                        ],
+                      );
                     },
                   ),
-                  const SizedBox(height: KkfcSpace.s12),
-
-                  // 2. Search field + Unavailable button with tactile press feedback
-                  const CatalogSearchBar(),
-                  if (visibleCount != null) ...[
-                    const SizedBox(height: KkfcSpace.s8),
-                    Text(
-                      'Showing $visibleCount item${visibleCount == 1 ? '' : 's'}',
-                      style: const TextStyle(
-                        fontFamily: KkfcFonts.text,
-                        fontSize: 13,
-                        color: Color(0xFF586579),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -123,11 +149,12 @@ class MenuCatalogView extends ConsumerWidget {
               isWide ? KkfcSpace.s20 : KkfcSpace.s16,
               KkfcSpace.s4,
               isWide ? KkfcSpace.s20 : KkfcSpace.s16,
-              bottomPadding,
+              hasPagination ? KkfcSpace.s12 : bottomPadding,
             ),
             sliver: visibleItems.when(
-              loading: () =>
-                  SliverToBoxAdapter(child: MenuGridSkeleton(isWide: isWide)),
+              loading: () => SliverToBoxAdapter(
+                child: MenuGridSkeleton(isWide: isWide, viewMode: viewMode),
+              ),
               error: (_, _) => SliverToBoxAdapter(
                 child: MenuMessageCard(
                   icon: Icons.wifi_off,
@@ -200,6 +227,52 @@ class MenuCatalogView extends ConsumerWidget {
                   );
                 }
 
+                final startIndex = (currentPage - 1) * kMenuItemsPerPage;
+                final endIndex = (startIndex + kMenuItemsPerPage).clamp(
+                  0,
+                  items.length,
+                );
+                final pageItems = items.sublist(startIndex, endIndex);
+
+                if (viewMode == MenuViewMode.grid) {
+                  final screenWidth = MediaQuery.sizeOf(context).width;
+                  final isTabletOrDesktop = screenWidth >= 600.0;
+
+                  final gridDelegate = !isTabletOrDesktop
+                      ? const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12.0,
+                          mainAxisSpacing: 12.0,
+                          childAspectRatio: 1.0,
+                        )
+                      : (screenWidth >= 1400.0
+                            ? const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 220.0,
+                                crossAxisSpacing: 16.0,
+                                mainAxisSpacing: 16.0,
+                                childAspectRatio: 1.0,
+                              )
+                            : const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4,
+                                crossAxisSpacing: 16.0,
+                                mainAxisSpacing: 16.0,
+                                childAspectRatio: 1.0,
+                              ));
+
+                  return SliverGrid.builder(
+                    gridDelegate: gridDelegate,
+                    itemCount: pageItems.length,
+                    itemBuilder: (context, index) => _AnimatedCatalogItem(
+                      key: ValueKey('grid-$currentPage-${pageItems[index].id}'),
+                      index: index,
+                      child: MenuItemGridCard(
+                        item: pageItems[index],
+                        channel: selectedChannel,
+                      ),
+                    ),
+                  );
+                }
+
                 return isWide
                     ? SliverGrid.builder(
                         gridDelegate:
@@ -209,28 +282,106 @@ class MenuCatalogView extends ConsumerWidget {
                               mainAxisSpacing: 16.0,
                               mainAxisExtent: 180.0,
                             ),
-                        itemCount: items.length,
-                        itemBuilder: (context, index) => MenuItemCard(
-                          item: items[index],
-                          channel: selectedChannel,
-                          compact: false,
+                        itemCount: pageItems.length,
+                        itemBuilder: (context, index) => _AnimatedCatalogItem(
+                          key: ValueKey(
+                            'list-wide-$currentPage-${pageItems[index].id}',
+                          ),
+                          index: index,
+                          child: MenuItemCard(
+                            item: pageItems[index],
+                            channel: selectedChannel,
+                            compact: false,
+                          ),
                         ),
                       )
                     : SliverList.separated(
-                        itemCount: items.length,
+                        itemCount: pageItems.length,
                         separatorBuilder: (context, index) =>
                             const SizedBox(height: 12.0),
-                        itemBuilder: (context, index) => MenuItemCard(
-                          item: items[index],
-                          channel: selectedChannel,
-                          compact: true,
+                        itemBuilder: (context, index) => _AnimatedCatalogItem(
+                          key: ValueKey(
+                            'list-compact-$currentPage-${pageItems[index].id}',
+                          ),
+                          index: index,
+                          child: MenuItemCard(
+                            item: pageItems[index],
+                            channel: selectedChannel,
+                            compact: true,
+                          ),
                         ),
                       );
               },
             ),
           ),
+
+          // 4. Pagination Footer Bar (16 items per page limit)
+          if (hasPagination)
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                isWide ? KkfcSpace.s20 : KkfcSpace.s16,
+                0.0,
+                isWide ? KkfcSpace.s20 : KkfcSpace.s16,
+                bottomPadding,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: CatalogPaginationBar(
+                  currentPage: currentPage,
+                  totalPages: totalPages,
+                  totalItems: totalItems,
+                  onPageChanged: (page) {
+                    ref.read(menuPageProvider.notifier).setPage(page);
+                  },
+                ),
+              ),
+            ),
         ],
       ),
+    );
+  }
+}
+
+/// Choreographed staggered entrance animation when switching between Grid and
+/// List view modes (or pages), following [KkfcMotion] tokens:
+/// - 240ms screen transition duration (`KkfcMotion.durScreen`)
+/// - 18ms row/card stagger (`KkfcMotion.stagger`), capped at 10 items
+/// - 6px vertical peer rise (`KkfcMotion.peerOffset`) + subtle scale & fade
+class _AnimatedCatalogItem extends StatelessWidget {
+  const _AnimatedCatalogItem({
+    super.key,
+    required this.index,
+    required this.child,
+  });
+
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final staggeredIndex = index.clamp(0, KkfcMotion.staggerMaxRows);
+    final delayMs = staggeredIndex * KkfcMotion.stagger.inMilliseconds;
+    final baseMs = KkfcMotion.durScreen.inMilliseconds;
+    final totalMs = baseMs + delayMs;
+    final startFraction = totalMs > 0 ? delayMs / totalMs : 0.0;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: totalMs),
+      builder: (context, value, child) {
+        final rawProgress = startFraction >= 1.0
+            ? 1.0
+            : ((value - startFraction) / (1.0 - startFraction)).clamp(0.0, 1.0);
+        final curved = Curves.easeOutCubic.transform(rawProgress);
+
+        return Opacity(
+          opacity: curved,
+          child: Transform.translate(
+            offset: Offset(0.0, (1.0 - curved) * KkfcMotion.peerOffset),
+            child: Transform.scale(scale: 0.96 + (0.04 * curved), child: child),
+          ),
+        );
+      },
+      child: child,
     );
   }
 }

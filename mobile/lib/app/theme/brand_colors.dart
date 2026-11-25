@@ -7,6 +7,7 @@ enum KkfcBrand {
     accent: Color(0xFF3D5A80),
     tint: Color(0xFFEEF3F8),
     logoAsset: 'assets/images/gamcheon.png',
+    bgAsset: 'assets/bg/gamcheon_bg.jpg',
   ),
   aurelias(
     code: 'AI',
@@ -14,6 +15,7 @@ enum KkfcBrand {
     accent: Color(0xFF9A4A1F),
     tint: Color(0xFFFBF2EC),
     logoAsset: 'assets/images/aurelia.png',
+    bgAsset: 'assets/bg/aurelias_bg.jpg',
   ),
   kingKungs(
     code: 'KK',
@@ -21,6 +23,7 @@ enum KkfcBrand {
     accent: Color(0xFF5C4033),
     tint: Color(0xFFF5EFEA),
     logoAsset: 'assets/images/king_kungs.png',
+    bgAsset: 'assets/bg/king_kungs_bg.jpg',
   );
 
   const KkfcBrand({
@@ -29,6 +32,7 @@ enum KkfcBrand {
     required this.accent,
     this.tint = const Color(0xFFF0F4F8),
     this.logoAsset,
+    this.bgAsset,
   });
 
   final String code;
@@ -36,6 +40,7 @@ enum KkfcBrand {
   final Color accent;
   final Color tint;
   final String? logoAsset;
+  final String? bgAsset;
 
   /// Resolves a [KkfcBrand] from a code or name, or null when not matched.
   static KkfcBrand? tryFrom(String? code, [String? name]) {
@@ -92,6 +97,12 @@ enum KkfcBrand {
   static String? logoFor(String? code, [String? name]) {
     final match = tryFrom(code, name);
     return match?.logoAsset;
+  }
+
+  /// Returns the asset path for the brand's background image, or null when unknown.
+  static String? bgFor(String? code, [String? name]) {
+    final match = tryFrom(code, name);
+    return match?.bgAsset;
   }
 }
 

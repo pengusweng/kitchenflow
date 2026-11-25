@@ -82,7 +82,7 @@ export function CreateOrderDocs() {
     ApiOperation({
       summary: 'Create an order draft',
       description:
-        'Requires a client UUID, channel and 1-100 lines. DINE_IN requires a table reference; GRABFOOD/FOODPANDA require store and external order references. Replays with identical payload return the existing order, which may already be confirmed.',
+        'Requires a client UUID, channel and 1-100 lines. Lines may contain menu items from multiple active brands in one order and kitchen ticket. The URL brand determines the order code, sequence and listing scope, not the permitted item brands. DINE_IN requires a table reference; GRABFOOD/FOODPANDA require store and external order references. Replays with identical payload return the existing order, which may already be confirmed.',
     }),
     ApiResponse({
       status: 201,

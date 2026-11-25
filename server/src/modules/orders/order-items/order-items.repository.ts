@@ -4,7 +4,6 @@ import { OrderChannel, Prisma } from '@prisma/client';
 @Injectable()
 export class OrderItemsRepository {
   findMenuSnapshot(
-    brandId: string,
     menuItemId: string,
     channel: OrderChannel,
     tx: Prisma.TransactionClient,
@@ -12,7 +11,8 @@ export class OrderItemsRepository {
     return tx.menuItem.findFirst({
       where: {
         menu_item_id: menuItemId,
-        brand_id: brandId,
+        // An order can contain items from multiple active brands.
+        brand: { is_active: true },
         is_active: true,
       },
       include: {

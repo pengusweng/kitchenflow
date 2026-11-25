@@ -152,6 +152,63 @@ final hideUnavailableProvider = NotifierProvider<HideUnavailableNotifier, bool>(
   HideUnavailableNotifier.new,
 );
 
+enum MenuViewMode { grid, list }
+
+class MenuViewModeNotifier extends Notifier<MenuViewMode> {
+  @override
+  MenuViewMode build() => MenuViewMode.grid;
+
+  void set(MenuViewMode mode) => state = mode;
+
+  void toggle() => state = state == MenuViewMode.grid
+      ? MenuViewMode.list
+      : MenuViewMode.grid;
+}
+
+final menuViewModeProvider =
+    NotifierProvider<MenuViewModeNotifier, MenuViewMode>(
+      MenuViewModeNotifier.new,
+    );
+
+/// Maximum number of menu items displayed per page on the Menu Screen.
+const int kMenuItemsPerPage = 16;
+
+class MenuPageNotifier extends Notifier<int> {
+  @override
+  int build() {
+    // Automatically reset to page 1 when search, filter, channel, category, or brand changes.
+    ref.watch(menuSearchProvider);
+    ref.watch(hideUnavailableProvider);
+    ref.watch(menuChannelProvider);
+    ref.watch(activeBrandProvider);
+    ref.watch(menuCategoryProvider);
+    return 1;
+  }
+
+  void setPage(int page) {
+    if (page < 1 || page == state) return;
+    state = page;
+  }
+
+  void nextPage(int totalPages) {
+    if (state < totalPages) {
+      state = state + 1;
+    }
+  }
+
+  void previousPage() {
+    if (state > 1) {
+      state = state - 1;
+    }
+  }
+
+  void reset() => state = 1;
+}
+
+final menuPageProvider = NotifierProvider<MenuPageNotifier, int>(
+  MenuPageNotifier.new,
+);
+
 final visibleMenuItemsProvider =
     Provider.autoDispose<AsyncValue<List<MenuItem>>>((ref) {
       final query = ref.watch(menuSearchProvider).trim().toLowerCase();

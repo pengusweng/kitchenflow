@@ -129,6 +129,84 @@ describe('OrdersService', () => {
     );
   });
 
+  it.each(['create', 'verify', 'confirm'] as const)(
+    'UT-ORD-061: accepts items from multiple active brands when %s runs',
+    async (operation) => {
+      const menu = (await tx.menuItem.findFirst()) as {
+        menu_item_id: string;
+        is_available: boolean;
+        name: string;
+        base_price: Prisma.Decimal;
+        recipe_id: string;
+        recipe: typeof recipe;
+        menu_item_channels_menu_item: {
+          price: Prisma.Decimal;
+          is_available: boolean;
+        }[];
+        menu_item_modifiers_menu_item: {
+          modifier_id: string;
+          additional_price: Prisma.Decimal;
+          modifier: { name: string; is_active: boolean };
+        }[];
+      };
+      tx.menuItem.findFirst.mockImplementation(
+        ({ where }: { where: { menu_item_id: string; brand_id?: string } }) => {
+          if (where.brand_id && where.menu_item_id === 'other-menu')
+            return Promise.resolve(null);
+          return Promise.resolve({ ...menu, menu_item_id: where.menu_item_id });
+        },
+      );
+      const lines = [
+        ...request.lines,
+        { menu_item_id: 'other-menu', quantity: 1 },
+      ];
+      tx.order.findFirst.mockResolvedValue({
+        ...draft,
+        order_items_order: [
+          ...draft.order_items_order,
+          {
+            ...draft.order_items_order[0],
+            order_item_id: 'other-line',
+            menu_item_id: 'other-menu',
+            quantity: 1,
+            order_item_modifiers_order_item: [],
+          },
+        ],
+      });
+      if (operation === 'create') {
+        await service.create('brand', 'actor', { ...request, lines });
+        expect(tx.order.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              order_items_order: {
+                create: expect.arrayContaining([
+                  expect.objectContaining({ menu_item_id: 'menu' }),
+                  expect.objectContaining({ menu_item_id: 'other-menu' }),
+                ]) as unknown[],
+              },
+            }) as object,
+          }),
+        );
+      } else if (operation === 'verify') {
+        expect(
+          (await service.verify('brand', 'order', payment)).lines,
+        ).toHaveLength(2);
+      } else {
+        await service.confirm('brand', 'order', 'actor', payment);
+        expect(tx.orderItem.update).toHaveBeenCalledTimes(2);
+        expect(tx.kitchenTicket.create).toHaveBeenCalledTimes(1);
+      }
+      expect(tx.menuItem.findFirst).toHaveBeenCalledWith({
+        where: {
+          menu_item_id: 'other-menu',
+          brand: { is_active: true },
+          is_active: true,
+        },
+        include: expect.any(Object) as object,
+      });
+    },
+  );
+
   it.each(['verify', 'confirm'] as const)(
     'UT-ORD-001 Given no channel override When %s runs Then use the base price',
     async (operation) => {

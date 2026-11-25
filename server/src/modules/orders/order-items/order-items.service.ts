@@ -11,7 +11,6 @@ export class OrderItemsService {
 
   async snapshots(
     tx: Prisma.TransactionClient,
-    brandId: string,
     channel: OrderChannel,
     lines: OrderLineDTO[],
   ) {
@@ -19,7 +18,6 @@ export class OrderItemsService {
     const snapshots = await Promise.all(
       lines.map(async (line) => {
         const menu = await this.repository.findMenuSnapshot(
-          brandId,
           line.menu_item_id,
           channel,
           tx,

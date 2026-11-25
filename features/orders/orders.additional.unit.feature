@@ -3,6 +3,19 @@ Feature: Additional orders unit coverage
   Feature ID: FEAT-ORD-UT-ADDITIONAL
   Requirement ID: FR-ORD-001
 
+  @UT-ORD-061
+  Scenario Outline: Accept multiple active brands in one order
+    Test Case ID: UT-ORD-061
+    Given order lines reference menu items from two active brands
+    When the order is <operation>
+    Then both items are accepted under one order and confirmation creates one ticket
+    And menu items must belong to active brands
+    Examples:
+      | operation |
+      | created   |
+      | verified  |
+      | confirmed |
+
   As a backend maintainer,
   I want the orders behavior documented alongside its executable tests,
   So that each result can be traced to its preconditions, action, and expected outcome.

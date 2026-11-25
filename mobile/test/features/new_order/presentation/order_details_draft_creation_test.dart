@@ -48,6 +48,7 @@ class MockOrderEntryRepository implements OrderEntryRepository {
       'channel': channel,
       'reference': reference,
       'linesCount': lines.length,
+      'menuItemIds': lines.map((line) => line.item.id).toList(),
     };
 
     if (shouldFailCreate) {
@@ -207,7 +208,7 @@ void main() {
   );
 
   testWidgets(
-    'WT-MOB-ORDER-FLOW-005 Step 3 prevents submitting another provider’s items',
+    'WT-MOB-ORDER-FLOW-005 Step 3 submits multiple providers in one draft',
     (tester) async {
       final mockRepo = MockOrderEntryRepository();
       final container = ProviderContainer(
@@ -228,6 +229,13 @@ void main() {
               name: 'King Kungs Cafe',
             ),
           );
+      final otherItem = MenuItem(
+        id: '66666666-6666-4666-8666-666666666666',
+        name: 'Cafe meal',
+        description: 'Another provider item',
+        pricesCentavos: const {MenuChannel.takeaway: 15000},
+      );
+      container.read(cartProvider.notifier).add(otherItem);
       container.read(menuChannelProvider.notifier).select(MenuChannel.takeaway);
 
       await tester.pumpWidget(createSubject(container));
@@ -235,12 +243,14 @@ void main() {
       await tester.tap(find.text('Review order'));
       await tester.pumpAndSettle();
 
-      expect(mockRepo.createCallCount, 0);
-      expect(
-        find.textContaining('Each order must contain items from one provider.'),
-        findsOneWidget,
-      );
-      expect(container.read(cartProvider).single.brandName, sampleBrand.name);
+      expect(mockRepo.createCallCount, 1);
+      expect(mockRepo.lastCreatePayload!['linesCount'], 2);
+      expect(mockRepo.lastCreatePayload!['menuItemIds'], [
+        sampleItem.id,
+        otherItem.id,
+      ]);
+      expect(container.read(activeOrderDraftProvider), isNotNull);
+      expect(container.read(cartProvider), hasLength(2));
     },
   );
 

@@ -9,6 +9,7 @@ import 'package:mobile/features/auth/providers/session_provider.dart';
 import 'package:mobile/features/availability/providers/availability_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 import 'package:mobile/shared/widgets/app_header.dart';
+import 'package:mobile/shared/widgets/logout_button.dart';
 import 'package:mobile/shared/widgets/workspace_switcher.dart';
 
 void main() {
@@ -159,6 +160,134 @@ void main() {
         ),
         findsNothing,
       );
+    },
+  );
+
+  testWidgets(
+    'WT-MOB-WORKSPACE-006 role pill text remains visible alongside compact switcher and logout in phone view',
+    (tester) async {
+      for (final phoneSize in [const Size(390, 844), const Size(360, 800)]) {
+        tester.view.physicalSize = phoneSize;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        final container = ProviderContainer(
+          overrides: [
+            userRoleProvider.overrideWith(
+              () => _FixedRole(UserRole.superadmin),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: Scaffold(appBar: AppHeader(title: 'Orders')),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Check no layout overflow occurred
+        expect(tester.takeException(), isNull);
+
+        // Verify WorkspaceSwitcher, LogoutButton, and AppHeaderRoleChip are present
+        expect(
+          find.byKey(const ValueKey('workspace-switcher')),
+          findsOneWidget,
+        );
+        expect(find.byType(LogoutButton), findsOneWidget);
+        expect(find.byType(AppHeaderRoleChip), findsOneWidget);
+
+        // Role pill text must exist, be visible, and have non-zero width
+        final roleTextFinder = find.descendant(
+          of: find.byType(AppHeaderRoleChip),
+          matching: find.text('Superadmin'),
+        );
+        expect(roleTextFinder, findsOneWidget);
+
+        final roleTextSize = tester.getSize(roleTextFinder);
+        expect(
+          roleTextSize.width,
+          greaterThan(30.0),
+          reason: 'Role pill text must not be crushed or hidden on $phoneSize',
+        );
+
+        // WorkspaceSwitcher is compact
+        final switcherSize = tester.getSize(
+          find.byKey(const ValueKey('workspace-switcher')),
+        );
+        expect(
+          switcherSize.width,
+          lessThan(90.0),
+          reason: 'WorkspaceSwitcher should have compact footprint',
+        );
+
+        // LogoutButton is compact
+        final logoutSize = tester.getSize(find.byType(LogoutButton));
+        expect(
+          logoutSize.width,
+          lessThanOrEqualTo(36.0),
+          reason: 'LogoutButton should have compact footprint',
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    'WT-MOB-WORKSPACE-007 arrow animates spin up on open and spins down on dismiss, with highlight removed',
+    (tester) async {
+      await pump(tester, UserRole.superadmin);
+
+      // Verify click highlight is removed via theme overrides
+      final theme = tester.widget<Theme>(
+        find.descendant(
+          of: find.byType(WorkspaceSwitcher),
+          matching: find.byType(Theme),
+        ),
+      );
+      expect(theme.data.highlightColor, Colors.transparent);
+      expect(theme.data.splashColor, Colors.transparent);
+      expect(theme.data.splashFactory, NoSplash.splashFactory);
+
+      final arrowFinder = find.byKey(
+        const ValueKey('workspace-switcher-arrow'),
+      );
+      expect(arrowFinder, findsOneWidget);
+
+      // Initially closed: arrow points down (0.0 turns)
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.0);
+
+      // Tap to open popup menu
+      await tester.tap(find.byKey(const ValueKey('workspace-switcher')));
+      await tester.pump(); // Start rotation animation
+      await tester.pump(const Duration(milliseconds: 100)); // In flight
+
+      // Once settled, menu is open and arrow points up (0.5 turns)
+      await tester.pumpAndSettle();
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.5);
+
+      // Tap an option to select and dismiss
+      await tester.tap(find.byKey(const ValueKey('workspace-option-POS')));
+      await tester.pump(); // Start closing rotation animation
+      await tester.pumpAndSettle();
+
+      // Closed: arrow spins back down (0.0 turns)
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.0);
+
+      // Open again, then dismiss by tapping outside (barrier)
+      await tester.tap(find.byKey(const ValueKey('workspace-switcher')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.5);
+
+      // Tap modal barrier outside the menu (e.g. top right corner)
+      await tester.tapAt(const Offset(700, 10));
+      await tester.pumpAndSettle();
+
+      // Closed: arrow spins back down (0.0 turns)
+      expect(tester.widget<AnimatedRotation>(arrowFinder).turns, 0.0);
     },
   );
 }

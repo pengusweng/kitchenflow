@@ -148,7 +148,7 @@ void main() {
 
         // 2. Mirrors menu_screen.dart's search bar (CatalogSearchBar)
         expect(find.byType(CatalogSearchBar), findsOneWidget);
-        expect(find.widgetWithText(TextField, 'Search'), findsOneWidget);
+        expect(find.byType(TextField), findsOneWidget);
 
         // 3. Category filters MUST NOT be included (no category filter chips like "All", "Sets", "Snacks")
         expect(find.widgetWithText(ActionChip, 'All'), findsNothing);

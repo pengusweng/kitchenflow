@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
+import 'package:mobile/features/new_order/providers/menu_providers.dart';
 import 'package:mobile/shared/shared_layout.dart';
 
 /// Loading skeleton that mirrors the exact layout, dimensions, borders, and
-/// visual rhythm of [MenuItemCard] across both wide tablet/desktop and phone layouts.
+/// visual rhythm of menu items across both wide tablet/desktop and phone layouts.
 class MenuGridSkeleton extends StatefulWidget {
-  const MenuGridSkeleton({super.key, this.isWide});
+  const MenuGridSkeleton({super.key, this.isWide, this.viewMode});
 
   final bool? isWide;
+  final MenuViewMode? viewMode;
 
   @override
   State<MenuGridSkeleton> createState() => _MenuGridSkeletonState();
@@ -45,12 +48,46 @@ class _MenuGridSkeletonState extends State<MenuGridSkeleton>
   @override
   Widget build(BuildContext context) {
     final isWide = widget.isWide ?? (MediaQuery.sizeOf(context).width >= 850.0);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isTabletOrDesktop = screenWidth >= 600.0;
 
     return Semantics(
       label: 'Loading menu',
       child: AnimatedBuilder(
         animation: _shimmer,
         builder: (context, _) {
+          if (widget.viewMode == MenuViewMode.grid) {
+            final gridDelegate = !isTabletOrDesktop
+                ? const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12.0,
+                    mainAxisSpacing: 12.0,
+                    childAspectRatio: 1.0,
+                  )
+                : (screenWidth >= 1400.0
+                      ? const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 220.0,
+                          crossAxisSpacing: 16.0,
+                          mainAxisSpacing: 16.0,
+                          childAspectRatio: 1.0,
+                        )
+                      : const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 16.0,
+                          mainAxisSpacing: 16.0,
+                          childAspectRatio: 1.0,
+                        ));
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: gridDelegate,
+              itemCount: isTabletOrDesktop ? 8 : 4,
+              itemBuilder: (context, index) =>
+                  _SkeletonGridCard(index: index, shimmerValue: _shimmer.value),
+            );
+          }
+
           return isWide
               ? GridView.builder(
                   shrinkWrap: true,
@@ -81,6 +118,69 @@ class _MenuGridSkeletonState extends State<MenuGridSkeleton>
                   ),
                 );
         },
+      ),
+    );
+  }
+}
+
+class _SkeletonGridCard extends StatelessWidget {
+  const _SkeletonGridCard({required this.index, required this.shimmerValue});
+
+  final int index;
+  final double shimmerValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final shimmerColor = Color.lerp(
+      const Color(0xFFEEE8DC),
+      const Color(0xFFDDD6C9),
+      shimmerValue,
+    )!;
+
+    return Container(
+      padding: const EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(KkfcRadius.sm),
+        border: Border.all(color: const Color(0xFFDDD6C9), width: 1.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: shimmerColor,
+                borderRadius: BorderRadius.circular(6.0),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8.0),
+          Container(
+            height: 14.0,
+            width: index.isEven ? 100.0 : 80.0,
+            decoration: BoxDecoration(
+              color: shimmerColor,
+              borderRadius: BorderRadius.circular(4.0),
+            ),
+          ),
+          const SizedBox(height: 6.0),
+          Container(
+            height: 14.0,
+            width: 55.0,
+            decoration: BoxDecoration(
+              color: shimmerColor,
+              borderRadius: BorderRadius.circular(4.0),
+            ),
+          ),
+        ],
       ),
     );
   }

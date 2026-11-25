@@ -8,6 +8,7 @@ import 'package:mobile/features/new_order/data/models/menu_models.dart';
 import 'package:mobile/features/new_order/presentation/pages/menu_screen.dart';
 import 'package:mobile/features/new_order/presentation/widgets/item_customization_dialog.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_item_card.dart';
+import 'package:mobile/features/new_order/presentation/widgets/menu_item_grid_card.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_states.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 
@@ -159,7 +160,7 @@ void main() {
       pending.complete([_meal]);
       await tester.pumpAndSettle();
       expect(find.byType(MenuGridSkeleton), findsNothing);
-      expect(find.byType(MenuItemCard), findsOneWidget);
+      expect(find.byType(MenuItemGridCard), findsOneWidget);
     },
   );
 
@@ -182,7 +183,7 @@ void main() {
       await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(loads, 2);
-      expect(find.byType(MenuItemCard), findsOneWidget);
+      expect(find.byType(MenuItemGridCard), findsOneWidget);
     },
   );
 
@@ -205,7 +206,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
       expect(container.read(menuSearchProvider), isEmpty);
-      expect(find.byType(MenuItemCard), findsOneWidget);
+      expect(find.byType(MenuItemGridCard), findsOneWidget);
       expect(
         tester.widget<TextField>(find.byType(TextField)).controller?.text,
         isEmpty,

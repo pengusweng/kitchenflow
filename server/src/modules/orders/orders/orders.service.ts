@@ -481,7 +481,7 @@ export class OrdersService {
     this.items.validateLines(lines);
     const brand = await this.repository.findActiveBrand(brandId, tx);
     if (!brand) throw new BadRequestException('Brand is unavailable.');
-    const snapshots = await this.items.snapshots(tx, brandId, channel, lines);
+    const snapshots = await this.items.snapshots(tx, channel, lines);
     return { brand, lines: snapshots };
   }
 

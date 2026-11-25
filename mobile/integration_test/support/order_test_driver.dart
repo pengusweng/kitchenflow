@@ -14,6 +14,7 @@ import 'package:mobile/features/new_order/data/models/menu_models.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/item_customization_dialog.dart';
 import 'package:mobile/features/new_order/presentation/widgets/menu_item_card.dart';
+import 'package:mobile/features/new_order/presentation/widgets/menu_item_grid_card.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_panel.dart';
 import 'package:mobile/features/new_order/presentation/widgets/order_flow/order_details_step_view.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
@@ -66,8 +67,11 @@ Dio orderApi([String? token]) => Dio(
   ),
 );
 
-Finder orderMenuItem(String id) =>
-    find.byWidgetPredicate((w) => w is MenuItemCard && w.item.id == id);
+Finder orderMenuItem(String id) => find.byWidgetPredicate(
+  (w) =>
+      (w is MenuItemCard && w.item.id == id) ||
+      (w is MenuItemGridCard && w.item.id == id),
+);
 
 Future<void> addOrderMenuItem(WidgetTester tester, String itemId) async {
   await orderTap(tester, orderMenuItem(itemId));

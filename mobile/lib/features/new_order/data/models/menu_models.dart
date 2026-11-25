@@ -87,6 +87,7 @@ class MenuItem {
     this.modifierGroups = const [],
     this.channels = const {},
     this.category,
+    this.imageUrl,
   });
 
   final String id;
@@ -102,6 +103,9 @@ class MenuItem {
   /// Menu category (e.g. 'Rice bowls', 'Sets', 'Snacks').
   final String? category;
 
+  /// Image URL or asset path for the menu item.
+  final String? imageUrl;
+
   MenuItem withModifierGroups(List<ModifierGroup> groups) => MenuItem(
     id: id,
     name: name,
@@ -111,6 +115,7 @@ class MenuItem {
     modifierGroups: groups,
     channels: channels,
     category: category,
+    imageUrl: imageUrl,
   );
 
   /// Maps the `/menu-items/brand/:brandId` payload to the UI model.
@@ -205,6 +210,7 @@ class MenuItem {
       channels: listed,
       category: json['category'] as String? ?? json['category_name'] as String?,
       modifierGroups: groups,
+      imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String?,
     );
   }
 

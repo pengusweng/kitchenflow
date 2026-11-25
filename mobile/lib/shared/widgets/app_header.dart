@@ -119,12 +119,13 @@ class AppHeader extends ConsumerWidget implements PreferredSizeWidget {
         children: [
           // Left side: [optional leading] + [KKFC POS if !isCompact] + [title / titleWidget]
           Flexible(
+            flex: isCompact ? 2 : 1,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (leading != null) ...[
                   leading!,
-                  const SizedBox(width: KkfcSpace.s12),
+                  SizedBox(width: isCompact ? KkfcSpace.s8 : KkfcSpace.s12),
                 ],
                 if (!isCompact) ...[
                   Image.asset(
@@ -154,7 +155,7 @@ class AppHeader extends ConsumerWidget implements PreferredSizeWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: KkfcFonts.ibmPlexSans,
-                        fontSize: isCompact ? 20.0 : KkfcTextSizes.textLg,
+                        fontSize: isCompact ? 16.0 : KkfcTextSizes.textLg,
                         fontWeight: KkfcFontWeights.bold,
                         color: Colors.white,
                       ),
@@ -173,10 +174,11 @@ class AppHeader extends ConsumerWidget implements PreferredSizeWidget {
 
           // Right side: [actions] + [trailing or role badge] + [logout]
           Flexible(
+            flex: isCompact ? 3 : 1,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const WorkspaceSwitcher(),
+                WorkspaceSwitcher(compact: isCompact),
                 ...?actions,
                 if (trailing != null)
                   trailing!
@@ -185,11 +187,12 @@ class AppHeader extends ConsumerWidget implements PreferredSizeWidget {
                     child: AppHeaderRoleChip(
                       role: effectiveRole,
                       onTap: onRoleTap,
+                      compact: isCompact,
                     ),
                   ),
                 if (showLogout) ...[
-                  const SizedBox(width: KkfcSpace.s8),
-                  const LogoutButton(color: Colors.white),
+                  SizedBox(width: isCompact ? KkfcSpace.s4 : KkfcSpace.s8),
+                  LogoutButton(color: Colors.white, compact: isCompact),
                 ],
               ],
             ),
@@ -246,20 +249,31 @@ class AppHeader extends ConsumerWidget implements PreferredSizeWidget {
 
 /// Role badge / pill displayed on the right side of [AppHeader].
 class AppHeaderRoleChip extends StatelessWidget {
-  const AppHeaderRoleChip({super.key, required this.role, this.onTap});
+  const AppHeaderRoleChip({
+    super.key,
+    required this.role,
+    this.onTap,
+    this.compact,
+  });
 
   final String role;
   final VoidCallback? onTap;
+  final bool? compact;
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = compact ?? (MediaQuery.sizeOf(context).width < 600);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(KkfcRadius.pill),
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 8 : 14,
+            vertical: isCompact ? 4 : 7,
+          ),
           decoration: BoxDecoration(
             color: KkfcColors.shellRoleBg,
             borderRadius: BorderRadius.circular(KkfcRadius.pill),
@@ -272,9 +286,11 @@ class AppHeaderRoleChip extends StatelessWidget {
                 child: Text(
                   role,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: KkfcFonts.ibmPlexSans,
-                    fontSize: KkfcTextSizes.textMd,
+                    fontSize: isCompact
+                        ? KkfcTextSizes.textXs
+                        : KkfcTextSizes.textMd,
                     fontWeight: KkfcFontWeights.medium,
                     color: Colors.white,
                   ),
