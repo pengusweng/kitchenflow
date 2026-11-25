@@ -1,11 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-
-async function signIn(page: Page, password = "qa-password") {
-  await page.goto("/login");
-  await page.getByLabel("Username").fill("qa-supervisor");
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-}
+import { expect, test } from "@playwright/test";
+import { signIn } from "./helpers";
 
 test("rejects invalid credentials without creating a session", async ({ page, context }) => {
   await signIn(page, "wrong-password");
@@ -39,4 +33,52 @@ test("restricts staff accounts for a signed-in supervisor", async ({ page }) => 
 
   await page.goto("/dashboard/staff");
   await expect(page.getByRole("heading", { name: "Only superadmins can manage staff accounts" })).toBeVisible();
+});
+
+test("redirects a signed-in visitor from /login unless switching accounts", async ({ page }) => {
+  await signIn(page);
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  await page.goto("/login");
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  await page.goto("/login?switchAccount=1");
+  await expect(page).toHaveURL(/\/login\?switchAccount=1$/);
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+});
+
+test("treats an unknown session cookie as signed out", async ({ page, context }) => {
+  await context.addCookies([{
+    name: "kkfc_session",
+    value: "stale-token",
+    url: "http://localhost:3001",
+    httpOnly: true,
+    sameSite: "Lax",
+  }]);
+
+  await page.goto("/dashboard/staff");
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("navigation", { name: "Dashboard" })).toHaveCount(0);
+});
+
+test("sets the session cookie with HTTP-only and same-site protections", async ({ page, context }) => {
+  await signIn(page);
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  const cookie = (await context.cookies()).find(({ name }) => name === "kkfc_session");
+
+  expect(cookie).toMatchObject({
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+  });
+  expect(cookie!.expires!).toBeGreaterThan(Date.now() / 1000);
+});
+
+test("redirects signed-out visitors from every server-guarded management page", { tag: "@smoke" }, async ({ page }) => {
+  for (const path of ["/dashboard/brands", "/dashboard/modifiers", "/dashboard/menu", "/dashboard/staff"]) {
+    await page.goto(path);
+    await expect(page, path).toHaveURL(/\/login$/);
+  }
 });

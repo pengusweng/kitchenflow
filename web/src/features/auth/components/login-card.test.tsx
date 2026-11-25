@@ -53,3 +53,49 @@ test("keeps the superadmin on the PIN step after an incorrect PIN", async () => 
   expect(pin).toHaveValue("");
   expect(onSuccess).not.toHaveBeenCalled();
 });
+
+test("shows client validation errors without calling the API", async () => {
+  let called = false;
+  server.use(http.post("*/api/auth/login", () => {
+    called = true;
+    return HttpResponse.json({ message: "Invalid credentials" }, { status: 401 });
+  }));
+  const { user } = renderLoginForm();
+
+  await user.click(screen.getByRole("button", { name: "Sign In" }));
+
+  expect(await screen.findByText("Username is required.")).toBeInTheDocument();
+  expect(screen.getByText("Password must be at least 8 characters.")).toBeInTheDocument();
+  expect(called).toBe(false);
+});
+
+test("posts trimmed credentials and passes the session to onSuccess", async () => {
+  const session = {
+    token: "fixture-token",
+    expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    user: {
+      user_id: "b6acd2dc-24bd-4b91-8d13-b2f2db76ed16",
+      username: "manager",
+      first_name: "QA",
+      last_name: "Manager",
+      role: "SUPERVISOR",
+      is_active: true,
+      created_at: "2025-01-01T00:00:00.000Z",
+      modified_at: "2025-01-01T00:00:00.000Z",
+    },
+  };
+  let sentBody: unknown;
+  server.use(http.post("*/api/auth/login", async ({ request }) => {
+    sentBody = await request.json();
+    return HttpResponse.json(session);
+  }));
+  const { user, onSuccess } = renderLoginForm();
+
+  await user.type(screen.getByLabelText("Username"), "  manager  ");
+  await user.type(screen.getByLabelText("Password", { exact: true }), " qa-password ");
+  await user.click(screen.getByRole("button", { name: "Sign In" }));
+
+  await vi.waitFor(() => expect(onSuccess).toHaveBeenCalled());
+  expect(onSuccess.mock.calls[0][0]).toEqual(session);
+  expect(sentBody).toEqual({ username: "manager", password: " qa-password " });
+});
