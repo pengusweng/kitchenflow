@@ -143,6 +143,20 @@ class KitchenFulfillmentApi {
     return null;
   }
 
+  /// Fetches all QC attempts for a ticket from `GET /api/kitchen-qc/ticket/{ticketId}`.
+  Future<List<KitchenQcAttempt>> fetchTicketQcAttempts(
+    String kitchenTicketId,
+  ) async {
+    try {
+      final response = await _dio.get<dynamic>(
+        _endpoint('/kitchen-qc/ticket/$kitchenTicketId'),
+      );
+      return KitchenQcAttempt.parseList(response.data);
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<void> passQcAttempt(String attemptId) async {
     try {
       await _dio.post<Object?>(

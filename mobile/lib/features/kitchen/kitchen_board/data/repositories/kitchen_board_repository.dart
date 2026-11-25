@@ -179,6 +179,10 @@ class KitchenBoardRepository {
   Future<String?> fetchLatestQcAttemptId(String ticketId) =>
       _fulfillment.fetchLatestQcAttemptId(ticketId);
 
+  /// Fetches all QC attempts for [ticketId] from `GET /api/kitchen-qc/ticket/{ticketId}`.
+  Future<List<KitchenQcAttempt>> fetchTicketQcAttempts(String ticketId) =>
+      _fulfillment.fetchTicketQcAttempts(ticketId);
+
   Future<void> passQcAttempt(String attemptId) =>
       _fulfillment.passQcAttempt(attemptId);
 

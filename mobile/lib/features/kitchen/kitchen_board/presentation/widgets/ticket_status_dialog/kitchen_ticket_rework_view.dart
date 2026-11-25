@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
+import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_past_qc_attempts_card.dart';
+import 'package:mobile/features/kitchen/kitchen_board/providers/kitchen_board_providers.dart';
 import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 import 'package:mobile/shared/widgets/kitchen_ticket_card/kitchen_ticket_item_tile.dart';
 
@@ -28,6 +31,12 @@ class KitchenTicketReworkView extends StatefulWidget {
 
 class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
   late final TextEditingController _notesController;
+  List<KitchenQcAttempt> _fetchedAttempts = const [];
+  bool _didRequestHistory = false;
+
+  KitchenBoardTicket get _effectiveTicket => _fetchedAttempts.isNotEmpty
+      ? widget.ticket.applyQcAttempts(_fetchedAttempts)
+      : widget.ticket;
 
   @override
   void initState() {
@@ -35,6 +44,32 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
     _notesController = TextEditingController(
       text: widget.ticket.reworkNotes ?? '',
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didRequestHistory) {
+      _didRequestHistory = true;
+      _loadQcHistory();
+    }
+  }
+
+  Future<void> _loadQcHistory() async {
+    if (widget.ticket.pastQcAttempts.isNotEmpty) return;
+    try {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final attempts = await container
+          .read(kitchenBoardProvider.notifier)
+          .loadTicketQcAttempts(widget.ticket.kitchenTicketId);
+      if (mounted && attempts.isNotEmpty) {
+        setState(() {
+          _fetchedAttempts = attempts;
+        });
+      }
+    } catch (_) {
+      // No ProviderScope in standalone widget test or fetch failed
+    }
   }
 
   @override
@@ -47,15 +82,16 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
     KitchenTicketItem item,
     int index,
   ) {
+    final ticket = _effectiveTicket;
     if (item.failReason != null && item.failReason!.trim().isNotEmpty) {
       return item;
     }
-    final anyItemHasFailReason = widget.ticket.data.items.any(
+    final anyItemHasFailReason = ticket.data.items.any(
       (it) => it.failReason != null && it.failReason!.trim().isNotEmpty,
     );
     if (!anyItemHasFailReason) {
-      final reason = widget.ticket.qcReturnedReason?.trim().isNotEmpty == true
-          ? widget.ticket.qcReturnedReason!
+      final reason = ticket.qcReturnedReason?.trim().isNotEmpty == true
+          ? ticket.qcReturnedReason!
           : 'Rice portion short; plate again';
       return item.copyWith(failReason: reason);
     }
@@ -69,11 +105,12 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
 
   @override
   Widget build(BuildContext context) {
+    final ticket = _effectiveTicket;
     final foreground = widget.isActionEnabled
         ? KkfcColors.onSolid
         : KkfcColors.ticketMuted;
-    final reasonText = widget.ticket.qcReturnedReason?.trim().isNotEmpty == true
-        ? widget.ticket.qcReturnedReason!
+    final reasonText = ticket.qcReturnedReason?.trim().isNotEmpty == true
+        ? ticket.qcReturnedReason!
         : 'Rice portion short; plate again';
 
     return Column(
@@ -252,13 +289,13 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
                         const SizedBox(height: KkfcSpace.s12),
                         for (
                           var i = 0;
-                          i < widget.ticket.data.items.length;
+                          i < ticket.data.items.length;
                           i++
                         ) ...[
                           if (i > 0) const SizedBox(height: 14),
                           KitchenTicketItemTile(
                             item: _resolveItemWithFailReason(
-                              widget.ticket.data.items[i],
+                              ticket.data.items[i],
                               i,
                             ),
                           ),
@@ -266,6 +303,10 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
                       ],
                     ),
                   ),
+                  if (ticket.pastQcAttempts.isNotEmpty) ...[
+                    const SizedBox(height: KkfcSpace.s16),
+                    KitchenTicketPastQcAttemptsCard(ticket: ticket),
+                  ],
                 ],
               ),
             ),
