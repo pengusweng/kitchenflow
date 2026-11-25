@@ -12,21 +12,26 @@ class KitchenBoardEnricher {
     Map<String, KitchenBoardTicket> prevMap,
   ) {
     return tickets.map((t) {
+      var current = t;
       final prev = prevMap[t.kitchenTicketId];
-      if (prev != null &&
-          prev.data.channel.isNotEmpty &&
-          prev.data.channel != 'Takeaway' &&
-          t.data.channel == 'Takeaway') {
-        return t.withChannel(
-          prev.data.channel,
-          reference:
-              prev.data.reference.isNotEmpty &&
-                  prev.data.reference != t.orderCode
-              ? prev.data.reference
-              : null,
-        );
+      if (prev != null) {
+        if (prev.data.channel.isNotEmpty &&
+            prev.data.channel != 'Takeaway' &&
+            current.data.channel == 'Takeaway') {
+          current = current.withChannel(
+            prev.data.channel,
+            reference:
+                prev.data.reference.isNotEmpty &&
+                    prev.data.reference != current.orderCode
+                ? prev.data.reference
+                : null,
+          );
+        }
+        if (current.qcAttempts.isEmpty && prev.qcAttempts.isNotEmpty) {
+          current = current.applyQcAttempts(prev.qcAttempts);
+        }
       }
-      return t;
+      return current;
     }).toList();
   }
 
@@ -70,28 +75,54 @@ class KitchenBoardEnricher {
 
     return Future.wait(
       preserved.map((t) async {
-        if (t.orderId.isEmpty) return t;
+        var current = t;
+
+        final isQcOrRework =
+            current.rawStatus.toUpperCase() == 'REWORKING' ||
+            current.rawStatus.toUpperCase() == 'FOR_CHECKING' ||
+            current.rawStatus.toUpperCase() == 'CHECKING' ||
+            current.qcFailureCount > 0;
+        final needsQcHistory =
+            isQcOrRework &&
+            (current.qcAttempts.isEmpty ||
+                current.pastQcAttempts.length < current.qcFailureCount);
+
+        if (needsQcHistory && isMounted()) {
+          try {
+            final attempts = await repo
+                .fetchTicketQcAttempts(current.kitchenTicketId)
+                .timeout(const Duration(milliseconds: 300));
+            if (attempts.isNotEmpty) {
+              current = current.applyQcAttempts(attempts);
+            }
+          } catch (_) {
+            // Keep ticket as is if QC attempts fetch fails
+          }
+        }
+
+        if (current.orderId.isEmpty) return current;
 
         // Skip if ticket already has a resolved non-placeholder channel or reference
         final isPlaceholder =
-            t.data.channel == 'Takeaway' &&
-            (t.data.reference.isEmpty || t.data.reference == t.orderCode);
-        if (!isPlaceholder) return t;
+            current.data.channel == 'Takeaway' &&
+            (current.data.reference.isEmpty ||
+                current.data.reference == current.orderCode);
+        if (!isPlaceholder) return current;
 
         try {
-          if (!isMounted()) return t;
-          final brandId = await resolveTicketBrandId(t);
-          if (brandId == null || !isMounted()) return t;
+          if (!isMounted()) return current;
+          final brandId = await resolveTicketBrandId(current);
+          if (brandId == null || !isMounted()) return current;
           final orderData = await repo
-              .fetchOrder(brandId: brandId, orderId: t.orderId)
+              .fetchOrder(brandId: brandId, orderId: current.orderId)
               .timeout(const Duration(milliseconds: 300));
           if (orderData != null) {
-            return t.applyOrder(orderData);
+            return current.applyOrder(orderData);
           }
         } catch (_) {
           // If order fetch fails, keep ticket as is
         }
-        return t;
+        return current;
       }),
     );
   }

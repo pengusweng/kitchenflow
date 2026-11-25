@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/fail_qc_send_to_rework_dialog.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_qc_dialog_body.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_qc_dialog_footer.dart';
+import 'package:mobile/features/kitchen/kitchen_board/providers/kitchen_board_providers.dart';
 
 /// Stateful coordinator for Quality Check modal workflow.
 ///
@@ -38,6 +40,34 @@ class KitchenTicketQcView extends StatefulWidget {
 class _KitchenTicketQcViewState extends State<KitchenTicketQcView> {
   final Map<int, bool> _decisions = {};
   final Map<int, QcItemRejection> _rejections = {};
+  List<KitchenQcAttempt> _fetchedAttempts = const [];
+  bool _didRequestHistory = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didRequestHistory) {
+      _didRequestHistory = true;
+      _loadQcHistory();
+    }
+  }
+
+  Future<void> _loadQcHistory() async {
+    if (widget.ticket.pastQcAttempts.isNotEmpty) return;
+    try {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final attempts = await container
+          .read(kitchenBoardProvider.notifier)
+          .loadTicketQcAttempts(widget.ticket.kitchenTicketId);
+      if (mounted && attempts.isNotEmpty) {
+        setState(() {
+          _fetchedAttempts = attempts;
+        });
+      }
+    } catch (_) {
+      // No ProviderScope in standalone widget test or fetch failed
+    }
+  }
 
   bool get _allPassed {
     final items = widget.ticket.data.items;
@@ -103,7 +133,9 @@ class _KitchenTicketQcViewState extends State<KitchenTicketQcView> {
       children: [
         Flexible(
           child: KitchenTicketQcDialogBody(
-            ticket: widget.ticket,
+            ticket: _fetchedAttempts.isNotEmpty
+                ? widget.ticket.applyQcAttempts(_fetchedAttempts)
+                : widget.ticket,
             decisions: _decisions,
             rejections: _rejections,
             onDecisionChanged: _handleDecisionChanged,

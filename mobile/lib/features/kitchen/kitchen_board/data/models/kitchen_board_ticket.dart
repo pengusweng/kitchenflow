@@ -2,8 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/core/models/brand_models.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_lane.dart';
+import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_qc_attempt.dart';
 import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 import 'package:mobile/shared/widgets/status_badge/kkfc_status.dart';
+
+export 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_qc_attempt.dart';
 
 /// Represents an active kitchen ticket on the KDS board, wrapping
 /// [KitchenTicketData] with backend identifiers and lane routing.
@@ -21,6 +24,8 @@ class KitchenBoardTicket {
     this.preparerId,
     this.checkerId,
     this.qcAttemptId,
+    this.qcFailureCount = 0,
+    this.qcAttempts = const [],
   });
 
   final String kitchenTicketId;
@@ -34,6 +39,13 @@ class KitchenBoardTicket {
   final String? preparerId;
   final String? checkerId;
   final String? qcAttemptId;
+  final int qcFailureCount;
+  final List<KitchenQcAttempt> qcAttempts;
+
+  /// Completed past QC attempts (excluding any currently in-progress check),
+  /// ordered newest first (`attempt_number` descending).
+  List<KitchenQcAttempt> get pastQcAttempts =>
+      qcAttempts.where((a) => !a.isInProgress).toList(growable: false);
 
   /// Quality check rejection reason if this ticket was returned to rework.
   String? get qcReturnedReason => data.qcReturnedReason;
@@ -60,6 +72,8 @@ class KitchenBoardTicket {
     bool clearQcAttemptId = false,
     String? qcReturnedReason,
     String? reworkNotes,
+    int? qcFailureCount,
+    List<KitchenQcAttempt>? qcAttempts,
   }) {
     var effectiveData = data ?? this.data;
     if (qcReturnedReason != null || reworkNotes != null) {
@@ -106,6 +120,68 @@ class KitchenBoardTicket {
       preparerId: preparerId ?? this.preparerId,
       checkerId: checkerId ?? this.checkerId,
       qcAttemptId: clearQcAttemptId ? null : (qcAttemptId ?? this.qcAttemptId),
+      qcFailureCount: qcFailureCount ?? this.qcFailureCount,
+      qcAttempts: qcAttempts ?? this.qcAttempts,
+    );
+  }
+
+  /// Returns a copy of this ticket enriched with QC attempt history from
+  /// `GET /api/kitchen-qc/ticket/{ticketId}`.
+  KitchenBoardTicket applyQcAttempts(List<KitchenQcAttempt> attempts) {
+    if (attempts.isEmpty) return this;
+
+    final sorted = List<KitchenQcAttempt>.from(attempts)
+      ..sort((a, b) => b.attemptNumber.compareTo(a.attemptNumber));
+    final failedAttempts = sorted.where((a) => a.isFailed).toList();
+    final latestFailed = failedAttempts.isNotEmpty ? failedAttempts.first : null;
+
+    var resolvedReason = qcReturnedReason;
+    var resolvedItems = data.items;
+
+    if (latestFailed != null && latestFailed.rejections.isNotEmpty) {
+      final firstRejection = latestFailed.rejections.first;
+      if (resolvedReason == null || resolvedReason.trim().isEmpty) {
+        resolvedReason = firstRejection.displayReason;
+      }
+
+      final isReworkState =
+          rawStatus.toUpperCase() == 'REWORKING' ||
+          data.status == KkfcStatus.reworking;
+      if (isReworkState) {
+        final byOrderItemId = <String, List<KitchenQcRejection>>{};
+        for (final r in latestFailed.rejections) {
+          if (r.orderItemId.isNotEmpty) {
+            byOrderItemId.putIfAbsent(r.orderItemId, () => []).add(r);
+          }
+        }
+
+        if (byOrderItemId.isNotEmpty) {
+          resolvedItems = data.items.map((item) {
+            final itemId = item.orderItemId;
+            if (itemId != null && byOrderItemId.containsKey(itemId)) {
+              final itemRejs = byOrderItemId[itemId]!;
+              final combinedReason = itemRejs
+                  .map((r) => r.formatWithPortion(itemQuantity: item.quantity))
+                  .join('; ');
+              return item.copyWith(failReason: combinedReason);
+            } else {
+              return item.copyWith(clearFailReason: true);
+            }
+          }).toList();
+        }
+      }
+    }
+
+    return copyWith(
+      qcAttempts: sorted,
+      qcFailureCount: failedAttempts.length > qcFailureCount
+          ? failedAttempts.length
+          : qcFailureCount,
+      qcReturnedReason: resolvedReason,
+      data: data.copyWith(
+        qcReturnedReason: resolvedReason,
+        items: resolvedItems,
+      ),
     );
   }
 
@@ -274,6 +350,15 @@ class KitchenBoardTicket {
       isRework: isRework,
     );
 
+    final parsedQcAttempts = KitchenQcAttempt.parseList(rawAttempts);
+    final rawFailureCount = (json['qc_failure_count'] as num?)?.toInt();
+    final failedCountFromAttempts = parsedQcAttempts
+        .where((a) => a.isFailed)
+        .length;
+    final qcFailureCount =
+        rawFailureCount ??
+        (failedCountFromAttempts > 0 ? failedCountFromAttempts : 0);
+
     return KitchenBoardTicket(
       kitchenTicketId: ticketId.isNotEmpty ? ticketId : ticketNumber,
       orderId: orderId,
@@ -285,6 +370,8 @@ class KitchenBoardTicket {
       preparerId: (json['preparer_id'] as String?)?.trim(),
       checkerId: checkerId,
       qcAttemptId: qcAttemptId,
+      qcFailureCount: qcFailureCount,
+      qcAttempts: parsedQcAttempts,
       data: KitchenTicketData(
         ticketNumber: ticketNumber,
         elapsed: elapsed,

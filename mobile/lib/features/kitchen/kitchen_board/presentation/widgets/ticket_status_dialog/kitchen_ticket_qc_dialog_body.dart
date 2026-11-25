@@ -3,6 +3,7 @@ import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/fail_qc_send_to_rework_dialog.dart';
+import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_past_qc_attempts_card.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_qc_item_card.dart';
 
 /// Stateless body section for the Quality Check popup, matching the design
@@ -89,6 +90,10 @@ class KitchenTicketQcDialogBody extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: KkfcSpace.s12),
+            ],
+            if (ticket.pastQcAttempts.isNotEmpty) ...[
+              KitchenTicketPastQcAttemptsCard(ticket: ticket),
               const SizedBox(height: KkfcSpace.s12),
             ],
             const Text(

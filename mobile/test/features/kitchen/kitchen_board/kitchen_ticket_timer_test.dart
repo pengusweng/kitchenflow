@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,11 +9,35 @@ import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/core/models/brand_models.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_lane.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
+import 'package:mobile/features/kitchen/kitchen_board/data/repositories/kitchen_board_repository.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_dialog_header.dart';
+import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_past_qc_attempts_card.dart';
+import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_qc_view.dart';
+import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_rework_view.dart';
 import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 import 'package:mobile/shared/widgets/kitchen_ticket_card/kitchen_ticket_card.dart';
 import 'package:mobile/shared/widgets/kitchen_ticket_card/kitchen_ticket_header.dart';
 import 'package:mobile/shared/widgets/status_badge/kkfc_status.dart';
+
+class _MockQcAdapter implements HttpClientAdapter {
+  _MockQcAdapter(this.handler);
+
+  final ResponseBody Function(RequestOptions options) handler;
+  final List<RequestOptions> requests = [];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    return handler(options);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
 
 void main() {
   group('Kitchen Ticket Timer Thresholds', () {
@@ -493,6 +521,162 @@ void main() {
         )..layout(maxWidth: renderParagraph.constraints.maxWidth);
         expect(textPainter.computeLineMetrics().length, 1);
       }
+    });
+  });
+
+  group('Kitchen Ticket Past QC Attempts (GET /api/kitchen-qc/ticket/{ticketId})', () {
+    final sampleApiPayload = [
+      {
+        'qc_attempt_id': 'attempt-2',
+        'kitchen_ticket_id': 'ticket-100',
+        'attempt_number': 2,
+        'checker_id': 'checker-1',
+        'status': 'FAILED',
+        'started_at': '2026-11-25T13:15:00.000Z',
+        'completed_at': '2026-11-25T13:16:00.000Z',
+        'checker': {'first_name': 'Maria', 'last_name': 'Santos'},
+        'rejections': [
+          {
+            'rejection_id': 'rej-2',
+            'order_item_id': 'item-1',
+            'portion_number': 2,
+            'rejection_reason': 'OTHER',
+            'description': 'Sauce spilled on rim',
+            'rejected_at': '2026-11-25T13:16:00.000Z',
+          },
+        ],
+      },
+      {
+        'qc_attempt_id': 'attempt-1',
+        'kitchen_ticket_id': 'ticket-100',
+        'attempt_number': 1,
+        'checker_id': 'checker-2',
+        'status': 'FAILED',
+        'started_at': '2026-11-25T13:05:00.000Z',
+        'completed_at': '2026-11-25T13:06:00.000Z',
+        'checker': {'first_name': 'Juan', 'last_name': 'Dela Cruz'},
+        'rejections': [
+          {
+            'rejection_id': 'rej-1',
+            'order_item_id': 'item-1',
+            'portion_number': 1,
+            'rejection_reason': 'OTHER',
+            'description': 'Rice portion short; plate again',
+            'rejected_at': '2026-11-25T13:06:00.000Z',
+          },
+        ],
+      },
+    ];
+
+    test('fetchTicketQcAttempts calls GET /api/kitchen-qc/ticket/{ticketId} and parses attempts descending', () async {
+      final adapter = _MockQcAdapter((options) {
+        return ResponseBody.fromString(
+          jsonEncode(sampleApiPayload),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      });
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000/api'))
+        ..httpClientAdapter = adapter;
+      final repo = KitchenBoardRepository(dio);
+
+      final attempts = await repo.fetchTicketQcAttempts('ticket-100');
+
+      expect(adapter.requests.length, 1);
+      expect(adapter.requests.first.method, 'GET');
+      expect(adapter.requests.first.path, '/kitchen-qc/ticket/ticket-100');
+
+      expect(attempts.length, 2);
+      expect(attempts[0].attemptNumber, 2);
+      expect(attempts[0].checkerName, 'Maria Santos');
+      expect(attempts[0].isFailed, isTrue);
+      expect(attempts[0].rejections.first.portionNumber, 2);
+      expect(attempts[0].rejections.first.displayReason, 'Sauce spilled on rim');
+
+      expect(attempts[1].attemptNumber, 1);
+      expect(attempts[1].checkerName, 'Juan Dela Cruz');
+      expect(attempts[1].rejections.first.displayReason, 'Rice portion short; plate again');
+    });
+
+    testWidgets('Rework and QC views display past QC attempts card with attempt history and item rejections', (tester) async {
+      final attempts = KitchenQcAttempt.parseList(sampleApiPayload);
+      final baseTicket = KitchenBoardTicket(
+        kitchenTicketId: 'ticket-100',
+        orderId: 'order-100',
+        orderCode: 'AI-100',
+        lane: KitchenBoardLane.rework,
+        rawStatus: 'REWORKING',
+        data: const KitchenTicketData(
+          ticketNumber: 'T-100',
+          elapsed: Duration(minutes: 10),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.reworking,
+          channel: 'Dine-in',
+          reference: 'Table 5',
+          brand: AssignedBrand(id: 'brand-ai', code: 'AI', name: "Aurelia's Inasal"),
+          items: [
+            KitchenTicketItem(
+              quantity: 2,
+              name: 'Paa Inasal',
+              orderItemId: 'item-1',
+            ),
+          ],
+        ),
+      ).applyQcAttempts(attempts);
+
+      // 1. Verify applyQcAttempts enriched the latest failReason on the item
+      expect(baseTicket.data.items.first.failReason, 'Portion 2: Sauce spilled on rim');
+      expect(baseTicket.pastQcAttempts.length, 2);
+
+      // 2. Render in Rework view
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KitchenTicketReworkView(
+              ticket: baseTicket,
+              isActionLoading: false,
+              isActionEnabled: true,
+              onReworkDone: (_) async {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(KitchenTicketPastQcAttemptsCard), findsOneWidget);
+      expect(find.text('Past QC attempts'), findsOneWidget);
+      expect(find.text('Attempt #2'), findsOneWidget);
+      expect(find.text('Attempt #1'), findsOneWidget);
+      expect(find.textContaining('Checked by Maria Santos'), findsOneWidget);
+      expect(find.textContaining('Checked by Juan Dela Cruz'), findsOneWidget);
+      expect(find.text('Paa Inasal — Portion 2: Sauce spilled on rim'), findsOneWidget);
+      expect(find.text('Paa Inasal — Portion 1: Rice portion short; plate again'), findsOneWidget);
+
+      // 3. Render in QC Check view (when ticket returns to QC for attempt #3)
+      final qcTicket = baseTicket.copyWith(
+        rawStatus: 'CHECKING',
+        lane: KitchenBoardLane.qcCheck,
+        data: baseTicket.data.copyWith(status: KkfcStatus.checking),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KitchenTicketQcView(
+              ticket: qcTicket,
+              isActionLoading: false,
+              isActionEnabled: true,
+              onPass: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(KitchenTicketPastQcAttemptsCard), findsOneWidget);
+      expect(find.text('Past QC attempts'), findsOneWidget);
+      expect(find.text('Attempt #2'), findsOneWidget);
+      expect(find.text('Attempt #1'), findsOneWidget);
     });
   });
 }

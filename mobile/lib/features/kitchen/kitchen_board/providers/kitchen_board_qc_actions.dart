@@ -157,6 +157,7 @@ mixin KitchenBoardQcActions on Notifier<KitchenBoardState> {
       );
       final prevMap = {for (final t in state.tickets) t.kitchenTicketId: t};
       final rawTickets = await repo.fetchTodaysTickets();
+      final fetchedAttempts = await repo.fetchTicketQcAttempts(kitchenTicketId);
       final tickets = KitchenBoardEnricher.preserveEnrichedDetails(
         rawTickets,
         prevMap,
@@ -190,7 +191,7 @@ mixin KitchenBoardQcActions on Notifier<KitchenBoardState> {
             }
           }).toList();
 
-          return t.copyWith(
+          var nextTicket = t.copyWith(
             rawStatus: 'REWORKING',
             lane: KitchenBoardLane.rework,
             clearQcAttemptId: true,
@@ -201,6 +202,10 @@ mixin KitchenBoardQcActions on Notifier<KitchenBoardState> {
               items: updatedItems,
             ),
           );
+          if (fetchedAttempts.isNotEmpty) {
+            nextTicket = nextTicket.applyQcAttempts(fetchedAttempts);
+          }
+          return nextTicket;
         }
         return t;
       }).toList();
@@ -220,6 +225,30 @@ mixin KitchenBoardQcActions on Notifier<KitchenBoardState> {
         errorMessage: error.toString(),
       );
       return false;
+    }
+  }
+
+  /// Fetches all QC attempts for [kitchenTicketId] via
+  /// `GET /api/kitchen-qc/ticket/{ticketId}` and updates the ticket in state.
+  Future<List<KitchenQcAttempt>> loadTicketQcAttempts(
+    String kitchenTicketId,
+  ) async {
+    try {
+      final repo = ref.read(kitchenBoardRepositoryProvider);
+      final attempts = await repo.fetchTicketQcAttempts(kitchenTicketId);
+      if (!ref.mounted) return attempts;
+      if (attempts.isNotEmpty) {
+        final updated = state.tickets.map((t) {
+          if (t.kitchenTicketId == kitchenTicketId) {
+            return t.applyQcAttempts(attempts);
+          }
+          return t;
+        }).toList();
+        state = state.copyWith(tickets: updated);
+      }
+      return attempts;
+    } catch (_) {
+      return const [];
     }
   }
 
