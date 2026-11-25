@@ -155,6 +155,21 @@ export class OrdersService {
     };
   }
 
+  /** Every brand's confirmed, unpaid orders for today's Asia/Manila business date. */
+  async findUnpaidToday() {
+    const today = new Date().toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Manila',
+    });
+    // Order dates are stored as Manila calendar dates (midnight UTC).
+    const orders = await this.repository.findUnpaid(
+      new Date(`${today}T00:00:00.000Z`),
+    );
+    this.logger.log(
+      `Listed unpaid orders: date=${today}, returned=${orders.length}`,
+    );
+    return orders;
+  }
+
   async findOne(brandId: string, orderId: string) {
     const order = await this.repository.findByBrand(brandId, orderId);
     if (!order) throw new NotFoundException('Order not found.');

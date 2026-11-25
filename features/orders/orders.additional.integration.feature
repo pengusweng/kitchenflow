@@ -268,3 +268,30 @@ Feature: Additional orders integration coverage
     Given an invalid status, brand ID, payment status, date, search, page or limit, or an unknown parameter
     When GET /orders is called
     Then the response is 400 before calling the orders service
+
+  # Jest: server/src/modules/orders/orders/tests/orders.http.spec.ts
+  # Context: Orders HTTP endpoints (PostgreSQL integration)
+  @IT-ORD-050
+  Scenario: Lists today's unpaid orders from the database
+    Test Case ID: IT-ORD-050
+    Given a draft, two confirmed unpaid orders, a paid order, a cancelled unpaid order and an unpaid order from another date
+    When GET /orders/unpaid/today is called
+    Then only the two confirmed unpaid orders from today are returned, oldest first, carrying their brand without lines or private fields
+
+  # Jest: server/src/modules/orders/orders/tests/orders.http.spec.ts
+  # Context: All orders HTTP API
+  @IT-ORD-051
+  Scenario: Restricts today's unpaid orders to order roles
+    Test Case ID: IT-ORD-051
+    Given an authenticated user of any role
+    When GET /orders/unpaid/today is called
+    Then supervisors, cashiers and superadmins get 200 and every other role gets 403 without calling the service
+
+  # Jest: server/src/modules/orders/orders/tests/orders.http.spec.ts
+  # Context: All orders HTTP API
+  @IT-ORD-052
+  Scenario: Requires authentication to list today's unpaid orders
+    Test Case ID: IT-ORD-052
+    Given no authenticated session
+    When GET /orders/unpaid/today is called
+    Then the response is 401

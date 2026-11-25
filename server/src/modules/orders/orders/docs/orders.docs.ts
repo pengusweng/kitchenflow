@@ -10,6 +10,7 @@ import {
   OrderResponseDTO,
   OrderListResponseDTO,
   OrdersPageResponseDTO,
+  OrderSummaryResponseDTO,
   VerifyOrderResponseDTO,
   CreateOrderConflictResponseDTO,
 } from '../dto/order-response.dto';
@@ -184,6 +185,29 @@ export function FindAllOrdersDocs() {
     ApiResponse({
       status: 400,
       description: 'Invalid query parameters, or from after to.',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Missing, invalid or expired bearer session.',
+    }),
+    ApiResponse({ status: 403, description: 'Role access denied.' }),
+  );
+}
+
+export function FindUnpaidTodayOrdersDocs() {
+  return applyDecorators(
+    ApiTags('Orders'),
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: "List today's unpaid orders across every brand",
+      description:
+        'Orders whose order_date is today in Asia/Manila and whose payment_status is UNPAID. Drafts and cancelled orders are excluded. Not paginated. Sorted by created_at ascending, then order_id ascending, so the longest-waiting order comes first. Rows have the same shape as GET /orders.',
+    }),
+    ApiResponse({
+      status: 200,
+      type: [OrderSummaryResponseDTO],
+      description:
+        "Today's unpaid orders. Returns an empty array when there are none.",
     }),
     ApiResponse({
       status: 401,

@@ -3,7 +3,10 @@ import { UserRole } from '@prisma/client';
 import { Authenticated } from '../../auth/auth.guard';
 import { Roles } from '../../../shared/decorators/roles.decorator';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
-import { FindAllOrdersDocs } from './docs/orders.docs';
+import {
+  FindAllOrdersDocs,
+  FindUnpaidTodayOrdersDocs,
+} from './docs/orders.docs';
 import { FindAllOrdersDTO } from './dto/find-all-orders.dto';
 import { OrdersService } from './orders.service';
 
@@ -21,5 +24,11 @@ export class AllOrdersController {
   @Get()
   findAll(@Query() query: FindAllOrdersDTO) {
     return this.orders.findOverview(query);
+  }
+
+  @FindUnpaidTodayOrdersDocs()
+  @Get('unpaid/today')
+  findUnpaidToday() {
+    return this.orders.findUnpaidToday();
   }
 }

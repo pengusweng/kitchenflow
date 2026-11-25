@@ -228,6 +228,20 @@ export class OrdersRepository {
     };
   }
 
+  /** Confirmed orders still awaiting payment on one order_date, oldest first. */
+  findUnpaid(orderDate: Date) {
+    return this.prisma.order.findMany({
+      where: {
+        order_date: orderDate,
+        payment_status: PaymentStatus.UNPAID,
+        // Drafts have no payment yet and cancelled orders will never be paid.
+        status: { notIn: [OrderStatus.DRAFT, OrderStatus.CANCELLED] },
+      },
+      orderBy: [{ created_at: 'asc' }, { order_id: 'asc' }],
+      ...summaryQuery,
+    });
+  }
+
   update(
     orderId: string,
     data: Prisma.OrderUncheckedUpdateInput,
