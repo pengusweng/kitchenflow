@@ -14,7 +14,7 @@ class App extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'KKFC POS',
+      title: 'KitchenFlow',
       theme: counterTheme,
       debugShowCheckedModeBanner: false,
       routerConfig: router,
