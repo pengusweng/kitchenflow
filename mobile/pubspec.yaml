@@ -54,6 +54,16 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   alchemist: ^0.14.1
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/images/app_icon_navy.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#19293E"
+  adaptive_icon_foreground: "assets/images/app_icon_adaptive_foreground.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -71,6 +81,8 @@ flutter:
     - assets/images/aurelia.png
     - assets/images/logo_light.png
     - assets/images/logo_dark.png
+    - assets/images/app_icon_light.png
+    - assets/images/app_icon_navy.png
     - assets/bg/
     - assets/images/bg/
 
