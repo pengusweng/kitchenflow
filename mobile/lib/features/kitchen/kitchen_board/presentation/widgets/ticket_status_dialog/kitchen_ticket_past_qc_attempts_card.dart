@@ -6,21 +6,44 @@ import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 
 /// Displays the historical Quality Check attempts for a ticket in QC Check
 /// or Rework states, populated from `GET /api/kitchen-qc/ticket/{ticketId}`.
-class KitchenTicketPastQcAttemptsCard extends StatelessWidget {
+class KitchenTicketPastQcAttemptsCard extends StatefulWidget {
   const KitchenTicketPastQcAttemptsCard({
     super.key,
     required this.ticket,
     this.attempts,
     this.isLoading = false,
+    this.initiallyExpanded = true,
   });
 
   final KitchenBoardTicket ticket;
   final List<KitchenQcAttempt>? attempts;
   final bool isLoading;
+  final bool initiallyExpanded;
+
+  @override
+  State<KitchenTicketPastQcAttemptsCard> createState() =>
+      _KitchenTicketPastQcAttemptsCardState();
+}
+
+class _KitchenTicketPastQcAttemptsCardState
+    extends State<KitchenTicketPastQcAttemptsCard> {
+  late bool _isExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = widget.initiallyExpanded;
+  }
+
+  void _toggleExpanded() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+    });
+  }
 
   String? _resolveItemName(String orderItemId) {
     if (orderItemId.isEmpty) return null;
-    for (final item in ticket.data.items) {
+    for (final item in widget.ticket.data.items) {
       if (item.orderItemId == orderItemId) {
         return item.name;
       }
@@ -30,7 +53,7 @@ class KitchenTicketPastQcAttemptsCard extends StatelessWidget {
 
   KitchenTicketItem? _resolveItem(String orderItemId) {
     if (orderItemId.isEmpty) return null;
-    for (final item in ticket.data.items) {
+    for (final item in widget.ticket.data.items) {
       if (item.orderItemId == orderItemId) {
         return item;
       }
@@ -40,11 +63,11 @@ class KitchenTicketPastQcAttemptsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveAttempts = (attempts ?? ticket.pastQcAttempts)
+    final effectiveAttempts = (widget.attempts ?? widget.ticket.pastQcAttempts)
         .where((a) => !a.isInProgress)
         .toList(growable: false);
 
-    if (effectiveAttempts.isEmpty && !isLoading) {
+    if (effectiveAttempts.isEmpty && !widget.isLoading) {
       return const SizedBox.shrink();
     }
 
@@ -63,66 +86,82 @@ class KitchenTicketPastQcAttemptsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.history_rounded,
-                size: 16,
-                color: KkfcColors.reworkText,
-              ),
-              const SizedBox(width: KkfcSpace.s8),
-              const Expanded(
-                child: Text(
-                  'Past QC attempts',
-                  style: TextStyle(
-                    fontFamily: KkfcFonts.ibmPlexSans,
-                    fontSize: KkfcTextSizes.textBase,
-                    fontWeight: KkfcFontWeights.bold,
-                    color: KkfcColors.ticketInk,
-                  ),
+          InkWell(
+            key: const ValueKey('past-qc-attempts-toggle-button'),
+            onTap: _toggleExpanded,
+            borderRadius: BorderRadius.circular(KkfcRadius.sm),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.history_rounded,
+                  size: 16,
+                  color: KkfcColors.reworkText,
                 ),
-              ),
-              if (effectiveAttempts.isNotEmpty)
-                Container(
-                  key: const ValueKey('past-qc-attempts-count-badge'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: KkfcSpace.s8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: KkfcColors.reworkBg,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: KkfcColors.reworkBorder,
-                      width: KkfcBorderWidth.thin,
-                    ),
-                  ),
+                const SizedBox(width: KkfcSpace.s8),
+                const Expanded(
                   child: Text(
-                    '${effectiveAttempts.length}',
-                    style: const TextStyle(
+                    'Past QC attempts',
+                    style: TextStyle(
                       fontFamily: KkfcFonts.ibmPlexSans,
-                      fontSize: KkfcTextSizes.textXs,
+                      fontSize: KkfcTextSizes.textBase,
                       fontWeight: KkfcFontWeights.bold,
-                      color: KkfcColors.reworkText,
+                      color: KkfcColors.ticketInk,
                     ),
                   ),
                 ),
-            ],
-          ),
-          if (isLoading && effectiveAttempts.isEmpty) ...[
-            const SizedBox(height: KkfcSpace.s12),
-            const Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+                if (effectiveAttempts.isNotEmpty) ...[
+                  Container(
+                    key: const ValueKey('past-qc-attempts-count-badge'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: KkfcSpace.s8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: KkfcColors.reworkBg,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: KkfcColors.reworkBorder,
+                        width: KkfcBorderWidth.thin,
+                      ),
+                    ),
+                    child: Text(
+                      '${effectiveAttempts.length}',
+                      style: const TextStyle(
+                        fontFamily: KkfcFonts.ibmPlexSans,
+                        fontSize: KkfcTextSizes.textXs,
+                        fontWeight: KkfcFontWeights.bold,
+                        color: KkfcColors.reworkText,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: KkfcSpace.s4),
+                ],
+                Icon(
+                  _isExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 20,
+                  color: KkfcColors.ink2,
+                ),
+              ],
             ),
-          ] else ...[
-            const SizedBox(height: KkfcSpace.s12),
-            for (var i = 0; i < effectiveAttempts.length; i++) ...[
-              if (i > 0) const SizedBox(height: KkfcSpace.s8),
-              _buildAttemptTile(effectiveAttempts[i]),
+          ),
+          if (_isExpanded) ...[
+            if (widget.isLoading && effectiveAttempts.isEmpty) ...[
+              const SizedBox(height: KkfcSpace.s12),
+              const Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: KkfcSpace.s12),
+              for (var i = 0; i < effectiveAttempts.length; i++) ...[
+                if (i > 0) const SizedBox(height: KkfcSpace.s8),
+                _buildAttemptTile(effectiveAttempts[i]),
+              ],
             ],
           ],
         ],

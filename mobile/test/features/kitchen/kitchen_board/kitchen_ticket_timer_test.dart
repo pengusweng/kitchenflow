@@ -677,6 +677,28 @@ void main() {
       expect(find.text('Past QC attempts'), findsOneWidget);
       expect(find.text('Attempt #2'), findsOneWidget);
       expect(find.text('Attempt #1'), findsOneWidget);
+
+      // 4. Collapsing the past QC attempts panel hides the attempt tiles, and tapping again expands them
+      final toggleButton = find.byKey(
+        const ValueKey('past-qc-attempts-toggle-button'),
+      );
+      expect(toggleButton, findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_up_rounded), findsOneWidget);
+
+      await tester.tap(toggleButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Past QC attempts'), findsOneWidget);
+      expect(find.text('Attempt #2'), findsNothing);
+      expect(find.text('Attempt #1'), findsNothing);
+      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsOneWidget);
+
+      await tester.tap(toggleButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Attempt #2'), findsOneWidget);
+      expect(find.text('Attempt #1'), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_up_rounded), findsOneWidget);
     });
   });
 }
