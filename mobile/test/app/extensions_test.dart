@@ -16,9 +16,10 @@ void main() {
   });
 
   test('UT-MOB-THEME-EXT-002 ticket age uses the proposed thresholds', () {
-    expect(ticketAgeLevel(const Duration(minutes: 4)), TicketAgeLevel.normal);
-    expect(ticketAgeLevel(const Duration(minutes: 5)), TicketAgeLevel.caution);
-    expect(ticketAgeLevel(const Duration(minutes: 8)), TicketAgeLevel.overdue);
+    expect(ticketAgeLevel(const Duration(minutes: 14)), TicketAgeLevel.normal);
+    expect(ticketAgeLevel(const Duration(minutes: 15)), TicketAgeLevel.caution);
+    expect(ticketAgeLevel(const Duration(minutes: 20)), TicketAgeLevel.caution);
+    expect(ticketAgeLevel(const Duration(minutes: 30)), TicketAgeLevel.overdue);
   });
 
   test('UT-MOB-THEME-EXT-003 brand theme exposes the selected accent', () {

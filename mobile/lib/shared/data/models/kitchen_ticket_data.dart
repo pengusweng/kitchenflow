@@ -52,6 +52,7 @@ class KitchenTicketData {
     this.paymentStatus = 'Paid',
     this.qcReturnedReason,
     this.reworkNotes,
+    this.createdAt,
   });
 
   final String ticketNumber; // "T-014"
@@ -65,6 +66,7 @@ class KitchenTicketData {
   final String paymentStatus;
   final String? qcReturnedReason;
   final String? reworkNotes;
+  final DateTime? createdAt;
 
   /// Whether this ticket is a delivery channel (e.g. GrabFood or foodpanda).
   bool get isDelivery {
@@ -84,6 +86,7 @@ class KitchenTicketData {
     String? paymentStatus,
     String? qcReturnedReason,
     String? reworkNotes,
+    DateTime? createdAt,
   }) {
     return KitchenTicketData(
       ticketNumber: ticketNumber ?? this.ticketNumber,
@@ -97,6 +100,7 @@ class KitchenTicketData {
       paymentStatus: paymentStatus ?? this.paymentStatus,
       qcReturnedReason: qcReturnedReason ?? this.qcReturnedReason,
       reworkNotes: reworkNotes ?? this.reworkNotes,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }

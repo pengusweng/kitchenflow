@@ -265,7 +265,6 @@ abstract final class KkfcOpacity {
 }
 
 abstract final class KkfcKitchen {
-  // PROPOSAL values in the design system; confirm with client.
-  static const ageCautionMin = 5;
-  static const ageLateMin = 8;
+  static const ageCautionMin = 15;
+  static const ageLateMin = 30;
 }

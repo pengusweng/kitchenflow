@@ -1,28 +1,127 @@
+import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:mobile/app/theme/tokens.dart';
+import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
 import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 
-class KitchenTicketHeader extends StatelessWidget {
+class KitchenTicketHeader extends StatefulWidget {
   const KitchenTicketHeader({
     super.key,
     required this.ticketNumber,
     required this.elapsed,
     required this.age,
+    this.createdAt,
+    this.isLive,
   });
 
   final String ticketNumber;
   final Duration elapsed;
   final KitchenTicketAge age;
+  final DateTime? createdAt;
+  final bool? isLive;
 
   static String formatElapsed(Duration d) {
-    final m = d.inMinutes;
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    final safeDuration = d.isNegative ? Duration.zero : d;
+    final m = safeDuration.inMinutes;
+    final s = (safeDuration.inSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
   }
 
   @override
+  State<KitchenTicketHeader> createState() => _KitchenTicketHeaderState();
+}
+
+class _KitchenTicketHeaderState extends State<KitchenTicketHeader> {
+  late Duration _currentElapsed;
+  late KitchenTicketAge _currentAge;
+  late DateTime _baseStartTime;
+  Timer? _ticker;
+
+  bool get _shouldRunLive {
+    if (widget.isLive != null) return widget.isLive!;
+    try {
+      return !Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return true;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initTiming();
+    if (_shouldRunLive) {
+      _startTicker();
+    }
+  }
+
+  void _initTiming() {
+    _baseStartTime = widget.createdAt?.toLocal() ??
+        DateTime.now().subtract(widget.elapsed);
+    if (_shouldRunLive && widget.createdAt != null) {
+      final diff = DateTime.now().difference(_baseStartTime);
+      final safeElapsed = diff.isNegative ? Duration.zero : diff;
+      _currentElapsed = safeElapsed;
+      _currentAge = KitchenBoardTicket.ageFromElapsed(safeElapsed);
+    } else {
+      _currentElapsed = widget.elapsed;
+      _currentAge = _shouldRunLive
+          ? KitchenBoardTicket.ageFromElapsed(widget.elapsed)
+          : widget.age;
+    }
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final wallElapsed = DateTime.now().difference(_baseStartTime);
+      final safeWallElapsed =
+          wallElapsed.isNegative ? Duration.zero : wallElapsed;
+
+      final newElapsed = safeWallElapsed.inSeconds > _currentElapsed.inSeconds
+          ? safeWallElapsed
+          : _currentElapsed + const Duration(seconds: 1);
+
+      final newAge = KitchenBoardTicket.ageFromElapsed(newElapsed);
+      if (newElapsed.inSeconds != _currentElapsed.inSeconds ||
+          newAge != _currentAge) {
+        setState(() {
+          _currentElapsed = newElapsed;
+          _currentAge = newAge;
+        });
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant KitchenTicketHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.elapsed != widget.elapsed ||
+        oldWidget.createdAt != widget.createdAt ||
+        oldWidget.isLive != widget.isLive ||
+        oldWidget.age != widget.age) {
+      _initTiming();
+      if (_shouldRunLive && (_ticker == null || !_ticker!.isActive)) {
+        _startTicker();
+      } else if (!_shouldRunLive && _ticker != null) {
+        _ticker?.cancel();
+        _ticker = null;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _ticker = null;
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final time = formatElapsed(elapsed);
+    final time = KitchenTicketHeader.formatElapsed(_currentElapsed);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -35,7 +134,7 @@ class KitchenTicketHeader extends StatelessWidget {
           children: [
             Flexible(
               child: Text(
-                ticketNumber,
+                widget.ticketNumber,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 28,
@@ -59,11 +158,14 @@ class KitchenTicketHeader extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Semantics(
-          label: 'Ticket age $time, ${_ageLabel(age)}',
+          label: 'Ticket age $time, ${_ageLabel(_currentAge)}',
           excludeSemantics: true,
-          child: KitchenTicketProgressBar(elapsed: elapsed, age: age),
+          child: KitchenTicketProgressBar(
+            elapsed: _currentElapsed,
+            age: _currentAge,
+          ),
         ),
-        if (age != KitchenTicketAge.onTime) ...[
+        if (_currentAge != KitchenTicketAge.onTime) ...[
           const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerRight,
@@ -72,7 +174,7 @@ class KitchenTicketHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  age == KitchenTicketAge.late
+                  _currentAge == KitchenTicketAge.late
                       ? Icons.error_outline_rounded
                       : Icons.schedule_rounded,
                   size: 14,
@@ -80,7 +182,7 @@ class KitchenTicketHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  _ageLabel(age).toUpperCase(),
+                  _ageLabel(_currentAge).toUpperCase(),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -146,8 +248,8 @@ class _ProgressBarPainter extends CustomPainter {
     );
     canvas.drawRRect(trackRect, trackPaint);
 
-    // Fill
-    const maxSeconds = 10 * 60.0;
+    // Fill (up to 30 min = 100%)
+    const maxSeconds = 30 * 60.0;
     final progress = (elapsed.inSeconds / maxSeconds).clamp(0.02, 1.0);
     final fillWidth = size.width * progress;
 
@@ -166,7 +268,7 @@ class _ProgressBarPainter extends CustomPainter {
     );
     canvas.drawRRect(fillRect, fillPaint);
 
-    // Tick lines at 50% (5 min) and 75% (8 min)
+    // Tick lines at 15 min (50%) and 20 min (66.7%)
     final tickPaint = Paint()
       ..color = KkfcColors.ticketSubtleInk
       ..strokeWidth = 1.5
@@ -176,10 +278,12 @@ class _ProgressBarPainter extends CustomPainter {
     final tickY1 = (size.height - tickHeight) / 2;
     final tickY2 = tickY1 + tickHeight;
 
+    // Tick line at 15 min (50% of 30 min)
     final tick1X = size.width * 0.50;
     canvas.drawLine(Offset(tick1X, tickY1), Offset(tick1X, tickY2), tickPaint);
 
-    final tick2X = size.width * 0.75;
+    // Tick line at 20 min (66.7% of 30 min)
+    final tick2X = size.width * (20.0 / 30.0);
     canvas.drawLine(Offset(tick2X, tickY1), Offset(tick2X, tickY2), tickPaint);
   }
 

@@ -24,6 +24,7 @@ class KitchenTicketCard extends StatefulWidget {
     this.actionLabel,
     this.isActionEnabled = true,
     this.onDetails,
+    this.isLive,
   });
 
   const KitchenTicketCard.board({
@@ -34,6 +35,7 @@ class KitchenTicketCard extends StatefulWidget {
     this.actionLabel,
     this.isActionEnabled = true,
     this.onDetails,
+    this.isLive,
   }) : variant = KitchenTicketVariant.board;
 
   final KitchenTicketData ticket;
@@ -45,6 +47,7 @@ class KitchenTicketCard extends StatefulWidget {
   final String? actionLabel;
   final bool isActionEnabled;
   final VoidCallback? onDetails;
+  final bool? isLive;
 
   @override
   State<KitchenTicketCard> createState() => _KitchenTicketCardState();
@@ -145,6 +148,8 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                   ticketNumber: widget.ticket.ticketNumber,
                   elapsed: widget.ticket.elapsed,
                   age: widget.ticket.age,
+                  createdAt: widget.ticket.createdAt,
+                  isLive: widget.isLive,
                 ),
                 const SizedBox(height: 14),
 
