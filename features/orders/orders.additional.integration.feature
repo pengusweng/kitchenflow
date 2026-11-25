@@ -275,8 +275,9 @@ Feature: Additional orders integration coverage
   Scenario: Lists today's unpaid orders from the database
     Test Case ID: IT-ORD-050
     Given a draft, two confirmed unpaid orders, a paid order, a cancelled unpaid order and an unpaid order from another date
-    When GET /orders/unpaid/today is called
+    When GET /orders/unpaid/today is called with page, limit and order code search
     Then only the two confirmed unpaid orders from today are returned, oldest first, carrying their brand without lines or private fields
+    And the second one-row page holds the newer order, pagination meta matches, and a trimmed, case-insensitive code search finds one order
 
   # Jest: server/src/modules/orders/orders/tests/orders.http.spec.ts
   # Context: All orders HTTP API
@@ -295,3 +296,21 @@ Feature: Additional orders integration coverage
     Given no authenticated session
     When GET /orders/unpaid/today is called
     Then the response is 401
+
+  # Jest: server/src/modules/orders/orders/tests/orders.http.spec.ts
+  # Context: All orders HTTP API
+  @IT-ORD-053
+  Scenario: Passes today's unpaid orders query to the service
+    Test Case ID: IT-ORD-053
+    Given an authenticated supervisor, cashier, or superadmin
+    When GET /orders/unpaid/today is called with page, limit and search
+    Then the response is 200 and the service receives the typed query with the search trimmed
+
+  # Jest: server/src/modules/orders/orders/tests/orders.http.spec.ts
+  # Context: All orders HTTP API
+  @IT-ORD-054
+  Scenario: Rejects invalid or unknown query parameters for today's unpaid orders
+    Test Case ID: IT-ORD-054
+    Given an invalid page, limit or search, or a filter the endpoint does not accept
+    When GET /orders/unpaid/today is called
+    Then the response is 400 before calling the orders service

@@ -1591,13 +1591,21 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
       data: { order_date: new Date('2000-01-01T00:00:00.000Z') },
     });
 
-    const response = await request('/orders/unpaid/today');
-    expect(response.status).toBe(200);
-    const rows = ((await response.json()) as Record<string, unknown>[]).filter(
-      (row) =>
-        (row.brand as { brand_id: string }).brand_id === fixture.brand.brand_id,
-    );
+    type Page = {
+      data: Record<string, unknown>[];
+      meta: Record<string, number>;
+    };
+    const list = async (query: string) => {
+      const response = await request(`/orders/unpaid/today?${query}`);
+      expect(response.status).toBe(200);
+      return (await response.json()) as Page;
+    };
+    // Every fixture order code starts with the fixture brand's unique code.
+    const brandSearch = `search=${fixture.brand.code}-`;
+
+    const { data: rows, meta } = await list(`${brandSearch}&limit=100`);
     expect(rows.map((row) => row.order_id)).toEqual([oldest, newest]);
+    expect(meta).toEqual({ page: 1, limit: 100, total: 2, totalPages: 1 });
     expect(rows[0]).toMatchObject({
       status: 'CONFIRMED',
       payment_status: 'UNPAID',
@@ -1609,6 +1617,16 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     });
     expect(rows[0]).not.toHaveProperty('create_request_hash');
     expect(rows[0]).not.toHaveProperty('order_items_order');
+
+    const second = await list(`${brandSearch}&page=2&limit=1`);
+    expect(second.data.map((row) => row.order_id)).toEqual([newest]);
+    expect(second.meta).toEqual({ page: 2, limit: 1, total: 2, totalPages: 2 });
+
+    const { order_code } = await savedOrder(newest);
+    const searched = await list(
+      `search=${encodeURIComponent(`  ${order_code.toLowerCase()} `)}`,
+    );
+    expect(searched.data.map((row) => row.order_id)).toEqual([newest]);
   });
 
   it('IT-ORD-021: assigns consecutive daily codes across channels and keeps cancelled draft numbers', async () => {
@@ -2169,6 +2187,36 @@ describe('All orders HTTP API', () => {
       expect(findUnpaidTodayMethod).toHaveBeenCalledTimes(
         status === 200 ? 1 : 0,
       );
+    },
+  );
+
+  it.each(allowedRoles)(
+    "IT-ORD-053: Given %s, When listing today's unpaid orders with a query, Then pass the typed, trimmed query to the service",
+    async (role) => {
+      signInAs(role);
+      const response = await listOrders(
+        '/unpaid/today?page=3&limit=20&search=%20gc-01%20',
+      );
+      expect(response.status).toBe(200);
+      expect(findUnpaidTodayMethod).toHaveBeenCalledWith({
+        page: 3,
+        limit: 20,
+        search: 'gc-01',
+      });
+    },
+  );
+
+  it.each([
+    '?page=0',
+    '?limit=101',
+    '?search=' + 'x'.repeat(65),
+    '?status=CONFIRMED',
+    '?payment_status=PAID',
+  ])(
+    "IT-ORD-054: Given the invalid query %s, When listing today's unpaid orders, Then return 400",
+    async (query) => {
+      expect((await listOrders(`/unpaid/today${query}`)).status).toBe(400);
+      expect(findUnpaidTodayMethod).not.toHaveBeenCalled();
     },
   );
 

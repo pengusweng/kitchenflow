@@ -14,6 +14,7 @@ import { assertExists } from '../../../shared/assertions/assert-exists';
 import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
 import { FindAllOrdersDTO } from './dto/find-all-orders.dto';
 import { FindOrdersDTO } from './dto/find-orders.dto';
+import { FindUnpaidTodayOrdersDTO } from './dto/find-unpaid-today-orders.dto';
 import { OrdersRepository, type SavedOrder } from './orders.repository';
 import {
   ConfirmOrderDTO,
@@ -156,18 +157,26 @@ export class OrdersService {
   }
 
   /** Every brand's confirmed, unpaid orders for today's Asia/Manila business date. */
-  async findUnpaidToday() {
+  async findUnpaidToday({ page, limit, search }: FindUnpaidTodayOrdersDTO) {
+    const skip = (page - 1) * limit;
+    assertValidPagination(skip, this.logger);
     const today = new Date().toLocaleDateString('en-CA', {
       timeZone: 'Asia/Manila',
     });
     // Order dates are stored as Manila calendar dates (midnight UTC).
-    const orders = await this.repository.findUnpaid(
+    const { orders, total } = await this.repository.findUnpaid(
       new Date(`${today}T00:00:00.000Z`),
+      search,
+      skip,
+      limit,
     );
     this.logger.log(
-      `Listed unpaid orders: date=${today}, returned=${orders.length}`,
+      `Listed unpaid orders: date=${today}, returned=${orders.length}, total=${total}`,
     );
-    return orders;
+    return {
+      data: orders,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findOne(brandId: string, orderId: string) {

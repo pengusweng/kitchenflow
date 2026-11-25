@@ -10,7 +10,7 @@ import {
   OrderResponseDTO,
   OrderListResponseDTO,
   OrdersPageResponseDTO,
-  OrderSummaryResponseDTO,
+  UnpaidOrdersPageResponseDTO,
   VerifyOrderResponseDTO,
   CreateOrderConflictResponseDTO,
 } from '../dto/order-response.dto';
@@ -201,14 +201,15 @@ export function FindUnpaidTodayOrdersDocs() {
     ApiOperation({
       summary: "List today's unpaid orders across every brand",
       description:
-        'Orders whose order_date is today in Asia/Manila and whose payment_status is UNPAID. Drafts and cancelled orders are excluded. Not paginated. Sorted by created_at ascending, then order_id ascending, so the longest-waiting order comes first. Rows have the same shape as GET /orders.',
+        'Orders whose order_date is today in Asia/Manila and whose payment_status is UNPAID. Drafts and cancelled orders are excluded. Paginated with page (default 1) and limit (default 10, maximum 100); optional search is a case-insensitive partial match on order_code. Sorted by created_at ascending, then order_id ascending, so the longest-waiting order comes first. Rows have the same shape as GET /orders.',
     }),
     ApiResponse({
       status: 200,
-      type: [OrderSummaryResponseDTO],
+      type: UnpaidOrdersPageResponseDTO,
       description:
-        "Today's unpaid orders. Returns an empty array when there are none.",
+        "A page of today's unpaid orders plus pagination meta. Returns an empty data array when nothing matches.",
     }),
+    ApiResponse({ status: 400, description: 'Invalid query parameters.' }),
     ApiResponse({
       status: 401,
       description: 'Missing, invalid or expired bearer session.',

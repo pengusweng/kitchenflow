@@ -8,6 +8,7 @@ import {
   FindUnpaidTodayOrdersDocs,
 } from './docs/orders.docs';
 import { FindAllOrdersDTO } from './dto/find-all-orders.dto';
+import { FindUnpaidTodayOrdersDTO } from './dto/find-unpaid-today-orders.dto';
 import { OrdersService } from './orders.service';
 
 /**
@@ -28,7 +29,7 @@ export class AllOrdersController {
 
   @FindUnpaidTodayOrdersDocs()
   @Get('unpaid/today')
-  findUnpaidToday() {
-    return this.orders.findUnpaidToday();
+  findUnpaidToday(@Query() query: FindUnpaidTodayOrdersDTO) {
+    return this.orders.findUnpaidToday(query);
   }
 }
