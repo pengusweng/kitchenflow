@@ -218,8 +218,8 @@ abstract final class KkfcColors {
   /// Disabled primary button fill on ticket card (#CBD5E1)
   static const Color ticketDisabledBg = Color(0xFFCBD5E1);
 
-  /// Progress bar fill when ticket is on time (#506176)
-  static const Color ticketAgeOnTime = Color(0xFF506176);
+  /// Progress bar fill when ticket is on time / early (#16A34A)
+  static const Color ticketAgeOnTime = Color(0xFF16A34A);
 
   /// Progress bar fill when ticket is due soon (#D97706)
   static const Color ticketAgeDueSoon = Color(0xFFD97706);

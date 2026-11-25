@@ -174,6 +174,9 @@ class KitchenBoardTicket {
                   : null)) ??
         order;
 
+    final createdAtRaw = json['created_at'] as String?;
+    final createdAt =
+        createdAtRaw != null ? DateTime.tryParse(createdAtRaw) : null;
     final elapsed = _parseElapsed(json, now: now ?? DateTime.now());
     final age = _parseAge(json, elapsed);
     final brand = _parseBrand(json, orderMap, orderCode);
@@ -289,6 +292,7 @@ class KitchenBoardTicket {
         paymentStatus: paymentStatus,
         qcReturnedReason: qcReturnedReason,
         reworkNotes: reworkNotes,
+        createdAt: createdAt,
       ),
     );
   }
@@ -367,13 +371,13 @@ class KitchenBoardTicket {
         'ontime' || 'on_time' => KitchenTicketAge.onTime,
         'duesoon' || 'due_soon' => KitchenTicketAge.dueSoon,
         'late' || 'overdue' => KitchenTicketAge.late,
-        _ => _ageFromElapsed(elapsed),
+        _ => ageFromElapsed(elapsed),
       };
     }
-    return _ageFromElapsed(elapsed);
+    return ageFromElapsed(elapsed);
   }
 
-  static KitchenTicketAge _ageFromElapsed(Duration elapsed) {
+  static KitchenTicketAge ageFromElapsed(Duration elapsed) {
     if (elapsed >= const Duration(minutes: KkfcKitchen.ageLateMin)) {
       return KitchenTicketAge.late;
     }
