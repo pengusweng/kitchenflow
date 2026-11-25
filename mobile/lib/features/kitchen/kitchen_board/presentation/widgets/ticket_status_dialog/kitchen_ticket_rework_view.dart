@@ -34,9 +34,16 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
   List<KitchenQcAttempt> _fetchedAttempts = const [];
   bool _didRequestHistory = false;
 
-  KitchenBoardTicket get _effectiveTicket => _fetchedAttempts.isNotEmpty
-      ? widget.ticket.applyQcAttempts(_fetchedAttempts)
-      : widget.ticket;
+  KitchenBoardTicket get _effectiveTicket {
+    var ticket = _fetchedAttempts.isNotEmpty
+        ? widget.ticket.applyQcAttempts(_fetchedAttempts)
+        : widget.ticket;
+    final currentText = _notesController.text.trim();
+    if (currentText.isNotEmpty) {
+      ticket = ticket.copyWith(reworkNotes: currentText);
+    }
+    return ticket;
+  }
 
   @override
   void initState() {
@@ -44,6 +51,11 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
     _notesController = TextEditingController(
       text: widget.ticket.reworkNotes ?? '',
     );
+    _notesController.addListener(_onNotesChanged);
+  }
+
+  void _onNotesChanged() {
+    setState(() {});
   }
 
   @override
@@ -74,6 +86,7 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
 
   @override
   void dispose() {
+    _notesController.removeListener(_onNotesChanged);
     _notesController.dispose();
     super.dispose();
   }

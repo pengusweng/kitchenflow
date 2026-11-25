@@ -14,6 +14,7 @@ import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticke
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_past_qc_attempts_card.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_qc_view.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_rework_view.dart';
+import 'package:mobile/features/kitchen/kitchen_board/providers/kitchen_board_enricher.dart';
 import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 import 'package:mobile/shared/widgets/kitchen_ticket_card/kitchen_ticket_card.dart';
 import 'package:mobile/shared/widgets/kitchen_ticket_card/kitchen_ticket_header.dart';
@@ -699,6 +700,209 @@ void main() {
       expect(find.text('Attempt #2'), findsOneWidget);
       expect(find.text('Attempt #1'), findsOneWidget);
       expect(find.byIcon(Icons.keyboard_arrow_up_rounded), findsOneWidget);
+    });
+
+    testWidgets('Past QC attempts card displays rework notes along with the attempts', (tester) async {
+      const attempt1 = KitchenQcAttempt(
+        qcAttemptId: 'att-1',
+        kitchenTicketId: 'ticket-200',
+        attemptNumber: 1,
+        status: 'FAILED',
+        checkerName: 'Juan Dela Cruz',
+        reworkNotes: 'Wiped rim and added extra garnish.',
+        rejections: [
+          KitchenQcRejection(
+            rejectionId: 'rej-1',
+            orderItemId: 'item-1',
+            description: 'Plating messy',
+          ),
+        ],
+      );
+
+      const attempt2 = KitchenQcAttempt(
+        qcAttemptId: 'att-2',
+        kitchenTicketId: 'ticket-200',
+        attemptNumber: 2,
+        status: 'FAILED',
+        checkerName: 'Maria Santos',
+        rejections: [
+          KitchenQcRejection(
+            rejectionId: 'rej-2',
+            orderItemId: 'item-1',
+            description: 'Rice portion short',
+          ),
+        ],
+      );
+
+      final ticket = KitchenBoardTicket(
+        kitchenTicketId: 'ticket-200',
+        orderId: 'order-200',
+        orderCode: 'AI-200',
+        lane: KitchenBoardLane.rework,
+        rawStatus: 'REWORKING',
+        data: const KitchenTicketData(
+          ticketNumber: 'T-200',
+          elapsed: Duration(minutes: 8),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.reworking,
+          channel: 'Dine-in',
+          reference: 'Table 3',
+          brand: AssignedBrand(id: 'brand-ai', code: 'AI', name: "Aurelia's Inasal"),
+          reworkNotes: 'Replated with full portion of rice.',
+          items: [
+            KitchenTicketItem(
+              quantity: 1,
+              name: 'Paa Inasal',
+              orderItemId: 'item-1',
+            ),
+          ],
+        ),
+        qcAttempts: const [attempt2, attempt1],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: KitchenTicketPastQcAttemptsCard(ticket: ticket),
+            ),
+          ),
+        ),
+      );
+
+      // Attempt #2 (latest failed attempt) uses ticket-level reworkNotes fallback
+      expect(find.byKey(const ValueKey('attempt-2-rework-note')), findsOneWidget);
+      expect(find.textContaining('Replated with full portion of rice.'), findsOneWidget);
+
+      // Attempt #1 displays its own per-attempt rework note
+      expect(find.byKey(const ValueKey('attempt-1-rework-note')), findsOneWidget);
+      expect(find.textContaining('Wiped rim and added extra garnish.'), findsOneWidget);
+    });
+
+    testWidgets('KitchenTicketReworkView reflects draft rework notes live in past attempts card while typing', (tester) async {
+      const testBrand = AssignedBrand(id: 'brand-kk', code: 'KK', name: 'King Kungs Kafé');
+      const failedAttempt = KitchenQcAttempt(
+        qcAttemptId: 'att-draft-1',
+        kitchenTicketId: 'ticket-draft',
+        attemptNumber: 1,
+        status: 'FAILED',
+        checkerName: 'Supervisor Test',
+        rejections: [
+          KitchenQcRejection(
+            rejectionId: 'rej-draft-1',
+            orderItemId: 'item-draft-1',
+            description: 'Needs clean plate',
+          ),
+        ],
+      );
+
+      final ticket = KitchenBoardTicket(
+        kitchenTicketId: 'ticket-draft',
+        orderId: 'order-draft',
+        orderCode: 'KK-123',
+        lane: KitchenBoardLane.rework,
+        rawStatus: 'REWORKING',
+        data: const KitchenTicketData(
+          ticketNumber: 'T-123',
+          elapsed: Duration(minutes: 5),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.reworking,
+          channel: 'Dine-in',
+          reference: 'Table 1',
+          brand: testBrand,
+          items: [
+            KitchenTicketItem(
+              quantity: 1,
+              name: 'Burger',
+              orderItemId: 'item-draft-1',
+            ),
+          ],
+        ),
+        qcAttempts: const [failedAttempt],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KitchenTicketReworkView(
+              ticket: ticket,
+              isActionLoading: false,
+              isActionEnabled: true,
+              onReworkDone: (_) async {},
+            ),
+          ),
+        ),
+      );
+
+      // Initially, no rework note is displayed
+      expect(find.byKey(const ValueKey('attempt-1-rework-note')), findsNothing);
+
+      // User types a draft note into the rework notes field
+      final inputField = find.byKey(const ValueKey('rework-notes-input-field'));
+      expect(inputField, findsOneWidget);
+      await tester.enterText(inputField, 'Changed bun and replated on warm dish.');
+      await tester.pump();
+
+      // The past attempts card now dynamically shows the draft rework note live
+      expect(find.byKey(const ValueKey('attempt-1-rework-note')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('attempt-1-rework-note')),
+          matching: find.textContaining('Changed bun and replated on warm dish.'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    test('KitchenBoardEnricher.preserveEnrichedDetails preserves reworkNotes and qcReturnedReason across server updates', () {
+      const testBrand = AssignedBrand(id: 'brand-kk', code: 'KK', name: 'King Kungs Kafé');
+      final prevTicket = KitchenBoardTicket(
+        kitchenTicketId: 'ticket-enrich-1',
+        orderId: 'order-enrich-1',
+        orderCode: 'ORD-ENRICH',
+        lane: KitchenBoardLane.qcCheck,
+        rawStatus: 'FOR_CHECKING',
+        data: const KitchenTicketData(
+          ticketNumber: 'T-888',
+          elapsed: Duration(minutes: 10),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.checking,
+          channel: 'Dine-in',
+          reference: 'Table 1',
+          brand: testBrand,
+          qcReturnedReason: 'Plating was messy',
+          reworkNotes: 'Replated neatly with fresh greens.',
+          items: [],
+        ),
+      );
+
+      // Simulates fresh incoming ticket from server SSE where rework_notes is not in DB
+      final serverTicket = KitchenBoardTicket(
+        kitchenTicketId: 'ticket-enrich-1',
+        orderId: 'order-enrich-1',
+        orderCode: 'ORD-ENRICH',
+        lane: KitchenBoardLane.qcCheck,
+        rawStatus: 'FOR_CHECKING',
+        data: const KitchenTicketData(
+          ticketNumber: 'T-888',
+          elapsed: Duration(minutes: 11),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.checking,
+          channel: 'Takeaway',
+          reference: 'Takeaway-1',
+          brand: testBrand,
+          items: [],
+        ),
+      );
+
+      final preserved = KitchenBoardEnricher.preserveEnrichedDetails(
+        [serverTicket],
+        {'ticket-enrich-1': prevTicket},
+      );
+
+      expect(preserved.first.reworkNotes, 'Replated neatly with fresh greens.');
+      expect(preserved.first.qcReturnedReason, 'Plating was messy');
+      expect(preserved.first.data.channel, 'Dine-in');
     });
   });
 }
