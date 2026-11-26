@@ -203,11 +203,7 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
                           ),
                         ),
                         const SizedBox(height: KkfcSpace.s12),
-                        for (
-                          var i = 0;
-                          i < ticket.data.items.length;
-                          i++
-                        ) ...[
+                        for (var i = 0; i < ticket.data.items.length; i++) ...[
                           if (i > 0) const SizedBox(height: 14),
                           KitchenTicketItemTile(
                             item: _resolveItemWithFailReason(

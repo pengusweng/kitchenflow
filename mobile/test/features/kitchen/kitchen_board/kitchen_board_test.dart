@@ -589,7 +589,9 @@ void main() {
         ),
       );
 
-      var boardState = await waitForState((s) => !s.isLoading && s.tickets.isNotEmpty);
+      var boardState = await waitForState(
+        (s) => !s.isLoading && s.tickets.isNotEmpty,
+      );
       expect(boardState.isLoading, isFalse);
       expect(boardState.tickets, hasLength(1));
       expect(boardState.tickets.first.data.ticketNumber, 'T-016');
@@ -608,7 +610,9 @@ void main() {
       );
 
       boardState = await waitForState(
-        (s) => s.tickets.length == 2 && s.tickets.first.lane == KitchenBoardLane.preparing,
+        (s) =>
+            s.tickets.length == 2 &&
+            s.tickets.first.lane == KitchenBoardLane.preparing,
       );
       expect(boardState.tickets, hasLength(2));
       expect(boardState.tickets[0].lane, KitchenBoardLane.preparing);
@@ -3116,9 +3120,7 @@ void main() {
           reworkTicket.copyWith(
             rawStatus: 'FOR_CHECKING',
             lane: KitchenBoardLane.qcCheck,
-            data: reworkTicket.data.copyWith(
-              status: KkfcStatus.checking,
-            ),
+            data: reworkTicket.data.copyWith(status: KkfcStatus.checking),
           ),
         ];
 

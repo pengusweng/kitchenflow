@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
@@ -57,7 +58,8 @@ class _KitchenTicketDialogHeaderState extends State<KitchenTicketDialogHeader> {
   }
 
   void _initTiming() {
-    _baseStartTime = widget.ticket.data.createdAt?.toLocal() ??
+    _baseStartTime =
+        widget.ticket.data.createdAt?.toLocal() ??
         DateTime.now().subtract(widget.ticket.data.elapsed);
     if (_shouldRunLive && widget.ticket.data.createdAt != null) {
       final diff = DateTime.now().difference(_baseStartTime);
@@ -77,8 +79,9 @@ class _KitchenTicketDialogHeaderState extends State<KitchenTicketDialogHeader> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final wallElapsed = DateTime.now().difference(_baseStartTime);
-      final safeWallElapsed =
-          wallElapsed.isNegative ? Duration.zero : wallElapsed;
+      final safeWallElapsed = wallElapsed.isNegative
+          ? Duration.zero
+          : wallElapsed;
 
       final newElapsed = safeWallElapsed.inSeconds > _currentElapsed.inSeconds
           ? safeWallElapsed
@@ -209,7 +212,8 @@ class _KitchenTicketDialogHeaderState extends State<KitchenTicketDialogHeader> {
             children: [
               OutlinedButton.icon(
                 key: const ValueKey('kitchen-ticket-dialog-close-button'),
-                onPressed: widget.onClose ?? () => Navigator.of(context).maybePop(),
+                onPressed:
+                    widget.onClose ?? () => Navigator.of(context).maybePop(),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: KkfcColors.surface,
                   foregroundColor: KkfcColors.ink,

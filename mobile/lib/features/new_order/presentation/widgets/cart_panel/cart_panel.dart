@@ -209,10 +209,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
                       switchOutCurve: Curves.easeIn,
                       transitionBuilder: (child, animation) => FadeTransition(
                         opacity: animation,
-                        child: ScaleTransition(
-                          scale: animation,
-                          child: child,
-                        ),
+                        child: ScaleTransition(scale: animation, child: child),
                       ),
                       child: lines.isNotEmpty
                           ? AnimatedScale(
@@ -346,7 +343,9 @@ class _CartPanelState extends ConsumerState<CartPanel>
                                         color: KkfcColors.ticketDisabledBg,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderRadius: BorderRadius.circular(
+                                          8.0,
+                                        ),
                                       ),
                                     ),
                                     child: const Text('Return to menu'),
@@ -363,8 +362,9 @@ class _CartPanelState extends ConsumerState<CartPanel>
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                                 child: Column(
                                   children: [
                                     for (final group in brandGroups)
@@ -410,18 +410,20 @@ class _CartPanelState extends ConsumerState<CartPanel>
                                               ),
                                               transitionBuilder:
                                                   (child, animation) {
-                                                return SlideTransition(
-                                                  position: Tween<Offset>(
-                                                    begin:
-                                                        const Offset(0, 0.25),
-                                                    end: Offset.zero,
-                                                  ).animate(animation),
-                                                  child: FadeTransition(
-                                                    opacity: animation,
-                                                    child: child,
-                                                  ),
-                                                );
-                                              },
+                                                    return SlideTransition(
+                                                      position: Tween<Offset>(
+                                                        begin: const Offset(
+                                                          0,
+                                                          0.25,
+                                                        ),
+                                                        end: Offset.zero,
+                                                      ).animate(animation),
+                                                      child: FadeTransition(
+                                                        opacity: animation,
+                                                        child: child,
+                                                      ),
+                                                    );
+                                                  },
                                               child: Text(
                                                 formatPeso(total),
                                                 key: ValueKey(
@@ -434,8 +436,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
                                                   fontWeight: FontWeight.w600,
                                                   color: KkfcColors.ink,
                                                   fontFeatures: [
-                                                    FontFeature
-                                                        .tabularFigures(),
+                                                    FontFeature.tabularFigures(),
                                                   ],
                                                 ),
                                               ),
@@ -463,18 +464,20 @@ class _CartPanelState extends ConsumerState<CartPanel>
                                               ),
                                               transitionBuilder:
                                                   (child, animation) {
-                                                return SlideTransition(
-                                                  position: Tween<Offset>(
-                                                    begin:
-                                                        const Offset(0, 0.25),
-                                                    end: Offset.zero,
-                                                  ).animate(animation),
-                                                  child: FadeTransition(
-                                                    opacity: animation,
-                                                    child: child,
-                                                  ),
-                                                );
-                                              },
+                                                    return SlideTransition(
+                                                      position: Tween<Offset>(
+                                                        begin: const Offset(
+                                                          0,
+                                                          0.25,
+                                                        ),
+                                                        end: Offset.zero,
+                                                      ).animate(animation),
+                                                      child: FadeTransition(
+                                                        opacity: animation,
+                                                        child: child,
+                                                      ),
+                                                    );
+                                                  },
                                               child: Text(
                                                 formatPeso(total),
                                                 key: ValueKey(
@@ -487,8 +490,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
                                                   fontWeight: FontWeight.w700,
                                                   color: KkfcColors.ink,
                                                   fontFeatures: [
-                                                    FontFeature
-                                                        .tabularFigures(),
+                                                    FontFeature.tabularFigures(),
                                                   ],
                                                 ),
                                               ),
@@ -518,14 +520,12 @@ class _CartPanelState extends ConsumerState<CartPanel>
                                               child: FilledButton(
                                                 style: FilledButton.styleFrom(
                                                   backgroundColor:
-                                                      KkfcColors
-                                                          .action, // Burnished copper
-                                                  shape:
-                                                      RoundedRectangleBorder(
+                                                      KkfcColors.action, // Burnished copper
+                                                  shape: RoundedRectangleBorder(
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                      10.0,
-                                                    ),
+                                                          10.0,
+                                                        ),
                                                   ),
                                                 ),
                                                 onPressed: () {
@@ -541,7 +541,7 @@ class _CartPanelState extends ConsumerState<CartPanel>
                                                   'Continue to order details',
                                                   style: TextStyle(
                                                     fontFamily:
-                                                      KkfcFonts.ibmPlexSans,
+                                                        KkfcFonts.ibmPlexSans,
                                                     fontSize: 16.0,
                                                     fontWeight: FontWeight.w700,
                                                     color: KkfcColors.surface,

@@ -167,12 +167,15 @@ class _ResponsiveMenuLayoutState extends ConsumerState<_ResponsiveMenuLayout>
                               : (20.0 + bottomInset),
                           right: isWide ? 24.0 : 16.0,
                           child: FloatingActionButton.extended(
-                            key: const ValueKey('recent-orders-floating-button'),
+                            key: const ValueKey(
+                              'recent-orders-floating-button',
+                            ),
                             heroTag: 'recent-orders-fab',
                             elevation: 3,
                             highlightElevation: 1,
-                            backgroundColor:
-                                KkfcColors.shell.withValues(alpha: 0.85),
+                            backgroundColor: KkfcColors.shell.withValues(
+                              alpha: 0.85,
+                            ),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(24.0),

@@ -194,7 +194,8 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
           );
 
       final confirmedDraft = OrderDraft.fromJson(confirmed).copyWith(
-        tableReference: (confirmed['table_reference'] as String?) ??
+        tableReference:
+            (confirmed['table_reference'] as String?) ??
             draft?.tableReference ??
             (currentRef.isNotEmpty ? currentRef : null),
       );
@@ -815,10 +816,7 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
 }
 
 class _ReviewBrandGroup {
-  const _ReviewBrandGroup({
-    required this.brand,
-    required this.lines,
-  });
+  const _ReviewBrandGroup({required this.brand, required this.lines});
 
   final AssignedBrand brand;
   final List<CartLine> lines;
@@ -842,10 +840,15 @@ AssignedBrand _resolveBrandForLine(
 
   // 2. Direct match by brandName
   if (line.brandName.trim().isNotEmpty) {
-    final match = assignedBrands.where((b) =>
-      b.name.trim().toLowerCase() == line.brandName.trim().toLowerCase() ||
-      b.code.trim().toLowerCase() == line.brandName.trim().toLowerCase(),
-    ).firstOrNull;
+    final match = assignedBrands
+        .where(
+          (b) =>
+              b.name.trim().toLowerCase() ==
+                  line.brandName.trim().toLowerCase() ||
+              b.code.trim().toLowerCase() ==
+                  line.brandName.trim().toLowerCase(),
+        )
+        .firstOrNull;
     if (match != null) return match;
   }
 
@@ -857,18 +860,35 @@ AssignedBrand _resolveBrandForLine(
   }
 
   // 4. Keyword heuristic
-  if (lower.contains('gamcheon') || lower.contains('samgyup') || lower.contains('gc')) {
-    final gc = assignedBrands.where((b) => b.code.toUpperCase() == 'GC').firstOrNull;
+  if (lower.contains('gamcheon') ||
+      lower.contains('samgyup') ||
+      lower.contains('gc')) {
+    final gc = assignedBrands
+        .where((b) => b.code.toUpperCase() == 'GC')
+        .firstOrNull;
     if (gc != null) return gc;
     return const AssignedBrand(id: 'brand-gc', code: 'GC', name: 'Gamcheon');
   }
-  if (lower.contains('inasal') || lower.contains('aurelia') || lower.contains('ai')) {
-    final ai = assignedBrands.where((b) => b.code.toUpperCase() == 'AI').firstOrNull;
+  if (lower.contains('inasal') ||
+      lower.contains('aurelia') ||
+      lower.contains('ai')) {
+    final ai = assignedBrands
+        .where((b) => b.code.toUpperCase() == 'AI')
+        .firstOrNull;
     if (ai != null) return ai;
-    return const AssignedBrand(id: 'brand-ai', code: 'AI', name: "Aurelia's Inasal");
+    return const AssignedBrand(
+      id: 'brand-ai',
+      code: 'AI',
+      name: "Aurelia's Inasal",
+    );
   }
-  if (lower.contains('king') || lower.contains('kafe') || lower.contains('cafe') || lower.contains('kk')) {
-    final kk = assignedBrands.where((b) => b.code.toUpperCase() == 'KK').firstOrNull;
+  if (lower.contains('king') ||
+      lower.contains('kafe') ||
+      lower.contains('cafe') ||
+      lower.contains('kk')) {
+    final kk = assignedBrands
+        .where((b) => b.code.toUpperCase() == 'KK')
+        .firstOrNull;
     if (kk != null) return kk;
     return const AssignedBrand(id: 'brand-kk', code: 'KK', name: 'King Kafe');
   }
@@ -884,8 +904,8 @@ AssignedBrand _resolveBrandForLine(
     id: line.brandId.isNotEmpty ? line.brandId : 'brand-default',
     code: line.brandName.isNotEmpty
         ? (line.brandName.length >= 2
-            ? line.brandName.substring(0, 2).toUpperCase()
-            : line.brandName.toUpperCase())
+              ? line.brandName.substring(0, 2).toUpperCase()
+              : line.brandName.toUpperCase())
         : 'KK',
     name: line.brandName.isNotEmpty ? line.brandName : 'Main Brand',
   );
@@ -905,10 +925,7 @@ List<_ReviewBrandGroup> _groupCartLines(
 
     if (!groups.containsKey(key)) {
       orderedKeys.add(key);
-      groups[key] = _ReviewBrandGroup(
-        brand: brand,
-        lines: [line],
-      );
+      groups[key] = _ReviewBrandGroup(brand: brand, lines: [line]);
     } else {
       groups[key]!.lines.add(line);
     }

@@ -49,10 +49,7 @@ class KitchenTicketItem {
 /// Represents a partition of ticket items grouped under a single brand.
 @immutable
 class BrandTicketItemGroup {
-  const BrandTicketItemGroup({
-    required this.brand,
-    required this.items,
-  });
+  const BrandTicketItemGroup({required this.brand, required this.items});
 
   final AssignedBrand brand;
   final List<KitchenTicketItem> items;
@@ -105,10 +102,7 @@ class KitchenTicketData {
       final key = itemBrand.code.toUpperCase();
       if (!groups.containsKey(key)) {
         orderedKeys.add(key);
-        groups[key] = BrandTicketItemGroup(
-          brand: itemBrand,
-          items: [item],
-        );
+        groups[key] = BrandTicketItemGroup(brand: itemBrand, items: [item]);
       } else {
         groups[key]!.items.add(item);
       }
@@ -165,11 +159,7 @@ class KitchenTicketData {
         code: 'AI',
         name: "Aurelia's Inasal",
       ),
-      'GC' => const AssignedBrand(
-        id: 'brand-gc',
-        code: 'GC',
-        name: 'Gamcheon',
-      ),
+      'GC' => const AssignedBrand(id: 'brand-gc', code: 'GC', name: 'Gamcheon'),
       _ => null,
     };
   }
@@ -204,7 +194,8 @@ class KitchenTicketData {
     DateTime? createdAt,
   }) {
     final newBrands = brands ?? this.brands;
-    final newBrand = brand ??
+    final newBrand =
+        brand ??
         (brands != null && brands.isNotEmpty ? brands.first : this.brand);
     return KitchenTicketData(
       ticketNumber: ticketNumber ?? this.ticketNumber,

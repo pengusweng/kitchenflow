@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
@@ -57,8 +58,8 @@ class _KitchenTicketHeaderState extends State<KitchenTicketHeader> {
   }
 
   void _initTiming() {
-    _baseStartTime = widget.createdAt?.toLocal() ??
-        DateTime.now().subtract(widget.elapsed);
+    _baseStartTime =
+        widget.createdAt?.toLocal() ?? DateTime.now().subtract(widget.elapsed);
     if (_shouldRunLive && widget.createdAt != null) {
       final diff = DateTime.now().difference(_baseStartTime);
       final safeElapsed = diff.isNegative ? Duration.zero : diff;
@@ -77,8 +78,9 @@ class _KitchenTicketHeaderState extends State<KitchenTicketHeader> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final wallElapsed = DateTime.now().difference(_baseStartTime);
-      final safeWallElapsed =
-          wallElapsed.isNegative ? Duration.zero : wallElapsed;
+      final safeWallElapsed = wallElapsed.isNegative
+          ? Duration.zero
+          : wallElapsed;
 
       final newElapsed = safeWallElapsed.inSeconds > _currentElapsed.inSeconds
           ? safeWallElapsed

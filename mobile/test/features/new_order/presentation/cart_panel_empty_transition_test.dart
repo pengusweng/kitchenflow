@@ -8,11 +8,7 @@ import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_p
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
 
-const _brand = AssignedBrand(
-  id: 'gc-uuid',
-  code: 'GC',
-  name: 'Gamcheon',
-);
+const _brand = AssignedBrand(id: 'gc-uuid', code: 'GC', name: 'Gamcheon');
 
 const _sampleItem = MenuItem(
   id: 'gamcheon-samgyupsal',
@@ -118,7 +114,10 @@ void main() {
       expect(find.byKey(const ValueKey('empty-cart')), findsOneWidget);
       expect(find.byKey(const ValueKey('populated-cart')), findsNothing);
       expect(find.byKey(const ValueKey('cart-clear-btn')), findsNothing);
-      expect(find.text('No items yet. Choose an item from the\nmenu.'), findsOneWidget);
+      expect(
+        find.text('No items yet. Choose an item from the\nmenu.'),
+        findsOneWidget,
+      );
     },
   );
 }
