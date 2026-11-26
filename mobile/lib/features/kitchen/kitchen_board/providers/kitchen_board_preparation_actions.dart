@@ -43,7 +43,9 @@ mixin KitchenBoardPreparationActions on Notifier<KitchenBoardState> {
           return t.copyWith(
             rawStatus: 'ACKNOWLEDGED',
             lane: KitchenBoardLane.acknowledged,
-            data: t.data.copyWith(status: KkfcStatus.acknowledged),
+            data: t.data
+                .copyWith(status: KkfcStatus.acknowledged)
+                .withItemsArrangedByBrand(),
           );
         }
         return t;
@@ -98,7 +100,9 @@ mixin KitchenBoardPreparationActions on Notifier<KitchenBoardState> {
           return t.copyWith(
             rawStatus: 'PREPARING',
             lane: KitchenBoardLane.preparing,
-            data: t.data.copyWith(status: KkfcStatus.preparing),
+            data: t.data
+                .copyWith(status: KkfcStatus.preparing)
+                .withItemsArrangedByBrand(),
           );
         }
         return t;
@@ -166,11 +170,13 @@ mixin KitchenBoardPreparationActions on Notifier<KitchenBoardState> {
             clearQcAttemptId: true,
             qcReturnedReason: effectiveQcReturnedReason,
             qcAttempts: t.qcAttempts,
-            data: t.data.copyWith(
-              status: KkfcStatus.checking,
-              qcReturnedReason: effectiveQcReturnedReason,
-              items: clearedItems,
-            ),
+            data: t.data
+                .copyWith(
+                  status: KkfcStatus.checking,
+                  qcReturnedReason: effectiveQcReturnedReason,
+                  items: clearedItems,
+                )
+                .withItemsArrangedByBrand(),
           );
         }
         return t;
