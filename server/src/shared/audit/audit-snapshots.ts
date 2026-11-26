@@ -58,7 +58,6 @@ export const SNAPSHOT_CONFIGS: Readonly<Record<string, SnapshotConfig>> = {
       'order_code',
       'order_channel',
       'status',
-      'payment_method',
       'payment_status',
       'table_reference',
       'merchant_store_reference',

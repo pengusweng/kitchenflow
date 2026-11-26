@@ -113,7 +113,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     const confirmed = await request(
       `/brands/${fixture.brand.brand_id}/orders/${order.order_id}/confirm`,
       'POST',
-      { payment_method: 'CASH', payment_status: 'UNPAID' },
+      { payment_status: 'UNPAID' },
       1,
     );
     expect(confirmed.status).toBe(200);
@@ -192,7 +192,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     const confirmed = await request(
       `/brands/${fixture.brand.brand_id}/orders/${order.order_id}/confirm`,
       'POST',
-      { payment_method: 'CASH', payment_status: 'UNPAID' },
+      { payment_status: 'UNPAID' },
       1,
     );
     expect(confirmed.status).toBe(200);
@@ -235,7 +235,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
         'POST',
         operation === 'cancel'
           ? { cancellation_reason: 'Wrong brand' }
-          : { payment_method: 'CASH', payment_status: 'PAID' },
+          : { payment_status: 'PAID' },
         1,
       );
       expect(response.status).toBe(404);
@@ -285,7 +285,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
   function ordersPath() {
     return `/brands/${fixture.brand.brand_id}/orders`;
   }
-  const payment = { payment_method: 'CASH', payment_status: 'UNPAID' };
+  const payment = { payment_status: 'UNPAID' };
   async function draft(order_channel: OrderChannel = 'TAKEAWAY') {
     const body = orderBody(order_channel);
     expect((await request(ordersPath(), 'POST', body, 1)).status).toBe(201);
@@ -941,7 +941,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
           await request(
             `${ordersPath()}/${order.order_id}/${operation}`,
             'POST',
-            { payment_method: 'INVALID' },
+            { payment_status: 'INVALID' },
             1,
           )
         ).status,
@@ -1054,7 +1054,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
         fixture.brand.brand_id,
         order.order_id,
         fixture.users[1].user_id,
-        payment as { payment_method: 'CASH'; payment_status: 'UNPAID' },
+        payment as { payment_status: 'UNPAID' },
       ),
     ).rejects.toThrow('Injected ticket failure');
     expect(await savedOrder(order.order_id)).toEqual(before);
@@ -1384,9 +1384,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
         confirmPath,
         'POST',
         {
-          payment_method: 'CARD',
           payment_status: 'PAID',
-          payment_reference: 'p1',
         },
         0,
       ),
@@ -1396,9 +1394,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     const orders = await Promise.all(responses.map(json));
     expect(orders[0]).toEqual(orders[1]);
     const saved = await savedOrder(first.order_id);
-    expect(saved.payment_method).toBe(orders[0].payment_method);
     expect(saved.payment_status).toBe(orders[0].payment_status);
-    expect(saved.payment_reference).toBe(orders[0].payment_reference);
     const tickets = await prisma.kitchenTicket.findMany({
       where: { order: { brand_id: fixture.brand.brand_id } },
     });
@@ -1468,7 +1464,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
         fixture.brand.brand_id,
         body.order_id,
         fixture.users[1].user_id,
-        payment as { payment_method: 'CASH'; payment_status: 'UNPAID' },
+        payment as { payment_status: 'UNPAID' },
       ),
     ).rejects.toThrow('Injected failure after ticket insertion');
     expect(await savedOrder(body.order_id)).toEqual(before);
@@ -1494,7 +1490,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
         await request(
           `${ordersPath()}/${second.order_id}/confirm`,
           'POST',
-          { payment_method: 'CASH', payment_status: 'PAID' },
+          { payment_status: 'PAID' },
           1,
         )
       ).status,
@@ -1569,7 +1565,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
           await request(
             `${ordersPath()}/${body.order_id}/confirm`,
             'POST',
-            { payment_method: 'CASH', payment_status },
+            { payment_status },
             1,
           )
         ).status,
