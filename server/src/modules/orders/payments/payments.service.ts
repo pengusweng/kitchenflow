@@ -6,7 +6,7 @@ import { assertExists } from '../../../shared/assertions/assert-exists';
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
 
-  constructor(private readonly paymentsRepository: PaymentsRepository) { }
+  constructor(private readonly paymentsRepository: PaymentsRepository) {}
 
   async findOne(paymentId: string) {
     this.logger.debug(`Finding payment ${paymentId}`);

@@ -1,11 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentMethod } from '@prisma/client';
+import { Transform } from 'class-transformer';
 import {
   IsEnum,
   IsISO8601,
   IsIn,
+  IsString,
   IsUUID,
   Matches,
+  MaxLength,
   ValidateIf,
 } from 'class-validator';
 import { PaginationDTO } from '../../../../shared/dto/pagination.dto';
@@ -22,6 +25,21 @@ export const PAYMENT_SORT_FIELDS = [
 export type PaymentSortField = (typeof PAYMENT_SORT_FIELDS)[number];
 
 export class FindPaymentsDTO extends PaginationDTO {
+  // Blank or whitespace-only searches are treated as no search.
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() || undefined : value,
+  )
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsString({ message: 'search must be a single string.' })
+  @MaxLength(100, { message: 'search must be at most 100 characters.' })
+  @ApiPropertyOptional({
+    maxLength: 100,
+    example: 'juan GC-1234',
+    description:
+      "Case-insensitive partial match on payment_reference and the receiver's username, first_name, and last_name. Each space-separated term must match at least one of those fields.",
+  })
+  search?: string;
+
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(PaymentMethod, {
     message: `payment_method must be one of: ${Object.values(PaymentMethod).join(', ')}.`,

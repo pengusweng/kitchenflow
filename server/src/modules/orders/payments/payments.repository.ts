@@ -7,6 +7,15 @@ import { SortOrder } from '../../users/dto/find-users.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const RECEIVED_BY_NAME = {
+  received_by: {
+    select: {
+      first_name: true,
+      last_name: true,
+    },
+  },
+} as const;
+
 function manilaMidnight(date: string): Date {
   return new Date(`${date}T00:00:00+08:00`);
 }
@@ -34,6 +43,7 @@ function manilaMidnight(date: string): Date {
 //   net paid = non-voided payments - their refunds
 //   PAID if net paid >= order total, REFUNDED if fully refunded, else UNPAID.
 //   Call it after every create payment, void and refund.
+
 @Injectable()
 export class PaymentsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -44,49 +54,40 @@ export class PaymentsRepository {
     receivedById: string,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
-    return tx.payment.create({
+    const payment = await tx.payment.create({
       data: {
         ...dto,
         order_id: orderId,
         received_by_id: receivedById,
       },
+      include: RECEIVED_BY_NAME,
     });
+
+    return this.withReceiverName(payment);
   }
 
   async findAll(
     orderId: string,
-    skip: number,
-    take: number,
-    {
-      payment_method,
-      received_by_id,
-      from,
-      to,
-      sortBy,
-      sortOrder,
-    }: Pick<
-      FindPaymentsDTO,
-      | 'payment_method'
-      | 'received_by_id'
-      | 'from'
-      | 'to'
-      | 'sortBy'
-      | 'sortOrder'
-    >,
+    dto: FindPaymentsDTO,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
+    const skip = (dto.page - 1) * dto.limit;
+    const take = dto.limit;
+
     const where: Prisma.PaymentWhereInput = {
       order_id: orderId,
-      payment_method,
-      received_by_id,
-      paid_at: this.paidAtRange(from, to),
+      payment_method: dto.payment_method,
+      received_by_id: dto.received_by_id,
+      paid_at: this.paidAtRange(dto.from, dto.to),
+      ...this.searchWhere(dto.search),
     };
 
     const paymentsQuery = tx.payment.findMany({
       where,
       skip,
       take,
-      orderBy: this.orderBy(sortBy, sortOrder),
+      orderBy: this.orderBy(dto.sortBy, dto.sortOrder),
+      include: RECEIVED_BY_NAME,
     });
     const totalQuery = tx.payment.count({ where });
 
@@ -97,7 +98,30 @@ export class PaymentsRepository {
           })
         : await Promise.all([paymentsQuery, totalQuery]);
 
-    return { payments, total };
+    return {
+      payments: payments.map((payment) => this.withReceiverName(payment)),
+      total,
+    };
+  }
+
+  async findOne(
+    paymentId: string,
+    orderId: string,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const payment = await tx.payment.findUnique({
+      where: {
+        payment_id: paymentId,
+        order_id: orderId,
+      },
+      include: RECEIVED_BY_NAME,
+    });
+
+    if (!payment) {
+      return null;
+    }
+
+    return this.withReceiverName(payment);
   }
 
   private orderBy(
@@ -119,6 +143,28 @@ export class PaymentsRepository {
     ];
   }
 
+  private searchWhere(search?: string): Prisma.PaymentWhereInput {
+    const terms = search?.split(/\s+/).filter(Boolean) ?? [];
+    if (terms.length === 0) return {};
+
+    return {
+      AND: terms.map((term) => ({
+        OR: [
+          { payment_reference: { contains: term, mode: 'insensitive' } },
+          {
+            received_by: {
+              OR: (['username', 'first_name', 'last_name'] as const).map(
+                (field) => ({
+                  [field]: { contains: term, mode: 'insensitive' },
+                }),
+              ),
+            },
+          },
+        ],
+      })),
+    };
+  }
+
   private paidAtRange(
     from?: string,
     to?: string,
@@ -133,12 +179,12 @@ export class PaymentsRepository {
     };
   }
 
-  async findOne(
-    paymentId: string,
-    tx: Prisma.TransactionClient | PrismaService = this.prisma,
-  ) {
-    return tx.payment.findUnique({
-      where: { payment_id: paymentId },
-    });
+  private withReceiverName<
+    T extends { received_by: { first_name: string; last_name: string } },
+  >({ received_by, ...rest }: T) {
+    return {
+      ...rest,
+      received_by_name: `${received_by.first_name} ${received_by.last_name}`,
+    };
   }
 }
