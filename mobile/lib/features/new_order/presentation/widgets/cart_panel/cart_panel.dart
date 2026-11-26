@@ -203,50 +203,66 @@ class _CartPanelState extends ConsumerState<CartPanel>
                         ],
                       ),
                     ),
-                    if (lines.isNotEmpty)
-                      AnimatedScale(
-                        scale: _clearPressed ? 0.94 : 1.0,
-                        duration: const Duration(milliseconds: 90),
-                        curve: Curves.easeOut,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(8.0),
-                            onTapDown: (_) =>
-                                setState(() => _clearPressed = true),
-                            onTapCancel: () =>
-                                setState(() => _clearPressed = false),
-                            onTapUp: (_) =>
-                                setState(() => _clearPressed = false),
-                            onTap: () {
-                              ref.read(cartProvider.notifier).clear();
-                            },
-                            child: Ink(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: KkfcColors.surface,
-                                borderRadius: BorderRadius.circular(8.0),
-                                border: Border.all(
-                                  color: KkfcColors.dangerBorder,
-                                  width: 1.0,
-                                ),
-                              ),
-                              child: const Text(
-                                'Clear',
-                                style: TextStyle(
-                                  fontFamily: KkfcFonts.ibmPlexSans,
-                                  fontSize: 13.0,
-                                  fontWeight: FontWeight.w600,
-                                  color: KkfcColors.danger,
-                                ),
-                              ),
-                            ),
-                          ),
+                    AnimatedSwitcher(
+                      duration: KkfcMotion.durOverlay,
+                      switchInCurve: Curves.easeOutBack,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: animation,
+                          child: child,
                         ),
                       ),
+                      child: lines.isNotEmpty
+                          ? AnimatedScale(
+                              key: const ValueKey('cart-clear-btn'),
+                              scale: _clearPressed ? 0.94 : 1.0,
+                              duration: KkfcMotion.durPress,
+                              curve: Curves.easeOut,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  onTapDown: (_) =>
+                                      setState(() => _clearPressed = true),
+                                  onTapCancel: () =>
+                                      setState(() => _clearPressed = false),
+                                  onTapUp: (_) =>
+                                      setState(() => _clearPressed = false),
+                                  onTap: () {
+                                    ref.read(cartProvider.notifier).clear();
+                                  },
+                                  child: Ink(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: KkfcColors.surface,
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      border: Border.all(
+                                        color: KkfcColors.dangerBorder,
+                                        width: 1.0,
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Clear',
+                                      style: TextStyle(
+                                        fontFamily: KkfcFonts.ibmPlexSans,
+                                        fontSize: 13.0,
+                                        fontWeight: FontWeight.w600,
+                                        color: KkfcColors.danger,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(
+                              key: ValueKey('cart-clear-empty'),
+                            ),
+                    ),
                     if (widget.isSheet) ...[
                       const SizedBox(width: 8),
                       IconButton(
@@ -270,222 +286,281 @@ class _CartPanelState extends ConsumerState<CartPanel>
               ),
               const Divider(height: 1, color: KkfcColors.divider),
 
-              // Empty state or Items
-              if (lines.isEmpty)
-                Center(
-                  key: const ValueKey('empty-cart'),
-                  child: Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 44,
-                          color: KkfcColors.borderStrong,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No items yet. Choose an item from the\nmenu.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 15.0,
-                            height: 1.4,
-                            color: KkfcColors.ink3,
-                          ),
-                        ),
-                        if (widget.isSheet) ...[
-                          const SizedBox(height: 18),
-                          OutlinedButton(
-                            onPressed: () {
-                              if (widget.onClose != null) {
-                                widget.onClose!();
-                              } else {
-                                Navigator.of(context).maybePop();
-                              }
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: KkfcColors.ink,
-                              side: const BorderSide(
-                                color: KkfcColors.ticketDisabledBg,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                            ),
-                            child: const Text('Return to menu'),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                )
-              else ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    children: [
-                      for (final group in brandGroups)
-                        _buildBrandGroupCard(
-                          context,
-                          ref,
-                          group: group,
-                          channel: channel,
-                          assignedBrands: assignedBrands,
-                        ),
-                    ],
-                  ),
-                ),
-
-                // Footer (Subtotal, Total, Continue button)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Divider(height: 1, color: KkfcColors.divider),
-                    Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  'Subtotal',
+              // Impeccable animated transition between Empty state and Populated state
+              AnimatedSize(
+                duration: KkfcMotion.durRelease,
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: AnimatedSwitcher(
+                  duration: KkfcMotion.durScreen,
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.0, 0.04),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: lines.isEmpty
+                      ? Center(
+                          key: const ValueKey('empty-cart'),
+                          child: Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.shopping_cart_outlined,
+                                  size: 44,
+                                  color: KkfcColors.borderStrong,
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No items yet. Choose an item from the\nmenu.',
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    fontSize: 14.0,
+                                    fontSize: 15.0,
+                                    height: 1.4,
                                     color: KkfcColors.ink3,
                                   ),
                                 ),
-                              ),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 200),
-                                transitionBuilder: (child, animation) {
-                                  return SlideTransition(
-                                    position: Tween<Offset>(
-                                      begin: const Offset(0, 0.25),
-                                      end: Offset.zero,
-                                    ).animate(animation),
-                                    child: FadeTransition(
-                                      opacity: animation,
-                                      child: child,
+                                if (widget.isSheet) ...[
+                                  const SizedBox(height: 18),
+                                  OutlinedButton(
+                                    onPressed: () {
+                                      if (widget.onClose != null) {
+                                        widget.onClose!();
+                                      } else {
+                                        Navigator.of(context).maybePop();
+                                      }
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: KkfcColors.ink,
+                                      side: const BorderSide(
+                                        color: KkfcColors.ticketDisabledBg,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                      ),
                                     ),
-                                  );
-                                },
-                                child: Text(
-                                  formatPeso(total),
-                                  key: ValueKey('cart-subtotal-$total'),
-                                  style: const TextStyle(
-                                    fontFamily: KkfcFonts.ibmPlexSans,
-                                    fontSize: 14.0,
-                                    fontWeight: FontWeight.w600,
-                                    color: KkfcColors.ink,
-                                    fontFeatures: [
-                                      FontFeature.tabularFigures(),
-                                    ],
+                                    child: const Text('Return to menu'),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  'Total',
-                                  style: TextStyle(
-                                    fontFamily: KkfcFonts.ibmPlexSans,
-                                    fontSize: 18.0,
-                                    fontWeight: FontWeight.w700,
-                                    color: KkfcColors.ink,
-                                  ),
-                                ),
-                              ),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 200),
-                                transitionBuilder: (child, animation) {
-                                  return SlideTransition(
-                                    position: Tween<Offset>(
-                                      begin: const Offset(0, 0.25),
-                                      end: Offset.zero,
-                                    ).animate(animation),
-                                    child: FadeTransition(
-                                      opacity: animation,
-                                      child: child,
-                                    ),
-                                  );
-                                },
-                                child: Text(
-                                  formatPeso(total),
-                                  key: ValueKey('cart-total-$total'),
-                                  style: const TextStyle(
-                                    fontFamily: KkfcFonts.ibmPlexSans,
-                                    fontSize: 18.0,
-                                    fontWeight: FontWeight.w700,
-                                    color: KkfcColors.ink,
-                                    fontFeatures: [
-                                      FontFeature.tabularFigures(),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Listener(
-                            onPointerDown: (_) =>
-                                setState(() => _continuePressed = true),
-                            onPointerUp: (_) =>
-                                setState(() => _continuePressed = false),
-                            onPointerCancel: (_) =>
-                                setState(() => _continuePressed = false),
-                            child: AnimatedScale(
-                              scale: _continuePressed
-                                  ? KkfcMotion.pressScale
-                                  : 1.0,
-                              duration: KkfcMotion.durPress,
-                              curve: Curves.easeOut,
-                              child: SizedBox(
-                                width: double.infinity,
-                                height: 50.0,
-                                child: FilledButton(
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor:
-                                        KkfcColors.action, // Burnished copper
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10.0),
-                                    ),
-                                  ),
-                                  onPressed: () {
-                                    if (widget.isSheet) {
-                                      Navigator.of(context).pop();
-                                    }
-                                    context.push(
-                                      AppRoutes.mobileOrderFlow,
-                                      extra: {'initialStep': 3},
-                                    );
-                                  },
-                                  child: const Text(
-                                    'Continue to order details',
-                                    style: TextStyle(
-                                      fontFamily: KkfcFonts.ibmPlexSans,
-                                      fontSize: 16.0,
-                                      fontWeight: FontWeight.w700,
-                                      color: KkfcColors.surface,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                                ],
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
+                        )
+                      : KeyedSubtree(
+                          key: const ValueKey('populated-cart'),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: Column(
+                                  children: [
+                                    for (final group in brandGroups)
+                                      _buildBrandGroupCard(
+                                        context,
+                                        ref,
+                                        group: group,
+                                        channel: channel,
+                                        assignedBrands: assignedBrands,
+                                      ),
+                                  ],
+                                ),
+                              ),
+
+                              // Footer (Subtotal, Total, Continue button)
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  const Divider(
+                                    height: 1,
+                                    color: KkfcColors.divider,
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(20.0),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Expanded(
+                                              child: Text(
+                                                'Subtotal',
+                                                style: TextStyle(
+                                                  fontSize: 14.0,
+                                                  color: KkfcColors.ink3,
+                                                ),
+                                              ),
+                                            ),
+                                            AnimatedSwitcher(
+                                              duration: const Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              transitionBuilder:
+                                                  (child, animation) {
+                                                return SlideTransition(
+                                                  position: Tween<Offset>(
+                                                    begin:
+                                                        const Offset(0, 0.25),
+                                                    end: Offset.zero,
+                                                  ).animate(animation),
+                                                  child: FadeTransition(
+                                                    opacity: animation,
+                                                    child: child,
+                                                  ),
+                                                );
+                                              },
+                                              child: Text(
+                                                formatPeso(total),
+                                                key: ValueKey(
+                                                  'cart-subtotal-$total',
+                                                ),
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      KkfcFonts.ibmPlexSans,
+                                                  fontSize: 14.0,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: KkfcColors.ink,
+                                                  fontFeatures: [
+                                                    FontFeature
+                                                        .tabularFigures(),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            const Expanded(
+                                              child: Text(
+                                                'Total',
+                                                style: TextStyle(
+                                                  fontFamily:
+                                                      KkfcFonts.ibmPlexSans,
+                                                  fontSize: 18.0,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: KkfcColors.ink,
+                                                ),
+                                              ),
+                                            ),
+                                            AnimatedSwitcher(
+                                              duration: const Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              transitionBuilder:
+                                                  (child, animation) {
+                                                return SlideTransition(
+                                                  position: Tween<Offset>(
+                                                    begin:
+                                                        const Offset(0, 0.25),
+                                                    end: Offset.zero,
+                                                  ).animate(animation),
+                                                  child: FadeTransition(
+                                                    opacity: animation,
+                                                    child: child,
+                                                  ),
+                                                );
+                                              },
+                                              child: Text(
+                                                formatPeso(total),
+                                                key: ValueKey(
+                                                  'cart-total-$total',
+                                                ),
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      KkfcFonts.ibmPlexSans,
+                                                  fontSize: 18.0,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: KkfcColors.ink,
+                                                  fontFeatures: [
+                                                    FontFeature
+                                                        .tabularFigures(),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Listener(
+                                          onPointerDown: (_) => setState(
+                                            () => _continuePressed = true,
+                                          ),
+                                          onPointerUp: (_) => setState(
+                                            () => _continuePressed = false,
+                                          ),
+                                          onPointerCancel: (_) => setState(
+                                            () => _continuePressed = false,
+                                          ),
+                                          child: AnimatedScale(
+                                            scale: _continuePressed
+                                                ? KkfcMotion.pressScale
+                                                : 1.0,
+                                            duration: KkfcMotion.durPress,
+                                            curve: Curves.easeOut,
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              height: 50.0,
+                                              child: FilledButton(
+                                                style: FilledButton.styleFrom(
+                                                  backgroundColor:
+                                                      KkfcColors
+                                                          .action, // Burnished copper
+                                                  shape:
+                                                      RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      10.0,
+                                                    ),
+                                                  ),
+                                                ),
+                                                onPressed: () {
+                                                  if (widget.isSheet) {
+                                                    Navigator.of(context).pop();
+                                                  }
+                                                  context.push(
+                                                    AppRoutes.mobileOrderFlow,
+                                                    extra: {'initialStep': 3},
+                                                  );
+                                                },
+                                                child: const Text(
+                                                  'Continue to order details',
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                      KkfcFonts.ibmPlexSans,
+                                                    fontSize: 16.0,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: KkfcColors.surface,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                 ),
-              ],
+              ),
             ],
           ),
         ),
