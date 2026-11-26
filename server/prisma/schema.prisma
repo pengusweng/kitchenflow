@@ -220,7 +220,7 @@ model Order {
   cancelled_by          User?          @relation("OrderCancelledBy", fields: [cancelled_by_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
   order_items_order     OrderItem[]    @relation("OrderItemOrder")
   kitchen_tickets_order KitchenTicket? @relation("KitchenTicketOrder")
-  payments_order        Payment[]      @relation("PaymentOrder")
+  payment_order         Payment?       @relation("PaymentOrder")
 
   @@unique([order_channel, merchant_store_reference, external_order_reference])
   @@unique([brand_id, order_date, order_number])
@@ -241,7 +241,8 @@ model OrderDailyCounter {
 
 model Payment {
   payment_id        String        @id @default(uuid()) @db.Uuid
-  order_id          String        @db.Uuid
+  /// One payment per order
+  order_id          String        @unique @db.Uuid
   received_by_id    String        @db.Uuid
   payment_method    PaymentMethod
   payment_reference String?       @db.VarChar(255)
@@ -253,7 +254,6 @@ model Payment {
   order       Order @relation("PaymentOrder", fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
   received_by User  @relation("PaymentReceivedBy", fields: [received_by_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([order_id])
   @@map("payments")
 }
 
