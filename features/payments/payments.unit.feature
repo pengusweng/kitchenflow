@@ -108,3 +108,13 @@ Feature: Payment creation rules
     Given a page whose offset exceeds a signed 32-bit integer
     When payments are listed
     Then the service returns PAGINATION_UNSUPPORTED_RANGE without querying payments
+
+  @UT-PAY-014
+  Scenario Outline: Reject a payment for an order that is already settled
+    Given an order whose payment status is <status>
+    When a payment is created for that order
+    Then the service returns <code> without writing a payment
+    Examples:
+      | status   | code                   |
+      | PAID     | ORDER_ALREADY_PAID     |
+      | REFUNDED | ORDER_ALREADY_REFUNDED |

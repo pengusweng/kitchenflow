@@ -1,5 +1,9 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { PaymentMethod, Prisma } from '@prisma/client';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
+import { PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
 import { OrdersRepository } from '../../orders/orders.repository';
 import { UsersRepository } from '../../../users/users.repository';
 import { FindPaymentsDTO } from '../dto/find-payments.dto';
@@ -44,7 +48,10 @@ describe('PaymentsService', () => {
       findAll: jest.fn().mockResolvedValue({ payments: [], total: 0 }),
     };
     ordersRepository = {
-      findById: jest.fn().mockResolvedValue({ order_id: orderId }),
+      findById: jest.fn().mockResolvedValue({
+        order_id: orderId,
+        payment_status: PaymentStatus.UNPAID,
+      }),
     };
     usersRepository = {
       findOne: jest.fn().mockResolvedValue({ user_id: receivedById }),
@@ -159,6 +166,28 @@ describe('PaymentsService', () => {
       await expect(result).rejects.toMatchObject({
         response: { code: 'AMOUNT_TENDERED_MISMATCH' },
       });
+      expect(paymentsRepository.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [PaymentStatus.PAID, 'ORDER_ALREADY_PAID'],
+    [PaymentStatus.REFUNDED, 'ORDER_ALREADY_REFUNDED'],
+  ])(
+    'UT-PAY-014: rejects a payment for a %s order as %s without writing',
+    async (payment_status, code) => {
+      ordersRepository.findById.mockResolvedValue({
+        order_id: orderId,
+        payment_status,
+      });
+      const result = service.create(
+        payment(PaymentMethod.CASH, 250),
+        orderId,
+        receivedById,
+      );
+
+      await expect(result).rejects.toBeInstanceOf(ConflictException);
+      await expect(result).rejects.toMatchObject({ response: { code } });
       expect(paymentsRepository.create).not.toHaveBeenCalled();
     },
   );

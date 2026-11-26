@@ -1,10 +1,10 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 import { PaymentsRepository, PaymentUniqueKey } from './payments.repository';
 import { assertExists } from '../../../shared/assertions/assert-exists';
 import { OrdersRepository } from '../orders/orders.repository';
 import { CreatePaymentDTO } from './dto/payment.dto';
 import { UsersRepository } from '../../users/users.repository';
-import { PaymentMethod, Prisma } from '@prisma/client';
+import { PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
 import { FindPaymentsDTO } from './dto/find-payments.dto';
 import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
 
@@ -34,6 +34,24 @@ export class PaymentsService {
 
     assertExists(order, 'Order', orderId, this.logger);
     assertExists(user, 'UserId', receivedByID, this.logger);
+
+    if (order.payment_status === PaymentStatus.PAID) {
+      this.logger.warn(`Order ${orderId} is already paid`);
+
+      throw new ConflictException({
+        code: 'ORDER_ALREADY_PAID',
+        message: 'Order already has a payment record.',
+      });
+    }
+
+    if (order.payment_status === PaymentStatus.REFUNDED) {
+      this.logger.warn(`Order ${orderId} is already refunded`);
+
+      throw new ConflictException({
+        code: 'ORDER_ALREADY_REFUNDED',
+        message: 'Order is already refunded.',
+      });
+    }
 
     if (dto.payment_method === PaymentMethod.CASH) {
       this.validateCashPayment(dto.amount, dto.amount_tendered);
