@@ -182,21 +182,23 @@ class _CartPanelState extends ConsumerState<CartPanel>
                               ),
                             ],
                           ),
-                          const SizedBox(height: 2),
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 200),
-                            child: Text(
-                              lines.isEmpty
-                                  ? channel.label
-                                  : '${lines.length} line${lines.length == 1 ? '' : 's'} · $count item${count == 1 ? '' : 's'} · ${channel.label}',
-                              key: ValueKey(
-                                'cart-header-subtitle-${lines.length}-$count-${channel.label}',
-                              ),
-                              style: const TextStyle(
-                                fontSize: 13.0,
-                                color: KkfcColors.ink3,
-                              ),
-                            ),
+                            child: lines.isEmpty
+                                ? const SizedBox.shrink()
+                                : Padding(
+                                    padding: const EdgeInsets.only(top: 2.0),
+                                    child: Text(
+                                      '${lines.length} line${lines.length == 1 ? '' : 's'} · $count item${count == 1 ? '' : 's'}',
+                                      key: ValueKey(
+                                        'cart-header-subtitle-${lines.length}-$count',
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 13.0,
+                                        color: KkfcColors.ink3,
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ],
                       ),
