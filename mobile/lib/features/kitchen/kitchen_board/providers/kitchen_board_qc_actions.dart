@@ -96,7 +96,9 @@ mixin KitchenBoardQcActions on Notifier<KitchenBoardState> {
           return t.copyWith(
             rawStatus: 'READY',
             lane: KitchenBoardLane.ready,
-            data: t.data.copyWith(status: KkfcStatus.ready),
+            data: t.data
+                .copyWith(status: KkfcStatus.ready)
+                .withItemsArrangedByBrand(),
           );
         }
         return t;
@@ -196,11 +198,13 @@ mixin KitchenBoardQcActions on Notifier<KitchenBoardState> {
             lane: KitchenBoardLane.rework,
             clearQcAttemptId: true,
             qcReturnedReason: effectiveReason,
-            data: t.data.copyWith(
-              status: KkfcStatus.reworking,
-              qcReturnedReason: effectiveReason,
-              items: updatedItems,
-            ),
+            data: t.data
+                .copyWith(
+                  status: KkfcStatus.reworking,
+                  qcReturnedReason: effectiveReason,
+                  items: updatedItems,
+                )
+                .withItemsArrangedByBrand(),
           );
           if (fetchedAttempts.isNotEmpty) {
             nextTicket = nextTicket.applyQcAttempts(fetchedAttempts);

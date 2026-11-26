@@ -227,10 +227,14 @@ class KitchenBoardNotifier extends Notifier<KitchenBoardState>
                         p.name == item.name),
                 orElse: () => null,
               );
-          if (item.failReason == null && prevItem?.failReason != null) {
-            return item.copyWith(failReason: prevItem!.failReason);
+          var updated = item;
+          if (updated.brand == null && prevItem?.brand != null) {
+            updated = updated.copyWith(brand: prevItem!.brand);
           }
-          return item;
+          if (updated.failReason == null && prevItem?.failReason != null) {
+            updated = updated.copyWith(failReason: prevItem!.failReason);
+          }
+          return updated;
         }).toList();
 
         if (returnedReason != null || mergedItems != t.data.items) {
@@ -239,7 +243,7 @@ class KitchenBoardNotifier extends Notifier<KitchenBoardState>
             data: t.data.copyWith(
               qcReturnedReason: returnedReason,
               items: mergedItems,
-            ),
+            ).withItemsArrangedByBrand(),
           );
         }
       }

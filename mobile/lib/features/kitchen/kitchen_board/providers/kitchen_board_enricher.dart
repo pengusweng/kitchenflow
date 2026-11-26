@@ -4,6 +4,7 @@ import 'package:mobile/core/models/brand_models.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/repositories/kitchen_board_repository.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
+import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 
 class KitchenBoardEnricher {
   const KitchenBoardEnricher._();
@@ -43,14 +44,107 @@ class KitchenBoardEnricher {
         if (current.qcAttempts.isEmpty && prev.qcAttempts.isNotEmpty) {
           current = current.applyQcAttempts(prev.qcAttempts);
         }
-        // Preserve multi-brand if previously enriched
-        if (prev.data.effectiveBrands.length > 1 &&
-            current.data.effectiveBrands.length <= 1) {
+
+        // Preserve multi-brand and item-level brand assignments
+        final shouldPreserveMultiBrand =
+            prev.data.effectiveBrands.length > 1 ||
+            prev.data.items.any((i) => i.brand != null);
+
+        if (shouldPreserveMultiBrand) {
+          final isCurrentPlaceholder = current.data.items.isEmpty ||
+              (current.data.items.length == 1 &&
+                  (current.data.items.first.name.startsWith('Order ') ||
+                      current.data.items.first.name == 'Kitchen Order'));
+
+          final List<KitchenTicketItem> preservedItems;
+          if (isCurrentPlaceholder && prev.data.items.isNotEmpty) {
+            preservedItems = prev.data.items;
+          } else {
+            preservedItems = [
+              for (var i = 0; i < current.data.items.length; i++)
+                (() {
+                  final currItem = current.data.items[i];
+                  AssignedBrand? itemBrand = currItem.brand;
+                  if (itemBrand == null) {
+                    // 1. Try matching with prev items by orderItemId
+                    if (currItem.orderItemId != null &&
+                        currItem.orderItemId!.isNotEmpty) {
+                      for (final p in prev.data.items) {
+                        if (p.orderItemId == currItem.orderItemId &&
+                            p.brand != null) {
+                          itemBrand = p.brand;
+                          break;
+                        }
+                      }
+                    }
+                    // 2. Try matching with prev items by menuItemId
+                    if (itemBrand == null &&
+                        currItem.menuItemId != null &&
+                        currItem.menuItemId!.isNotEmpty) {
+                      for (final p in prev.data.items) {
+                        if (p.menuItemId == currItem.menuItemId &&
+                            p.brand != null) {
+                          itemBrand = p.brand;
+                          break;
+                        }
+                      }
+                    }
+                    // 3. Try matching with prev items by name
+                    if (itemBrand == null) {
+                      final lowerName = currItem.name.trim().toLowerCase();
+                      for (final p in prev.data.items) {
+                        if (p.name.trim().toLowerCase() == lowerName &&
+                            p.brand != null) {
+                          itemBrand = p.brand;
+                          break;
+                        }
+                      }
+                    }
+                    // 4. Try matching with prev items at same index if names match
+                    if (itemBrand == null &&
+                        i < prev.data.items.length &&
+                        prev.data.items[i].brand != null &&
+                        prev.data.items[i].name.trim().toLowerCase() ==
+                            currItem.name.trim().toLowerCase()) {
+                      itemBrand = prev.data.items[i].brand;
+                    }
+                    // 5. Try matching from static catalog cache
+                    if (itemBrand == null && _cachedCatalog != null) {
+                      if (currItem.menuItemId != null) {
+                        itemBrand = _cachedCatalog![currItem.menuItemId];
+                      }
+                      itemBrand ??=
+                          _cachedCatalog![currItem.name.trim().toLowerCase()];
+                    }
+                    // 6. Try keyword matcher
+                    itemBrand ??= _matchBrandFromItemName(
+                      currItem.name,
+                      prev.data.effectiveBrands,
+                    );
+                  }
+                  return currItem.copyWith(brand: itemBrand);
+                })(),
+            ];
+          }
+
+          final resolvedBrands = _resolveBrandsForTicket(
+            current.copyWith(
+              data: current.data.copyWith(items: preservedItems),
+            ),
+            catalogMap: _cachedCatalog,
+            availableBrands: prev.data.effectiveBrands,
+          );
+
+          final effectiveBrands = resolvedBrands.length > 1
+              ? resolvedBrands
+              : prev.data.effectiveBrands;
+
           current = current.copyWith(
             data: current.data.copyWith(
-              brands: prev.data.effectiveBrands,
+              items: preservedItems,
+              brands: effectiveBrands,
               brand: prev.data.brand,
-            ),
+            ).withItemsArrangedByBrand(),
           );
         }
       }

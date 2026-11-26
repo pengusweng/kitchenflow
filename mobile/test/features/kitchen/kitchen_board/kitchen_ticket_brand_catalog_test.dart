@@ -339,5 +339,112 @@ void main() {
       expect(groups[1].items.length, 1);
       expect(groups[1].items[0].name, 'Paa Inasal');
     });
+
+    test('preserveEnrichedDetails preserves item-level brand assignments and does not merge under 1 brand', () {
+      // 1. Initial enriched ticket in state
+      const enrichedTicket = KitchenBoardTicket(
+        kitchenTicketId: 'ticket-multi-ack',
+        orderId: 'order-multi-ack',
+        orderCode: 'ORD-ACK-01',
+        lane: KitchenBoardLane.queued,
+        rawStatus: 'QUEUED',
+        data: KitchenTicketData(
+          ticketNumber: 'T-901',
+          elapsed: Duration(minutes: 1),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.queued,
+          channel: 'Takeaway',
+          reference: 'Call: Ana',
+          brand: brandKk,
+          brands: [brandKk, brandAi],
+          items: [
+            KitchenTicketItem(
+              quantity: 1,
+              name: 'House Blend Coffee',
+              orderItemId: 'oi-1',
+              menuItemId: 'mi-coffee',
+              brand: brandKk,
+            ),
+            KitchenTicketItem(
+              quantity: 1,
+              name: 'Chicken Inasal Rice',
+              orderItemId: 'oi-2',
+              menuItemId: 'mi-inasal',
+              brand: brandAi,
+            ),
+          ],
+        ),
+      );
+
+      final prevMap = {enrichedTicket.kitchenTicketId: enrichedTicket};
+
+      // 2. Incoming raw ticket from GET /api/kitchen-ticket/today after Acknowledge action
+      // Server returns ticket with ACKNOWLEDGED status, but items have no brand assigned
+      const rawAcknowledgedTicket = KitchenBoardTicket(
+        kitchenTicketId: 'ticket-multi-ack',
+        orderId: 'order-multi-ack',
+        orderCode: 'ORD-ACK-01',
+        lane: KitchenBoardLane.acknowledged,
+        rawStatus: 'ACKNOWLEDGED',
+        data: KitchenTicketData(
+          ticketNumber: 'T-901',
+          elapsed: Duration(minutes: 1),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.acknowledged,
+          channel: 'Takeaway',
+          reference: 'Call: Ana',
+          brand: brandKk, // Only primary brand
+          brands: null,
+          items: [
+            KitchenTicketItem(
+              quantity: 1,
+              name: 'House Blend Coffee',
+              orderItemId: 'oi-1',
+              menuItemId: 'mi-coffee',
+              brand: null, // Raw API item has no brand
+            ),
+            KitchenTicketItem(
+              quantity: 1,
+              name: 'Chicken Inasal Rice',
+              orderItemId: 'oi-2',
+              menuItemId: 'mi-inasal',
+              brand: null, // Raw API item has no brand
+            ),
+          ],
+        ),
+      );
+
+      final preserved = KitchenBoardEnricher.preserveEnrichedDetails(
+        [rawAcknowledgedTicket],
+        prevMap,
+      );
+
+      expect(preserved.length, 1);
+      final ticket = preserved.first;
+
+      // Status should be the new status (ACKNOWLEDGED)
+      expect(ticket.rawStatus, 'ACKNOWLEDGED');
+      expect(ticket.lane, KitchenBoardLane.acknowledged);
+
+      // Brands must be preserved
+      expect(ticket.data.isMultiBrand, isTrue);
+      expect(ticket.data.effectiveBrands.length, 2);
+      expect(ticket.data.effectiveBrands.map((b) => b.code), containsAll(['KK', 'AI']));
+
+      // Each item must retain its brand
+      expect(ticket.data.items[0].brand?.code, 'KK');
+      expect(ticket.data.items[1].brand?.code, 'AI');
+
+      // Crucially, items must NOT be merged under 1 brand
+      final groups = ticket.data.brandItemGroups;
+      expect(groups.length, 2, reason: 'Must maintain 2 separate brand groups, not merge into 1');
+      expect(groups[0].brand.code, 'KK');
+      expect(groups[0].items.length, 1);
+      expect(groups[0].items[0].name, 'House Blend Coffee');
+
+      expect(groups[1].brand.code, 'AI');
+      expect(groups[1].items.length, 1);
+      expect(groups[1].items[0].name, 'Chicken Inasal Rice');
+    });
   });
 }
