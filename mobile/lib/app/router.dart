@@ -123,7 +123,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           final initialStep =
               extra is Map<String, dynamic> && extra['initialStep'] is int
               ? extra['initialStep'] as int
-              : 2;
+              : 3;
           return MobileOrderFlowScreen(initialStep: initialStep);
         },
       ),

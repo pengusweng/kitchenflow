@@ -3,14 +3,19 @@ import 'package:flutter/services.dart';
 import 'package:mobile/app/theme/typography.dart';
 
 class OrderFlowStepItem {
-  const OrderFlowStepItem({required this.stepNumber, required this.label});
+  const OrderFlowStepItem({
+    required this.stepNumber,
+    required this.label,
+    this.displayNumber,
+  });
 
   final int stepNumber;
   final String label;
+  final String? displayNumber;
 }
 
 /// Stepper bar matching the visual design:
-/// `[✓] —— [2] Order —— [3] —— [4] —— [5]`
+/// `[✓] —— [2] Details —— [3] Review —— [4] Sent`
 class OrderFlowStepper extends StatelessWidget {
   const OrderFlowStepper({
     super.key,
@@ -18,10 +23,9 @@ class OrderFlowStepper extends StatelessWidget {
     this.onStepTapped,
     this.steps = const [
       OrderFlowStepItem(stepNumber: 1, label: 'Menu'),
-      OrderFlowStepItem(stepNumber: 2, label: 'Order'),
-      OrderFlowStepItem(stepNumber: 3, label: 'Details'),
-      OrderFlowStepItem(stepNumber: 4, label: 'Review'),
-      OrderFlowStepItem(stepNumber: 5, label: 'Sent'),
+      OrderFlowStepItem(stepNumber: 3, label: 'Details', displayNumber: '2'),
+      OrderFlowStepItem(stepNumber: 4, label: 'Review', displayNumber: '3'),
+      OrderFlowStepItem(stepNumber: 5, label: 'Sent', displayNumber: '4'),
     ],
   });
 
@@ -48,7 +52,7 @@ class OrderFlowStepper extends StatelessWidget {
                     width: 22.0,
                     height: 1.5,
                     margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                    color: i < currentStep
+                    color: steps[i].stepNumber <= currentStep
                         ? const Color(0xFF166B3A)
                         : const Color(0xFFCBD5E1),
                   ),
@@ -105,7 +109,7 @@ class OrderFlowStepper extends StatelessWidget {
                   color: Color(0xFF166B3A),
                 )
               : Text(
-                  '${step.stepNumber}',
+                  step.displayNumber ?? '${step.stepNumber}',
                   key: ValueKey('text-${step.stepNumber}-$isActive'),
                   style: TextStyle(
                     fontFamily: KkfcFonts.ibmPlexSans,
