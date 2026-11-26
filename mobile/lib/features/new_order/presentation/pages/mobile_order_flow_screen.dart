@@ -227,10 +227,12 @@ class _MobileOrderFlowScreenState extends ConsumerState<MobileOrderFlowScreen> {
           child: ConfirmationStepView(
             onDone: () {
               ref.read(cartProvider.notifier).clear();
+              ref.read(orderReferenceProvider.notifier).clear();
               _closeFlow();
             },
             onCancelOrder: () {
               ref.read(cartProvider.notifier).clear();
+              ref.read(orderReferenceProvider.notifier).clear();
             },
           ),
         );
