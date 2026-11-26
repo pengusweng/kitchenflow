@@ -12,6 +12,7 @@ import 'package:mobile/features/kitchen/kitchen_board/providers/kitchen_board_pr
 import 'package:mobile/features/kitchen/kitchen_board/providers/kitchen_board_qc_actions.dart';
 import 'package:mobile/features/kitchen/kitchen_board/providers/kitchen_board_state.dart';
 import 'package:mobile/features/new_order/data/repositories/brand_repository.dart';
+import 'package:mobile/features/new_order/data/repositories/menu_repository.dart';
 import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 
 export 'kitchen_board_state.dart';
@@ -206,6 +207,8 @@ class KitchenBoardNotifier extends Notifier<KitchenBoardState>
       prevMap: prevMap,
       isMounted: () => ref.mounted,
       getBrands: () => ref.read(brandRepositoryProvider).getAll(),
+      getMenuItems: (brandId) =>
+          ref.read(menuRepositoryProvider).getByBrand(brandId),
     );
     if (!ref.mounted) return;
 

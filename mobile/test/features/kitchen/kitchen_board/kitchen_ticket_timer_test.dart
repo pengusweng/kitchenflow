@@ -289,7 +289,7 @@ void main() {
       expect(find.text('King Kungs Kafé'), findsOneWidget);
     });
 
-    testWidgets('multi-brand ticket displays header badges for all order brands in KitchenTicketCard', (tester) async {
+    testWidgets('multi-brand ticket removes top brand badges in KitchenTicketCard as items are labeled by brand', (tester) async {
       final multiBrandTicket = KitchenTicketData(
         ticketNumber: 'T-020',
         elapsed: const Duration(minutes: 3),
@@ -314,19 +314,17 @@ void main() {
         ),
       );
 
-      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')), findsOneWidget);
+      // Brands at the top are removed
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')), findsNothing);
       expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-single')), findsNothing);
 
-      // Verify all brand codes and names are present on the card header
-      expect(find.text('KK'), findsOneWidget);
-      expect(find.text('King Kungs Kafé'), findsOneWidget);
-      expect(find.text('AI'), findsOneWidget);
-      expect(find.text("Aurelia's Inasal"), findsOneWidget);
-      expect(find.text('GC'), findsOneWidget);
-      expect(find.text('Gamcheon'), findsOneWidget);
+      // Verify all brand group headers are present with items arranged by brand
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-group-kk')), findsOneWidget);
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-group-ai')), findsOneWidget);
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-group-gc')), findsOneWidget);
     });
 
-    testWidgets('multi-brand ticket displays header badges in KitchenTicketDialogHeader', (tester) async {
+    testWidgets('multi-brand ticket omits top brand row in KitchenTicketDialogHeader', (tester) async {
       final boardTicket = KitchenBoardTicket(
         kitchenTicketId: 'ticket-multi',
         orderId: 'order-multi',
@@ -360,11 +358,8 @@ void main() {
         ),
       );
 
-      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')), findsOneWidget);
-      expect(find.text('KK'), findsOneWidget);
-      expect(find.text('King Kungs Kafé'), findsOneWidget);
-      expect(find.text('AI'), findsOneWidget);
-      expect(find.text("Aurelia's Inasal"), findsOneWidget);
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')), findsNothing);
+      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-single')), findsNothing);
     });
 
     test('KitchenBoardTicket.tryFromApiJson parses multiple brands from API payload', () {

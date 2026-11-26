@@ -177,3 +177,74 @@ class KitchenTicketStatusRow extends StatelessWidget {
     );
   }
 }
+
+/// Renders a section header label for a brand group inside a ticket's items list:
+/// e.g. [GC] Gamcheon (1)
+class KitchenTicketBrandGroupHeader extends StatelessWidget {
+  const KitchenTicketBrandGroupHeader({
+    super.key,
+    required this.brand,
+    this.itemCount,
+  });
+
+  final AssignedBrand brand;
+  final int? itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey('kitchen-ticket-brand-group-${brand.code.toLowerCase()}'),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: KkfcColors.canvasSunken,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: KkfcColors.border, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+            decoration: BoxDecoration(
+              color: KkfcColors.surface,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: KkfcColors.ticketMuted, width: 1),
+            ),
+            child: Text(
+              brand.code.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: KkfcColors.ticketInk,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              brand.name,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: KkfcColors.ticketBrandName,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (itemCount != null) ...[
+            const SizedBox(width: 6),
+            Text(
+              '($itemCount)',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: KkfcColors.ticketMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

@@ -3,9 +3,19 @@ import 'dart:async';
 import 'package:mobile/core/models/brand_models.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/repositories/kitchen_board_repository.dart';
+import 'package:mobile/features/new_order/data/models/menu_models.dart';
 
 class KitchenBoardEnricher {
   const KitchenBoardEnricher._();
+
+  static Map<String, AssignedBrand>? _cachedCatalog;
+  static DateTime? _catalogCacheTime;
+
+  /// Clears in-memory catalog cache (useful for testing or session reset).
+  static void clearCatalogCache() {
+    _cachedCatalog = null;
+    _catalogCacheTime = null;
+  }
 
   static List<KitchenBoardTicket> preserveEnrichedDetails(
     List<KitchenBoardTicket> tickets,
@@ -33,6 +43,16 @@ class KitchenBoardEnricher {
         if (current.qcAttempts.isEmpty && prev.qcAttempts.isNotEmpty) {
           current = current.applyQcAttempts(prev.qcAttempts);
         }
+        // Preserve multi-brand if previously enriched
+        if (prev.data.effectiveBrands.length > 1 &&
+            current.data.effectiveBrands.length <= 1) {
+          current = current.copyWith(
+            data: current.data.copyWith(
+              brands: prev.data.effectiveBrands,
+              brand: prev.data.brand,
+            ),
+          );
+        }
       }
       return current;
     }).toList();
@@ -44,6 +64,7 @@ class KitchenBoardEnricher {
     required Map<String, KitchenBoardTicket> prevMap,
     required bool Function() isMounted,
     required Future<List<AssignedBrand>> Function() getBrands,
+    Future<List<MenuItem>> Function(String brandId)? getMenuItems,
   }) async {
     final preserved = preserveEnrichedDetails(tickets, prevMap);
 
@@ -51,6 +72,43 @@ class KitchenBoardEnricher {
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     );
     List<AssignedBrand>? cachedBrands;
+
+    // Load or refresh catalog cache
+    Map<String, AssignedBrand>? catalogMap = _cachedCatalog;
+    final now = DateTime.now();
+    final isCatalogStale = _cachedCatalog == null ||
+        _catalogCacheTime == null ||
+        now.difference(_catalogCacheTime!) > const Duration(minutes: 5);
+
+    if (isCatalogStale && getMenuItems != null && isMounted()) {
+      try {
+        final brands = cachedBrands ??
+            await getBrands().timeout(const Duration(milliseconds: 300));
+        cachedBrands = brands;
+        final newCatalog = <String, AssignedBrand>{};
+        for (final brand in brands) {
+          if (!isMounted()) break;
+          try {
+            final items = await getMenuItems(brand.id).timeout(
+              const Duration(milliseconds: 500),
+            );
+            for (final item in items) {
+              newCatalog[item.id] = brand;
+              newCatalog[item.name.trim().toLowerCase()] = brand;
+            }
+          } catch (_) {
+            // Ignore single brand fetch failure
+          }
+        }
+        if (newCatalog.isNotEmpty) {
+          _cachedCatalog = newCatalog;
+          _catalogCacheTime = now;
+          catalogMap = newCatalog;
+        }
+      } catch (_) {
+        // Fallback gracefully
+      }
+    }
 
     Future<String?> resolveTicketBrandId(KitchenBoardTicket t) async {
       final directId = t.data.brand.id;
@@ -103,6 +161,42 @@ class KitchenBoardEnricher {
           }
         }
 
+        // Multi-brand and item-brand resolution: resolve items against catalog
+        if (current.data.items.isNotEmpty) {
+          final updatedItems = current.data.items.map((item) {
+            AssignedBrand? catalogBrand;
+            if (catalogMap != null) {
+              if (item.menuItemId != null) {
+                catalogBrand = catalogMap[item.menuItemId];
+              }
+              catalogBrand ??= catalogMap[item.name.trim().toLowerCase()];
+            }
+            final resolvedBrand = item.brand ??
+                catalogBrand ??
+                _matchBrandFromItemName(item.name, cachedBrands) ??
+                current.data.brand;
+            return item.copyWith(brand: resolvedBrand);
+          }).toList();
+
+          final resolvedBrands = _resolveBrandsForTicket(
+            current.copyWith(data: current.data.copyWith(items: updatedItems)),
+            catalogMap: catalogMap,
+            availableBrands: cachedBrands,
+          );
+
+          current = current.copyWith(
+            data: current.data.copyWith(
+              items: updatedItems,
+              brand: resolvedBrands.isNotEmpty
+                  ? resolvedBrands.first
+                  : current.data.brand,
+              brands: resolvedBrands.isNotEmpty
+                  ? resolvedBrands
+                  : current.data.effectiveBrands,
+            ).withItemsArrangedByBrand(),
+          );
+        }
+
         if (current.orderId.isEmpty) return current;
 
         // Skip if ticket already has a resolved non-placeholder channel or reference
@@ -128,5 +222,92 @@ class KitchenBoardEnricher {
         return current;
       }),
     );
+  }
+
+  static List<AssignedBrand> _resolveBrandsForTicket(
+    KitchenBoardTicket ticket, {
+    Map<String, AssignedBrand>? catalogMap,
+    List<AssignedBrand>? availableBrands,
+  }) {
+    final matched = <String, AssignedBrand>{};
+    for (final item in ticket.data.items) {
+      AssignedBrand? brand = item.brand;
+      if (brand == null && item.menuItemId != null && catalogMap != null) {
+        brand = catalogMap[item.menuItemId];
+      }
+      if (brand == null && catalogMap != null) {
+        brand = catalogMap[item.name.trim().toLowerCase()];
+      }
+      brand ??= _matchBrandFromItemName(item.name, availableBrands);
+
+      if (brand != null) {
+        matched[brand.code.toUpperCase()] = brand;
+      }
+    }
+
+    if (matched.length > 1) {
+      return matched.values.toList(growable: false);
+    }
+    if (matched.length == 1) {
+      return matched.values.toList(growable: false);
+    }
+    return ticket.data.effectiveBrands;
+  }
+
+  static AssignedBrand? _matchBrandFromItemName(
+    String name,
+    List<AssignedBrand>? availableBrands,
+  ) {
+    final lower = name.toLowerCase().trim();
+    String? matchedCode;
+
+    if (lower.contains('inasal') ||
+        lower.contains('paa') ||
+        lower.contains('pecho') ||
+        lower.contains('halo-halo')) {
+      matchedCode = 'AI';
+    } else if (lower.contains('gamcheon') ||
+        lower.contains('samgyupsal') ||
+        lower.contains('bulgogi') ||
+        lower.contains('kimchi') ||
+        lower.contains('pancake')) {
+      matchedCode = 'GC';
+    } else if (lower.contains('king kung') ||
+        lower.contains('latte') ||
+        lower.contains('matcha') ||
+        lower.contains('coffee') ||
+        lower.contains('espresso') ||
+        lower.contains('sea salt cream')) {
+      matchedCode = 'KK';
+    }
+
+    if (matchedCode == null) return null;
+
+    if (availableBrands != null && availableBrands.isNotEmpty) {
+      final found = availableBrands.cast<AssignedBrand?>().firstWhere(
+        (b) => b?.code.toUpperCase() == matchedCode,
+        orElse: () => null,
+      );
+      if (found != null) return found;
+    }
+
+    return switch (matchedCode) {
+      'KK' => const AssignedBrand(
+        id: 'brand-kk',
+        code: 'KK',
+        name: 'King Kungs Kafé',
+      ),
+      'AI' => const AssignedBrand(
+        id: 'brand-ai',
+        code: 'AI',
+        name: "Aurelia's Inasal",
+      ),
+      'GC' => const AssignedBrand(
+        id: 'brand-gc',
+        code: 'GC',
+        name: 'Gamcheon',
+      ),
+      _ => null,
+    };
   }
 }

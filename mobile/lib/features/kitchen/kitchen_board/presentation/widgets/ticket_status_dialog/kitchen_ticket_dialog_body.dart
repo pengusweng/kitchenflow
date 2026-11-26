@@ -3,6 +3,7 @@ import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
 import 'package:mobile/shared/widgets/kitchen_ticket_card/kitchen_ticket_item_tile.dart';
+import 'package:mobile/shared/widgets/kitchen_ticket_card/kitchen_ticket_meta.dart';
 
 /// Stateless body content for [KitchenTicketStatusDialog], displaying the
 /// items to prepare and the order/timestamp metadata grid.
@@ -51,9 +52,23 @@ class KitchenTicketDialogBody extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  for (var i = 0; i < data.items.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 14),
-                    KitchenTicketItemTile(item: data.items[i]),
+                  if (data.isMultiBrand) ...[
+                    for (final group in data.brandItemGroups) ...[
+                      KitchenTicketBrandGroupHeader(
+                        brand: group.brand,
+                        itemCount: group.items.length,
+                      ),
+                      for (var i = 0; i < group.items.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 12),
+                        KitchenTicketItemTile(item: group.items[i]),
+                      ],
+                      const SizedBox(height: 14),
+                    ],
+                  ] else ...[
+                    for (var i = 0; i < data.items.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 14),
+                      KitchenTicketItemTile(item: data.items[i]),
+                    ],
                   ],
                 ],
               ),

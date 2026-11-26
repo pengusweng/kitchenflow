@@ -312,12 +312,13 @@ class _KitchenTicketDialogHeaderState extends State<KitchenTicketDialogHeader> {
             runSpacing: KkfcSpace.s4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              IntrinsicWidth(
-                child: KitchenTicketBrandRow(
-                  brand: data.brand,
-                  brands: data.effectiveBrands,
+              if (!data.isMultiBrand)
+                IntrinsicWidth(
+                  child: KitchenTicketBrandRow(
+                    brand: data.brand,
+                    brands: data.effectiveBrands,
+                  ),
                 ),
-              ),
               IntrinsicWidth(
                 child: KitchenTicketChannelLine(
                   channel: data.channel,
