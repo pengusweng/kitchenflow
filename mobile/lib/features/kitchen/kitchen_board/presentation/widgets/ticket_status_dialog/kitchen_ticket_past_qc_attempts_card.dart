@@ -67,11 +67,6 @@ class _KitchenTicketPastQcAttemptsCardState
         .where((a) => !a.isInProgress)
         .toList(growable: false);
 
-    final latestFailedAttemptNumber = effectiveAttempts
-        .where((a) => a.isFailed)
-        .map((a) => a.attemptNumber)
-        .firstOrNull;
-
     if (effectiveAttempts.isEmpty && !widget.isLoading) {
       return const SizedBox.shrink();
     }
@@ -165,11 +160,7 @@ class _KitchenTicketPastQcAttemptsCardState
               const SizedBox(height: KkfcSpace.s12),
               for (var i = 0; i < effectiveAttempts.length; i++) ...[
                 if (i > 0) const SizedBox(height: KkfcSpace.s8),
-                _buildAttemptTile(
-                  effectiveAttempts[i],
-                  isLatestFailed: effectiveAttempts[i].attemptNumber ==
-                      latestFailedAttemptNumber,
-                ),
+                _buildAttemptTile(effectiveAttempts[i]),
               ],
             ],
           ],
@@ -178,10 +169,7 @@ class _KitchenTicketPastQcAttemptsCardState
     );
   }
 
-  Widget _buildAttemptTile(
-    KitchenQcAttempt attempt, {
-    required bool isLatestFailed,
-  }) {
+  Widget _buildAttemptTile(KitchenQcAttempt attempt) {
     final isFailed = attempt.isFailed;
     final statusLabel = isFailed
         ? 'Failed'
@@ -199,11 +187,6 @@ class _KitchenTicketPastQcAttemptsCardState
         'Checked by $checkerName',
       if (timeLabel != null && timeLabel.isNotEmpty) timeLabel,
     ];
-
-    final effectiveReworkNote = attempt.reworkNotes ??
-        (isLatestFailed && attempt.isFailed
-            ? (widget.ticket.reworkNotes ?? widget.ticket.data.reworkNotes)
-            : null);
 
     return Container(
       key: ValueKey('past-qc-attempt-tile-${attempt.attemptNumber}'),
@@ -274,62 +257,6 @@ class _KitchenTicketPastQcAttemptsCardState
               if (j > 0) const SizedBox(height: 6),
               _buildRejectionLine(attempt.rejections[j]),
             ],
-          ],
-          if (effectiveReworkNote != null &&
-              effectiveReworkNote.trim().isNotEmpty) ...[
-            const SizedBox(height: KkfcSpace.s8),
-            Container(
-              key: ValueKey('attempt-${attempt.attemptNumber}-rework-note'),
-              padding: const EdgeInsets.symmetric(
-                horizontal: KkfcSpace.s12,
-                vertical: KkfcSpace.s8,
-              ),
-              decoration: BoxDecoration(
-                color: KkfcColors.ticketNoteBg,
-                borderRadius: BorderRadius.circular(KkfcRadius.sm),
-                border: Border.all(
-                  color: KkfcColors.ticketNoteBorder,
-                  width: KkfcBorderWidth.thin,
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.sync_rounded,
-                    size: 14,
-                    color: KkfcColors.reworkText,
-                  ),
-                  const SizedBox(width: KkfcSpace.s8),
-                  Expanded(
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: 'Rework note: ',
-                            style: TextStyle(
-                              fontFamily: KkfcFonts.ibmPlexSans,
-                              fontSize: KkfcTextSizes.textSm,
-                              fontWeight: KkfcFontWeights.bold,
-                              color: KkfcColors.ticketInk,
-                            ),
-                          ),
-                          TextSpan(
-                            text: effectiveReworkNote.trim(),
-                            style: const TextStyle(
-                              fontFamily: KkfcFonts.ibmPlexSans,
-                              fontSize: KkfcTextSizes.textSm,
-                              fontWeight: KkfcFontWeights.regular,
-                              color: KkfcColors.ticketInk,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ],
       ),

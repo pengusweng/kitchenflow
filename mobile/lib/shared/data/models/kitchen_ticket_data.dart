@@ -52,7 +52,6 @@ class KitchenTicketData {
     required this.items,
     this.paymentStatus = 'Paid',
     this.qcReturnedReason,
-    this.reworkNotes,
     this.createdAt,
   });
 
@@ -67,7 +66,6 @@ class KitchenTicketData {
   final List<KitchenTicketItem> items;
   final String paymentStatus;
   final String? qcReturnedReason;
-  final String? reworkNotes;
   final DateTime? createdAt;
 
   /// Returns all assigned brands for multi-brand orders, falling back to [brand].
@@ -95,7 +93,6 @@ class KitchenTicketData {
     List<KitchenTicketItem>? items,
     String? paymentStatus,
     String? qcReturnedReason,
-    String? reworkNotes,
     DateTime? createdAt,
   }) {
     final newBrands = brands ?? this.brands;
@@ -113,7 +110,6 @@ class KitchenTicketData {
       items: items ?? this.items,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       qcReturnedReason: qcReturnedReason ?? this.qcReturnedReason,
-      reworkNotes: reworkNotes ?? this.reworkNotes,
       createdAt: createdAt ?? this.createdAt,
     );
   }

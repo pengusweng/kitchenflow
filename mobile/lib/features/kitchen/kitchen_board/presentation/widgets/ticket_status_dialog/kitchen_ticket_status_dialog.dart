@@ -55,7 +55,7 @@ class KitchenTicketStatusDialog extends StatelessWidget {
   final Future<void> Function(List<HandoverPhotoEvidence> photos)? onHandover;
   final VoidCallback? onFail;
   final Future<void> Function(List<QcItemRejection> rejections)? onReject;
-  final Future<void> Function(String? reworkNotes)? onReworkDone;
+  final Future<void> Function()? onReworkDone;
   final VoidCallback? onCancelTicket;
   final bool? showCancelTicketButton;
   final VoidCallback? onClose;
@@ -195,7 +195,7 @@ class KitchenTicketStatusDialog extends StatelessWidget {
                     isActionEnabled: isActionEnabled,
                     onReworkDone:
                         onReworkDone ??
-                        (reworkNotes) async {
+                        () async {
                           onAction?.call();
                         },
                   ),
@@ -472,13 +472,10 @@ Future<void> showKitchenTicketStatusDialog(
                   }
                 : null,
             onReworkDone: effectiveActionEnabled
-                ? (reworkNotes) async {
+                ? () async {
                     final success = await ref
                         .read(kitchenBoardProvider.notifier)
-                        .sendToQc(
-                          currentTicket.kitchenTicketId,
-                          reworkNotes: reworkNotes,
-                        );
+                        .sendToQc(currentTicket.kitchenTicketId);
                     if (success && dialogContext.mounted) {
                       Navigator.of(dialogContext).maybePop();
                     }

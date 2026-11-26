@@ -22,7 +22,7 @@ class KitchenTicketReworkView extends StatefulWidget {
   final KitchenBoardTicket ticket;
   final bool isActionLoading;
   final bool isActionEnabled;
-  final Future<void> Function(String? reworkNotes) onReworkDone;
+  final Future<void> Function() onReworkDone;
 
   @override
   State<KitchenTicketReworkView> createState() =>
@@ -30,32 +30,13 @@ class KitchenTicketReworkView extends StatefulWidget {
 }
 
 class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
-  late final TextEditingController _notesController;
   List<KitchenQcAttempt> _fetchedAttempts = const [];
   bool _didRequestHistory = false;
 
   KitchenBoardTicket get _effectiveTicket {
-    var ticket = _fetchedAttempts.isNotEmpty
+    return _fetchedAttempts.isNotEmpty
         ? widget.ticket.applyQcAttempts(_fetchedAttempts)
         : widget.ticket;
-    final currentText = _notesController.text.trim();
-    if (currentText.isNotEmpty) {
-      ticket = ticket.copyWith(reworkNotes: currentText);
-    }
-    return ticket;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _notesController = TextEditingController(
-      text: widget.ticket.reworkNotes ?? '',
-    );
-    _notesController.addListener(_onNotesChanged);
-  }
-
-  void _onNotesChanged() {
-    setState(() {});
   }
 
   @override
@@ -84,13 +65,6 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
     }
   }
 
-  @override
-  void dispose() {
-    _notesController.removeListener(_onNotesChanged);
-    _notesController.dispose();
-    super.dispose();
-  }
-
   KitchenTicketItem _resolveItemWithFailReason(
     KitchenTicketItem item,
     int index,
@@ -112,8 +86,7 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
   }
 
   Future<void> _handleSubmit() async {
-    final notes = _notesController.text.trim();
-    await widget.onReworkDone(notes.isNotEmpty ? notes : null);
+    await widget.onReworkDone();
   }
 
   @override
@@ -199,76 +172,6 @@ class _KitchenTicketReworkViewState extends State<KitchenTicketReworkView> {
                             fontSize: KkfcTextSizes.textBase,
                             fontWeight: KkfcFontWeights.medium,
                             color: KkfcColors.ticketInk,
-                          ),
-                        ),
-                        const SizedBox(height: KkfcSpace.s16),
-                        const Text(
-                          'Rework notes (optional)',
-                          style: TextStyle(
-                            fontFamily: KkfcFonts.ibmPlexSans,
-                            fontSize: KkfcTextSizes.textSm,
-                            fontWeight: KkfcFontWeights.bold,
-                            color: KkfcColors.ink,
-                          ),
-                        ),
-                        const SizedBox(height: KkfcSpace.s8),
-                        TextField(
-                          key: const ValueKey('rework-notes-input-field'),
-                          controller: _notesController,
-                          maxLength: 200,
-                          maxLines: 3,
-                          minLines: 2,
-                          buildCounter: (
-                            context, {
-                            required currentLength,
-                            required isFocused,
-                            maxLength,
-                          }) => null,
-                          style: const TextStyle(
-                            fontFamily: KkfcFonts.ibmPlexSans,
-                            fontSize: KkfcTextSizes.textBase,
-                            color: KkfcColors.ink,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'e.g. Replated with a full portion.',
-                            hintStyle: const TextStyle(
-                              fontFamily: KkfcFonts.ibmPlexSans,
-                              fontSize: KkfcTextSizes.textSm,
-                              color: KkfcColors.ticketMuted,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: KkfcSpace.s12,
-                              vertical: KkfcSpace.s12,
-                            ),
-                            filled: true,
-                            fillColor: KkfcColors.surface,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                KkfcRadius.sm,
-                              ),
-                              borderSide: const BorderSide(
-                                color: KkfcColors.border,
-                                width: KkfcBorderWidth.thin,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                KkfcRadius.sm,
-                              ),
-                              borderSide: const BorderSide(
-                                color: KkfcColors.border,
-                                width: KkfcBorderWidth.thin,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                KkfcRadius.sm,
-                              ),
-                              borderSide: const BorderSide(
-                                color: KkfcColors.focus,
-                                width: KkfcBorderWidth.thick,
-                              ),
-                            ),
                           ),
                         ),
                       ],

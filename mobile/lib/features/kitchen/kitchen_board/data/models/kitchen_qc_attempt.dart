@@ -79,7 +79,6 @@ class KitchenQcAttempt {
     this.startedAt,
     this.completedAt,
     this.rejections = const [],
-    this.reworkNotes,
   });
 
   final String qcAttemptId;
@@ -91,7 +90,6 @@ class KitchenQcAttempt {
   final DateTime? startedAt;
   final DateTime? completedAt;
   final List<KitchenQcRejection> rejections;
-  final String? reworkNotes;
 
   bool get isFailed => status.toUpperCase() == 'FAILED';
   bool get isPassed => status.toUpperCase() == 'PASSED';
@@ -107,7 +105,6 @@ class KitchenQcAttempt {
     DateTime? startedAt,
     DateTime? completedAt,
     List<KitchenQcRejection>? rejections,
-    String? reworkNotes,
   }) {
     return KitchenQcAttempt(
       qcAttemptId: qcAttemptId ?? this.qcAttemptId,
@@ -119,7 +116,6 @@ class KitchenQcAttempt {
       startedAt: startedAt ?? this.startedAt,
       completedAt: completedAt ?? this.completedAt,
       rejections: rejections ?? this.rejections,
-      reworkNotes: reworkNotes ?? this.reworkNotes,
     );
   }
 
@@ -167,8 +163,6 @@ class KitchenQcAttempt {
 
     final startedRaw = json['started_at'] as String?;
     final completedRaw = json['completed_at'] as String?;
-    final reworkNotes = (json['rework_notes'] as String?)?.trim() ??
-        (json['rework_note'] as String?)?.trim();
 
     return KitchenQcAttempt(
       qcAttemptId:
@@ -184,7 +178,6 @@ class KitchenQcAttempt {
       completedAt:
           completedRaw != null ? DateTime.tryParse(completedRaw) : null,
       rejections: rejections,
-      reworkNotes: reworkNotes,
     );
   }
 

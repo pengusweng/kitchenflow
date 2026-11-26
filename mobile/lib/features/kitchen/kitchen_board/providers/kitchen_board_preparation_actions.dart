@@ -122,7 +122,7 @@ mixin KitchenBoardPreparationActions on Notifier<KitchenBoardState> {
     }
   }
 
-  Future<bool> sendToQc(String kitchenTicketId, {String? reworkNotes}) async {
+  Future<bool> sendToQc(String kitchenTicketId) async {
     final userRole = ref.read(userRoleProvider);
     if (userRole == UserRole.supervisor) return false;
 
@@ -153,7 +153,6 @@ mixin KitchenBoardPreparationActions on Notifier<KitchenBoardState> {
           orElse: () => tickets.first,
         ),
       );
-      final effectiveReworkNotes = reworkNotes ?? prevTicket.reworkNotes;
       final effectiveQcReturnedReason = prevTicket.qcReturnedReason;
 
       final updatedTickets = tickets.map((t) {
@@ -161,26 +160,15 @@ mixin KitchenBoardPreparationActions on Notifier<KitchenBoardState> {
           final clearedItems = t.data.items
               .map((it) => it.copyWith(clearFailReason: true))
               .toList();
-          final updatedAttempts = t.qcAttempts.map((a) {
-            if (a.isFailed &&
-                (a.reworkNotes == null || a.reworkNotes!.trim().isEmpty) &&
-                effectiveReworkNotes != null &&
-                effectiveReworkNotes.trim().isNotEmpty) {
-              return a.copyWith(reworkNotes: effectiveReworkNotes.trim());
-            }
-            return a;
-          }).toList();
           return t.copyWith(
             rawStatus: 'FOR_CHECKING',
             lane: KitchenBoardLane.qcCheck,
             clearQcAttemptId: true,
             qcReturnedReason: effectiveQcReturnedReason,
-            reworkNotes: effectiveReworkNotes,
-            qcAttempts: updatedAttempts,
+            qcAttempts: t.qcAttempts,
             data: t.data.copyWith(
               status: KkfcStatus.checking,
               qcReturnedReason: effectiveQcReturnedReason,
-              reworkNotes: effectiveReworkNotes,
               items: clearedItems,
             ),
           );

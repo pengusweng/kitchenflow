@@ -27,27 +27,11 @@ class KitchenBoardEnricher {
                 : null,
           );
         }
-        if (current.reworkNotes == null && prev.reworkNotes != null) {
-          current = current.copyWith(reworkNotes: prev.reworkNotes);
-        }
         if (current.qcReturnedReason == null && prev.qcReturnedReason != null) {
           current = current.copyWith(qcReturnedReason: prev.qcReturnedReason);
         }
         if (current.qcAttempts.isEmpty && prev.qcAttempts.isNotEmpty) {
           current = current.applyQcAttempts(prev.qcAttempts);
-        } else if (current.qcAttempts.isNotEmpty && prev.qcAttempts.isNotEmpty) {
-          final prevAttemptsMap = {
-            for (final a in prev.qcAttempts) a.attemptNumber: a,
-          };
-          final mergedAttempts = current.qcAttempts.map((a) {
-            final prevA = prevAttemptsMap[a.attemptNumber];
-            if ((a.reworkNotes == null || a.reworkNotes!.trim().isEmpty) &&
-                prevA?.reworkNotes != null) {
-              return a.copyWith(reworkNotes: prevA!.reworkNotes);
-            }
-            return a;
-          }).toList();
-          current = current.copyWith(qcAttempts: mergedAttempts);
         }
       }
       return current;

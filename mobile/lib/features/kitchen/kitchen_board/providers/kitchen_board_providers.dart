@@ -213,7 +213,6 @@ class KitchenBoardNotifier extends Notifier<KitchenBoardState>
       final prev = prevMap[t.kitchenTicketId];
       if (prev != null) {
         final returnedReason = t.qcReturnedReason ?? prev.qcReturnedReason;
-        final notes = t.reworkNotes ?? prev.reworkNotes;
         final mergedItems = t.data.items.map((item) {
           final prevItem = prev.data.items
               .cast<KitchenTicketItem?>()
@@ -231,15 +230,11 @@ class KitchenBoardNotifier extends Notifier<KitchenBoardState>
           return item;
         }).toList();
 
-        if (returnedReason != null ||
-            notes != null ||
-            mergedItems != t.data.items) {
+        if (returnedReason != null || mergedItems != t.data.items) {
           return t.copyWith(
             qcReturnedReason: returnedReason,
-            reworkNotes: notes,
             data: t.data.copyWith(
               qcReturnedReason: returnedReason,
-              reworkNotes: notes,
               items: mergedItems,
             ),
           );
