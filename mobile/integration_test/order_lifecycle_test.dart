@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -108,7 +109,7 @@ void main() {
       expect(find.text(formatPeso(25000)), findsWidgets);
       _assertCode(draft, container.read(activeBrandProvider).code);
       final id = draft['order_id'] as String;
-      final verified = await _post(api, '$_orders/$id/verify', _payment, 200);
+      final verified = await _post(api, '$_orders/$id/verify', {}, 200);
       expect(verified['valid'], true);
       expect(verified['lines'].single['quantity'], 2);
       expect(decimalToCentavos(verified['lines'].single['unit_price']), 12500);
@@ -188,8 +189,8 @@ void main() {
       final (api, _) = await loginForOrderApi();
       final payload = _payload(channel: 'GRABFOOD');
       final original = await _post(api, _orders, payload, 201);
-      expect(original['payment_method'], 'PLATFORM_SETTLED');
-      expect(original['payment_status'], 'PAID');
+      expect(original['status'], 'DRAFT');
+      expect(original['kitchen_tickets_order'], isNull);
       expect(
         (await _post(api, _orders, payload, 201))['order_id'],
         original['order_id'],
@@ -244,7 +245,7 @@ void main() {
         expect(changed.statusCode, 200, reason: '${changed.data}');
         availabilityChanged = true;
         final id = draft['order_id'];
-        await _post(api, '$_orders/$id/verify', _payment, 400);
+        await _post(api, '$_orders/$id/verify', {}, 400);
         await _post(api, '$_orders/$id/confirm', _payment, 400);
         final replay = await _post(api, _orders, payload, 201);
         expect(replay['status'], 'DRAFT');
@@ -318,6 +319,13 @@ Future<Map<String, dynamic>> _confirmFromReview(
   final capture = _observePosts(
     container.read(dioProvider),
     '$_orders/$id/confirm',
+  );
+  final cooldownBar =
+      find.byKey(const ValueKey('confirm-cooldown-progress-bar'));
+  await waitForOrderUi(
+    tester,
+    () => cooldownBar.evaluate().isEmpty,
+    'cooldown timer to complete',
   );
   final send = find.text('Confirm and send');
   await tester.ensureVisible(send);
