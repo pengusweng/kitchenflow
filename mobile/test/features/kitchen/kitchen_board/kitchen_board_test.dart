@@ -2975,7 +2975,7 @@ void main() {
     );
 
     testWidgets(
-      'WT-MOB-KITCHEN-023 Rework UI flow: card layout, Preparing lane priority, rework dialog with 200 char placeholder, and returning to QC displays rework note',
+      'WT-MOB-KITCHEN-023 Rework UI flow: card layout, Preparing lane priority, rework dialog without rework notes, and returning to QC',
       (tester) async {
         final reworkTicket = sampleKitchenBoardTickets[1].copyWith(
           rawStatus: 'REWORKING',
@@ -3070,22 +3070,14 @@ void main() {
         expect(find.text('REWORK'), findsOneWidget);
         expect(find.text('T-015'), findsAtLeast(1));
 
-        // Card 1: Rework info and notes
+        // Card 1: Rework info
         expect(find.text(' · returned from QC'), findsOneWidget);
         expect(find.text('Reason'), findsOneWidget);
         expect(find.text('Rice portion short; plate again'), findsAtLeast(1));
-        expect(find.text('Rework notes (optional)'), findsOneWidget);
-
-        // TextField has placeholder: "e.g. Replated with a full portion." and 200 char limit
-        final notesFieldFinder = find.byKey(
-          const ValueKey('rework-notes-input-field'),
-        );
-        expect(notesFieldFinder, findsOneWidget);
-        final textFieldWidget = tester.widget<TextField>(notesFieldFinder);
-        expect(textFieldWidget.maxLength, 200);
+        expect(find.text('Rework notes (optional)'), findsNothing);
         expect(
-          textFieldWidget.decoration?.hintText,
-          'e.g. Replated with a full portion.',
+          find.byKey(const ValueKey('rework-notes-input-field')),
+          findsNothing,
         );
 
         // Card 2: Items on this ticket
@@ -3105,21 +3097,13 @@ void main() {
         expect(reworkDoneButton, findsOneWidget);
         expect(find.text('Rework done · return to QC'), findsOneWidget);
 
-        // 4. Fill rework note and click "Rework done · return to QC"
-        await tester.enterText(
-          notesFieldFinder,
-          'Replated with a full portion.',
-        );
-        await tester.pumpAndSettle();
-
+        // 4. Click "Rework done · return to QC"
         currentTickets = [
           reworkTicket.copyWith(
             rawStatus: 'FOR_CHECKING',
             lane: KitchenBoardLane.qcCheck,
-            reworkNotes: 'Replated with a full portion.',
             data: reworkTicket.data.copyWith(
               status: KkfcStatus.checking,
-              reworkNotes: 'Replated with a full portion.',
             ),
           ),
         ];
@@ -3130,7 +3114,7 @@ void main() {
         // Popup closed
         expect(find.byType(KitchenTicketStatusDialog), findsNothing);
 
-        // 5. Ticket is now in QC check lane and displays rework note on the card
+        // 5. Ticket is now in QC check lane and does NOT display rework note box
         final qcLaneCard = find.byKey(
           const ValueKey('kitchen-ticket-card-T-015'),
         );
@@ -3142,19 +3126,10 @@ void main() {
               const ValueKey('kitchen-ticket-rework-note-box'),
             ),
           ),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(
-            of: qcLaneCard,
-            matching: find.textContaining(
-              'Rework note: Replated with a full portion.',
-            ),
-          ),
-          findsOneWidget,
+          findsNothing,
         );
 
-        // 6. Opening the QC modal displays the rework note banner
+        // 6. Opening the QC modal does NOT display rework note banner
         final qcCardButton = find.descendant(
           of: qcLaneCard,
           matching: find.widgetWithText(FilledButton, 'QC check'),
@@ -3166,16 +3141,7 @@ void main() {
         expect(find.byType(KitchenTicketStatusDialog), findsOneWidget);
         expect(
           find.byKey(const ValueKey('qc-dialog-rework-note-banner')),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(
-            of: find.byKey(const ValueKey('qc-dialog-rework-note-banner')),
-            matching: find.textContaining(
-              'Rework note: Replated with a full portion.',
-            ),
-          ),
-          findsOneWidget,
+          findsNothing,
         );
       },
     );

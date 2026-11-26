@@ -250,49 +250,6 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                     ),
                   ),
                 ],
-                if (widget.ticket.status == KkfcStatus.checking &&
-                    widget.ticket.reworkNotes != null &&
-                    widget.ticket.reworkNotes!.trim().isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    key: const ValueKey('kitchen-ticket-rework-note-box'),
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: KkfcColors.ticketNoteBg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: KkfcColors.ticketNoteBorder,
-                        width: 1,
-                      ),
-                    ),
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: 'Rework note: ',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: KkfcColors.ticketInk,
-                            ),
-                          ),
-                          TextSpan(
-                            text: widget.ticket.reworkNotes!,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              color: KkfcColors.ticketInk,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 16),
 
                 // 4. Ticket items list

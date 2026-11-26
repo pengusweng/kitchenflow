@@ -50,9 +50,6 @@ class KitchenBoardTicket {
   /// Quality check rejection reason if this ticket was returned to rework.
   String? get qcReturnedReason => data.qcReturnedReason;
 
-  /// Notes added by the preparer when completing rework and returning to QC.
-  String? get reworkNotes => data.reworkNotes;
-
   /// Whether this ticket is a delivery channel (GrabFood or foodpanda)
   /// requiring photo evidence before handover.
   bool get isDelivery => data.isDelivery;
@@ -71,15 +68,13 @@ class KitchenBoardTicket {
     String? qcAttemptId,
     bool clearQcAttemptId = false,
     String? qcReturnedReason,
-    String? reworkNotes,
     int? qcFailureCount,
     List<KitchenQcAttempt>? qcAttempts,
   }) {
     var effectiveData = data ?? this.data;
-    if (qcReturnedReason != null || reworkNotes != null) {
+    if (qcReturnedReason != null) {
       effectiveData = effectiveData.copyWith(
-        qcReturnedReason: qcReturnedReason ?? effectiveData.qcReturnedReason,
-        reworkNotes: reworkNotes ?? effectiveData.reworkNotes,
+        qcReturnedReason: qcReturnedReason,
       );
     }
     final effectiveRawStatus = rawStatus ?? this.rawStatus;
@@ -172,26 +167,14 @@ class KitchenBoardTicket {
       }
     }
 
-    final resolvedAttempts = sorted.map((a) {
-      if (a == latestFailed &&
-          (a.reworkNotes == null || a.reworkNotes!.trim().isEmpty) &&
-          reworkNotes != null &&
-          reworkNotes!.trim().isNotEmpty) {
-        return a.copyWith(reworkNotes: reworkNotes!.trim());
-      }
-      return a;
-    }).toList();
-
     return copyWith(
-      qcAttempts: resolvedAttempts,
+      qcAttempts: sorted,
       qcFailureCount: failedAttempts.length > qcFailureCount
           ? failedAttempts.length
           : qcFailureCount,
       qcReturnedReason: resolvedReason,
-      reworkNotes: reworkNotes,
       data: data.copyWith(
         qcReturnedReason: resolvedReason,
-        reworkNotes: reworkNotes,
         items: resolvedItems,
       ),
     );
@@ -347,10 +330,6 @@ class KitchenBoardTicket {
         _extractRejectionReason(json['qc_attempts']) ??
         _extractRejectionReason(json['rejections']);
 
-    final reworkNotes =
-        (json['rework_notes'] as String?)?.trim() ??
-        (json['rework_note'] as String?)?.trim();
-
     final isRework =
         rawStatus == 'REWORKING' || kkfcStatus == KkfcStatus.reworking;
     final items = _parseItems(
@@ -396,7 +375,6 @@ class KitchenBoardTicket {
         items: items,
         paymentStatus: paymentStatus,
         qcReturnedReason: qcReturnedReason,
-        reworkNotes: reworkNotes,
         createdAt: createdAt,
       ),
     );
