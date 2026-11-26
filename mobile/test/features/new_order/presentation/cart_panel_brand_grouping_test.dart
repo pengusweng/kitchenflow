@@ -64,6 +64,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Verify Header Subtitle does not display current menu channel
+      expect(find.text('2 lines · 3 items'), findsOneWidget);
+      expect(find.text('Dine-in'), findsNothing);
+      expect(find.text('Takeaway'), findsNothing);
+      expect(find.text('GrabFood'), findsNothing);
+
       // Verify Brand Group 1: Gamcheon
       final gcGroupFinder = find.byKey(
         const ValueKey('cart-brand-group-gc-uuid'),
@@ -140,6 +146,8 @@ void main() {
 
       expect(container.read(cartProvider), isEmpty);
       expect(find.byKey(const ValueKey('empty-cart')), findsOneWidget);
+      expect(find.text('Dine-in'), findsNothing);
+      expect(find.text('Takeaway'), findsNothing);
     },
   );
 }
