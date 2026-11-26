@@ -391,5 +391,43 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    testWidgets(
+      'WT-MOB-MENU-021 menu screen renders floating recent orders button with slightly transparent background and no-op tap',
+      (tester) async {
+        final container = await _pumpMenu(tester, _phone);
+
+        final fabFinder = find.byKey(
+          const ValueKey('recent-orders-floating-button'),
+        );
+        expect(fabFinder, findsOneWidget);
+        expect(find.byType(FloatingActionButton), findsOneWidget);
+        expect(find.text('Recent orders'), findsOneWidget);
+        expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
+
+        // Verify background is slightly transparent (alpha < 1.0)
+        final fab = tester.widget<FloatingActionButton>(fabFinder);
+        expect(fab.backgroundColor, isNotNull);
+        expect(fab.backgroundColor!.a, lessThan(1.0));
+        expect(fab.backgroundColor!.a, greaterThan(0.5));
+
+        // Verify tapping does nothing (does not crash or navigate away)
+        await tester.tap(fabFinder);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(
+          find.byKey(const ValueKey('recent-orders-floating-button')),
+          findsOneWidget,
+        );
+
+        // Add item to cart and verify button position glides above CartBar
+        final initialBottom = tester.getBottomLeft(fabFinder).dy;
+        container.read(cartProvider.notifier).add(sampleMenu[0]);
+        await tester.pumpAndSettle();
+
+        final activeBottom = tester.getBottomLeft(fabFinder).dy;
+        expect(activeBottom, lessThan(initialBottom)); // Moved up above CartBar
+      },
+    );
   });
 }
