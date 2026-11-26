@@ -8,6 +8,11 @@ import {
   Matches,
   ValidateIf,
 } from 'class-validator';
+import { PaginationDTO } from '../../../../shared/dto/pagination.dto';
+import { SORT_ORDERS, type SortOrder } from '../../../users/dto/find-users.dto';
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 export const PAYMENT_SORT_FIELDS = [
   'paid_at',
   'amount',
