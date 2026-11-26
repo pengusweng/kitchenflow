@@ -195,7 +195,18 @@ class KitchenBoardTicket {
         reference: reference,
         paymentStatus: paymentStatus,
         brand: brand,
-        brands: brands,
+        brands: brands.isNotEmpty ? brands : data.effectiveBrands,
+      ),
+    );
+  }
+
+  /// Returns a copy of this ticket with updated brand information.
+  KitchenBoardTicket withBrands(List<AssignedBrand> resolvedBrands) {
+    if (resolvedBrands.isEmpty) return this;
+    return copyWith(
+      data: data.copyWith(
+        brand: resolvedBrands.first,
+        brands: resolvedBrands,
       ),
     );
   }
@@ -376,7 +387,7 @@ class KitchenBoardTicket {
         paymentStatus: paymentStatus,
         qcReturnedReason: qcReturnedReason,
         createdAt: createdAt,
-      ),
+      ).withItemsArrangedByBrand(),
     );
   }
 
@@ -514,6 +525,45 @@ class KitchenBoardTicket {
     };
   }
 
+  static AssignedBrand? _matchCatalogBrand(String? name) {
+    if (name == null || name.trim().isEmpty) return null;
+    final lower = name.trim().toLowerCase();
+    if (lower.contains('inasal') ||
+        lower.contains('paa') ||
+        lower.contains('pecho') ||
+        lower.contains('halo-halo')) {
+      return const AssignedBrand(
+        id: 'brand-ai',
+        code: 'AI',
+        name: "Aurelia's Inasal",
+      );
+    }
+    if (lower.contains('gamcheon') ||
+        lower.contains('samgyupsal') ||
+        lower.contains('bulgogi') ||
+        lower.contains('kimchi') ||
+        lower.contains('pancake')) {
+      return const AssignedBrand(
+        id: 'brand-gc',
+        code: 'GC',
+        name: 'Gamcheon',
+      );
+    }
+    if (lower.contains('king kung') ||
+        lower.contains('latte') ||
+        lower.contains('matcha') ||
+        lower.contains('coffee') ||
+        lower.contains('espresso') ||
+        lower.contains('sea salt cream')) {
+      return const AssignedBrand(
+        id: 'brand-kk',
+        code: 'KK',
+        name: 'King Kungs Kafé',
+      );
+    }
+    return null;
+  }
+
   static List<AssignedBrand> _parseBrands(
     Map<String, dynamic> json,
     Map<String, dynamic>? orderMap,
@@ -583,7 +633,21 @@ class KitchenBoardTicket {
       }
     }
 
-    // 3. Fallback to primary brand if none collected
+    // 3. Fallback to matching item names against catalog if no explicit brands
+    if (collected.isEmpty && rawItems is List) {
+      for (final item in rawItems) {
+        if (item is Map) {
+          final itemName = (item['name'] as String?) ??
+              (item['item_name'] as String?);
+          final matched = _matchCatalogBrand(itemName);
+          if (matched != null) {
+            addBrandObj(matched);
+          }
+        }
+      }
+    }
+
+    // 4. Fallback to primary brand if none collected
     if (collected.isEmpty) {
       final primary = _parseBrand(json, orderMap, orderCode);
       collected[primary.code.toUpperCase()] = primary;
@@ -729,11 +793,61 @@ class KitchenBoardTicket {
             );
           }
 
+          final menuItemId =
+              (entry['menu_item_id'] as String?) ??
+              (entry['menuItemId'] as String?);
           final orderItemId =
               (entry['order_item_id'] as String?) ?? (entry['id'] as String?);
           final failReason = orderItemId != null
               ? itemRejectionsMap[orderItemId]
               : null;
+
+          final rawBrand = entry['brand'];
+          AssignedBrand? itemBrand;
+          if (rawBrand is Map<String, dynamic>) {
+            final code = (rawBrand['code'] as String?)?.trim() ??
+                (rawBrand['brand_code'] as String?)?.trim();
+            final name = (rawBrand['name'] as String?)?.trim() ??
+                (rawBrand['brand_name'] as String?)?.trim();
+            final id = (rawBrand['brand_id'] as String?) ??
+                (rawBrand['id'] as String?) ??
+                (code != null ? 'brand-${code.toLowerCase()}' : null);
+            if (code != null && code.isNotEmpty && name != null && name.isNotEmpty) {
+              itemBrand = AssignedBrand(
+                id: id ?? 'brand-$code',
+                code: code.toUpperCase(),
+                name: name,
+              );
+            }
+          } else if (rawBrand is Map) {
+            final code = (rawBrand['code'] as String?)?.trim() ??
+                (rawBrand['brand_code'] as String?)?.trim();
+            final name = (rawBrand['name'] as String?)?.trim() ??
+                (rawBrand['brand_name'] as String?)?.trim();
+            final id = (rawBrand['brand_id'] as String?) ??
+                (rawBrand['id'] as String?) ??
+                (code != null ? 'brand-${code.toLowerCase()}' : null);
+            if (code != null && code.isNotEmpty && name != null && name.isNotEmpty) {
+              itemBrand = AssignedBrand(
+                id: id ?? 'brand-$code',
+                code: code.toUpperCase(),
+                name: name,
+              );
+            }
+          } else if (entry['brand_code'] != null || entry['brand_name'] != null) {
+            final code = (entry['brand_code'] as String?)?.trim() ?? '';
+            final name = (entry['brand_name'] as String?)?.trim() ?? '';
+            final id = (entry['brand_id'] as String?) ??
+                (code.isNotEmpty ? 'brand-${code.toLowerCase()}' : null);
+            if (code.isNotEmpty && name.isNotEmpty) {
+              itemBrand = AssignedBrand(
+                id: id ?? 'brand-$code',
+                code: code.toUpperCase(),
+                name: name,
+              );
+            }
+          }
+          itemBrand ??= _matchCatalogBrand(name);
 
           parsed.add(
             KitchenTicketItem(
@@ -742,6 +856,8 @@ class KitchenBoardTicket {
               modifiers: mods,
               orderItemId: orderItemId,
               failReason: failReason,
+              menuItemId: menuItemId,
+              brand: itemBrand,
             ),
           );
         }

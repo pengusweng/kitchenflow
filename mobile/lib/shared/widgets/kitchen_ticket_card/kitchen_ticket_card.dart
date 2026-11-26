@@ -153,12 +153,14 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                 ),
                 const SizedBox(height: 14),
 
-                // 2. Brand badge and name
-                KitchenTicketBrandRow(
-                  brand: widget.ticket.brand,
-                  brands: widget.ticket.effectiveBrands,
-                ),
-                const SizedBox(height: 8),
+                // 2. Brand badge and name (hidden on multi-brand tickets because items are arranged and labeled by brand)
+                if (!widget.ticket.isMultiBrand) ...[
+                  KitchenTicketBrandRow(
+                    brand: widget.ticket.brand,
+                    brands: widget.ticket.effectiveBrands,
+                  ),
+                  const SizedBox(height: 8),
+                ],
 
                 // 3. Channel and reference line (🛍 Takeaway · Call: Ana)
                 KitchenTicketChannelLine(
@@ -252,12 +254,28 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                 ],
                 const SizedBox(height: 16),
 
-                // 4. Ticket items list
-                for (var i = 0; i < widget.ticket.items.length; i++) ...[
-                  if (i > 0) const SizedBox(height: 14),
-                  KitchenTicketItemTile(
-                    item: _resolveItemWithFailReason(widget.ticket.items[i], i),
-                  ),
+                // 4. Ticket items list (arranged and labeled by brands when multi-brand)
+                if (widget.ticket.isMultiBrand) ...[
+                  for (final group in widget.ticket.brandItemGroups) ...[
+                    KitchenTicketBrandGroupHeader(
+                      brand: group.brand,
+                      itemCount: group.items.length,
+                    ),
+                    for (var i = 0; i < group.items.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 12),
+                      KitchenTicketItemTile(
+                        item: _resolveItemWithFailReason(group.items[i], i),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                  ],
+                ] else ...[
+                  for (var i = 0; i < widget.ticket.items.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 14),
+                    KitchenTicketItemTile(
+                      item: _resolveItemWithFailReason(widget.ticket.items[i], i),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 16),
 
