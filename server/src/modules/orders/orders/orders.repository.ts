@@ -6,7 +6,6 @@ import {
 import {
   OrderChannel,
   OrderStatus,
-  PaymentMethod,
   PaymentStatus,
   Prisma,
 } from '@prisma/client';
@@ -32,7 +31,7 @@ type CreateOrderContext = {
   order_date: Date;
   created_at: Date;
   lines: Awaited<ReturnType<OrderItemsService['snapshots']>>;
-  payment?: { payment_method: PaymentMethod; payment_status: PaymentStatus };
+  payment?: { payment_status: PaymentStatus };
 };
 
 export type OrderListFilters = {

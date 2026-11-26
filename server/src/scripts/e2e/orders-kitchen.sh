@@ -98,7 +98,7 @@ run_flow() {
   printf 'Running %s: order %s\n' "$mode" "$order_id"
   payload=$(json order "$order_id" "$item" "$([[ $mode == delivery ]] && echo GRABFOOD || echo TAKEAWAY)" "$portions")
   call 201 POST "/brands/$brand/orders" "$cashier" "$payload"; check draft
-  if [[ $mode == delivery ]]; then payload='{}'; else payload='{"payment_method":"CASH","payment_status":"UNPAID"}'; fi
+  if [[ $mode == delivery ]]; then payload='{}'; else payload='{"payment_status":"UNPAID"}'; fi
   call 200 POST "/brands/$brand/orders/$order_id/confirm" "$cashier" "$payload"; check confirmed
   ticket_id=$(json get "$response" kitchen_tickets_order.kitchen_ticket_id)
   line_id=$(json get "$response" order_items_order.0.order_item_id)

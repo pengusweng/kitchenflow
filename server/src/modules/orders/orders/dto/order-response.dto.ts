@@ -2,7 +2,6 @@ import { ApiProperty, OmitType } from '@nestjs/swagger';
 import {
   OrderChannel,
   OrderStatus,
-  PaymentMethod,
   PaymentStatus,
   KitchenTicketStatus,
 } from '@prisma/client';
@@ -118,9 +117,6 @@ export class OrderResponseDTO {
   @ApiProperty({ enum: OrderChannel })
   order_channel: OrderChannel;
 
-  @ApiProperty({ enum: PaymentMethod, nullable: true, type: String })
-  payment_method: PaymentMethod | null;
-
   @ApiProperty({ type: String, format: 'uuid' })
   order_id: string;
 
@@ -150,9 +146,6 @@ export class OrderResponseDTO {
 
   @ApiProperty({ type: String, enum: PaymentStatus })
   payment_status: PaymentStatus;
-
-  @ApiProperty({ type: String, nullable: true })
-  payment_reference: string | null;
 
   @ApiProperty({ type: String, nullable: true })
   notes: string | null;
@@ -342,12 +335,8 @@ export class VerifyOrderResponseDTO {
   order_id: string;
   @ApiProperty({ example: true, enum: [true] })
   valid: boolean;
-  @ApiProperty({ enum: PaymentMethod })
-  payment_method: PaymentMethod;
   @ApiProperty({ enum: PaymentStatus })
   payment_status: PaymentStatus;
-  @ApiProperty({ type: String, nullable: true })
-  payment_reference: string | null;
   @ApiProperty({ type: [VerifiedLineResponseDTO] })
   lines: VerifiedLineResponseDTO[];
 }

@@ -74,7 +74,7 @@ A cashier has a unique order payload
     END
     Set Test Variable    ${ORDER_ID}    ${id}
     Set Test Variable    ${ORDER_PAYLOAD}    ${payload}
-    ${payment}=    Create Dictionary    payment_method=CASH    payment_status=UNPAID
+    ${payment}=    Create Dictionary    payment_status=UNPAID
     IF    '${channel}' == 'GRABFOOD'
         ${payment}=    Create Dictionary
     END

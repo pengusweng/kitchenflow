@@ -18,7 +18,7 @@ function adapterError(originalCode: string, kind = 'TransactionWriteConflict') {
 }
 
 describe('OrdersService', () => {
-  const payment = { payment_method: 'CASH', payment_status: 'UNPAID' } as const;
+  const payment = { payment_status: 'UNPAID' } as const;
   const request: CreateOrderDTO = {
     order_id: 'order',
     order_channel: 'TAKEAWAY',
@@ -271,16 +271,13 @@ describe('OrdersService', () => {
 
   it.each(
     (['DINE_IN', 'TAKEAWAY'] as const).flatMap((channel) =>
-      (['CASH', 'E_WALLET', 'CARD'] as const).flatMap((payment_method) =>
-        (['UNPAID', 'PAID'] as const).map((payment_status) => ({
-          channel,
-          payment_method,
-          payment_status,
-        })),
-      ),
+      (['UNPAID', 'PAID'] as const).map((payment_status) => ({
+        channel,
+        payment_status,
+      })),
     ),
   )(
-    'UT-ORD-004 Given $channel with $payment_method/$payment_status When verifying Then preserve payment',
+    'UT-ORD-004 Given $channel with $payment_status When verifying Then preserve payment',
     async ({ channel, ...inputs }) => {
       tx.order.findFirst.mockResolvedValue({
         ...draft,
@@ -294,18 +291,9 @@ describe('OrdersService', () => {
   );
 
   it.each([
-    {
-      channel: 'TAKEAWAY',
-      payment_method: 'PLATFORM_SETTLED',
-      payment_status: 'PAID',
-    },
-    { channel: 'DINE_IN', payment_method: 'CASH', payment_status: 'REFUNDED' },
-    { channel: 'GRABFOOD', payment_method: 'CASH', payment_status: 'PAID' },
-    {
-      channel: 'FOODPANDA',
-      payment_method: 'PLATFORM_SETTLED',
-      payment_status: 'UNPAID',
-    },
+    { channel: 'TAKEAWAY' },
+    { channel: 'DINE_IN', payment_status: 'REFUNDED' },
+    { channel: 'FOODPANDA', payment_status: 'UNPAID' },
   ] as const)(
     'UT-ORD-005 Given incompatible $channel payment When confirming Then reject without writes',
     async ({ channel, ...inputs }) => {
@@ -353,10 +341,7 @@ describe('OrdersService', () => {
         merchant_store_reference: 'grab-store',
         external_order_reference: 'grab-order',
       },
-      settlement: {
-        payment_method: 'PLATFORM_SETTLED',
-        payment_status: 'PAID',
-      },
+      settlement: { payment_status: 'PAID' },
     },
     {
       order_channel: 'FOODPANDA',
@@ -364,10 +349,7 @@ describe('OrdersService', () => {
         merchant_store_reference: 'panda-store',
         external_order_reference: 'panda-order',
       },
-      settlement: {
-        payment_method: 'PLATFORM_SETTLED',
-        payment_status: 'PAID',
-      },
+      settlement: { payment_status: 'PAID' },
     },
   ] as const)(
     'UT-ORD-043: persists $order_channel draft fields and validated item snapshots',
@@ -614,7 +596,6 @@ describe('OrdersService', () => {
         confirmed_at: expect.any(Date) as Date,
         modified_at: expect.any(Date) as Date,
         ...payment,
-        payment_reference: null,
       },
       include: {
         order_items_order: {
@@ -871,7 +852,6 @@ describe('OrdersService', () => {
         ((tx.order.update.mock.calls as unknown[][])[0][0] as { data: unknown })
           .data,
       ).toMatchObject({
-        payment_method: 'PLATFORM_SETTLED',
         payment_status: 'PAID',
       });
     },

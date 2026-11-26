@@ -89,7 +89,7 @@ export function CreateOrderDocs() {
       status: 201,
       type: OrderResponseDTO,
       description:
-        'Created draft or existing order on an identical replay. Internal drafts have null payment_method; platform drafts use PLATFORM_SETTLED/PAID. No ticket until confirmation.',
+        'Created draft or existing order on an identical replay. Platform drafts are created as PAID. No ticket until confirmation.',
     }),
     ApiResponse({
       status: 409,
@@ -105,7 +105,7 @@ export function VerifyOrderDocs() {
     ApiOperation({
       summary: 'Validate a draft without saving',
       description:
-        'Returns current catalog prices and recipe IDs; does not reserve prices or stock. Only drafts can be verified. Internal orders require payment_method and payment_status; platform orders may send an empty object.',
+        'Returns current catalog prices and recipe IDs; does not reserve prices or stock. Only drafts can be verified. Internal orders require payment_status; platform orders may send an empty object.',
     }),
     ApiParam({
       name: 'orderId',
@@ -126,7 +126,7 @@ export function ConfirmOrderDocs() {
     ApiOperation({
       summary: 'Confirm an order and create its kitchen ticket',
       description:
-        'Saves current catalog snapshots and a QUEUED ticket atomically. Repeated confirmation returns the saved order and ticket without changing payment. Internal orders require payment_method and payment_status; platform orders may send an empty object.',
+        'Saves current catalog snapshots and a QUEUED ticket atomically. Repeated confirmation returns the saved order and ticket without changing payment. Internal orders require payment_status; platform orders may send an empty object.',
     }),
     ApiParam({
       name: 'orderId',

@@ -13,7 +13,7 @@ import {
   Matches,
   ValidateNested,
 } from 'class-validator';
-import { OrderChannel, PaymentMethod, PaymentStatus } from '@prisma/client';
+import { OrderChannel, PaymentStatus } from '@prisma/client';
 
 export class CreateOrderDTO {
   // Client-generated UUID reused unchanged on retries.
@@ -84,14 +84,6 @@ export class CreateOrderDTO {
 
 export class ConfirmOrderDTO {
   @ApiPropertyOptional({
-    enum: PaymentMethod,
-    description:
-      'Required for DINE_IN/TAKEAWAY: CASH, E_WALLET or CARD. Platform orders default to and only accept PLATFORM_SETTLED.',
-  })
-  @IsOptional()
-  @IsEnum(PaymentMethod)
-  payment_method?: PaymentMethod;
-  @ApiPropertyOptional({
     enum: PaymentStatus,
     description:
       'Required for DINE_IN/TAKEAWAY: UNPAID or PAID. Platform orders default to and only accept PAID.',
@@ -99,11 +91,6 @@ export class ConfirmOrderDTO {
   @IsOptional()
   @IsEnum(PaymentStatus)
   payment_status?: PaymentStatus;
-  @ApiPropertyOptional({ maxLength: 255 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  payment_reference?: string;
 }
 
 export class CancelOrderDTO {

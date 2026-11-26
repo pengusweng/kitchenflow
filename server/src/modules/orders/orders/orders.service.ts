@@ -79,7 +79,7 @@ export class OrdersService {
           created_at,
           lines,
           payment: this.isDelivery(dto.order_channel)
-            ? { payment_method: 'PLATFORM_SETTLED', payment_status: 'PAID' }
+            ? { payment_status: 'PAID' }
             : undefined,
         },
         tx,
@@ -521,33 +521,13 @@ export class OrdersService {
 
   private payment(channel: OrderChannel, dto: ConfirmOrderDTO) {
     if (this.isDelivery(channel)) {
-      if (
-        (dto.payment_method && dto.payment_method !== 'PLATFORM_SETTLED') ||
-        (dto.payment_status && dto.payment_status !== 'PAID')
-      )
-        throw new BadRequestException(
-          'Platform orders must be PLATFORM_SETTLED and PAID.',
-        );
-      return {
-        payment_method: 'PLATFORM_SETTLED' as const,
-        payment_status: 'PAID' as const,
-        payment_reference: dto.payment_reference ?? null,
-      };
+      if (dto.payment_status && dto.payment_status !== 'PAID')
+        throw new BadRequestException('Platform orders must be PAID.');
+      return { payment_status: 'PAID' as const };
     }
-    if (
-      !dto.payment_method ||
-      !['CASH', 'E_WALLET', 'CARD'].includes(dto.payment_method) ||
-      !dto.payment_status ||
-      !['UNPAID', 'PAID'].includes(dto.payment_status)
-    )
-      throw new BadRequestException(
-        'Cash, E-wallet or Card and an UNPAID or PAID status are required.',
-      );
-    return {
-      payment_method: dto.payment_method,
-      payment_status: dto.payment_status,
-      payment_reference: dto.payment_reference ?? null,
-    };
+    if (!dto.payment_status || !['UNPAID', 'PAID'].includes(dto.payment_status))
+      throw new BadRequestException('An UNPAID or PAID status is required.');
+    return { payment_status: dto.payment_status };
   }
 
   private draftLines(order: SavedOrder): OrderLineDTO[] {
