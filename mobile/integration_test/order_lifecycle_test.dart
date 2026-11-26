@@ -320,8 +320,9 @@ Future<Map<String, dynamic>> _confirmFromReview(
     container.read(dioProvider),
     '$_orders/$id/confirm',
   );
-  final cooldownBar =
-      find.byKey(const ValueKey('confirm-cooldown-progress-bar'));
+  final cooldownBar = find.byKey(
+    const ValueKey('confirm-cooldown-progress-bar'),
+  );
   await waitForOrderUi(
     tester,
     () => cooldownBar.evaluate().isEmpty,
