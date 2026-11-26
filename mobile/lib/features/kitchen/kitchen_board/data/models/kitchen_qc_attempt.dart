@@ -175,8 +175,9 @@ class KitchenQcAttempt {
       checkerId: (json['checker_id'] as String?)?.trim(),
       checkerName: checkerName,
       startedAt: startedRaw != null ? DateTime.tryParse(startedRaw) : null,
-      completedAt:
-          completedRaw != null ? DateTime.tryParse(completedRaw) : null,
+      completedAt: completedRaw != null
+          ? DateTime.tryParse(completedRaw)
+          : null,
       rejections: rejections,
     );
   }
@@ -201,9 +202,7 @@ class KitchenQcAttempt {
       if (item is Map<String, dynamic>) {
         parsed.add(KitchenQcAttempt.fromJson(item));
       } else if (item is Map) {
-        parsed.add(
-          KitchenQcAttempt.fromJson(Map<String, dynamic>.from(item)),
-        );
+        parsed.add(KitchenQcAttempt.fromJson(Map<String, dynamic>.from(item)));
       }
     }
     parsed.sort((a, b) => b.attemptNumber.compareTo(a.attemptNumber));

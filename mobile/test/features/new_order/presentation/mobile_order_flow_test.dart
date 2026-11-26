@@ -189,11 +189,17 @@ void main() {
       expect(find.byType(OrderFlowStepper), findsOneWidget);
       expect(find.text('Order'), findsNothing);
       expect(find.text('Details'), findsOneWidget); // active step label
-      expect(find.byKey(const ValueKey('step-1')), findsOneWidget); // Menu (completed)
+      expect(
+        find.byKey(const ValueKey('step-1')),
+        findsOneWidget,
+      ); // Menu (completed)
       expect(find.byKey(const ValueKey('step-3')), findsOneWidget); // Details
       expect(find.byKey(const ValueKey('step-4')), findsOneWidget); // Review
       expect(find.byKey(const ValueKey('step-5')), findsOneWidget); // Sent
-      expect(find.byKey(const ValueKey('step-2')), findsNothing); // Step 2 is removed
+      expect(
+        find.byKey(const ValueKey('step-2')),
+        findsNothing,
+      ); // Step 2 is removed
 
       // Verify Step 3 Content: Channel, Table, Payment status
       expect(find.text('Channel'), findsOneWidget);

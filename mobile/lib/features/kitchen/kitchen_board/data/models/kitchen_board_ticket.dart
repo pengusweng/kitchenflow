@@ -128,7 +128,9 @@ class KitchenBoardTicket {
     final sorted = List<KitchenQcAttempt>.from(attempts)
       ..sort((a, b) => b.attemptNumber.compareTo(a.attemptNumber));
     final failedAttempts = sorted.where((a) => a.isFailed).toList();
-    final latestFailed = failedAttempts.isNotEmpty ? failedAttempts.first : null;
+    final latestFailed = failedAttempts.isNotEmpty
+        ? failedAttempts.first
+        : null;
 
     var resolvedReason = qcReturnedReason;
     var resolvedItems = data.items;
@@ -187,7 +189,9 @@ class KitchenBoardTicket {
     final reference = _parseReference({}, orderMap, channel, orderCode);
     final paymentStatus = _parsePaymentStatus({}, orderMap);
     final brands = _parseBrands({}, orderMap, orderCode);
-    final brand = brands.isNotEmpty ? brands.first : _parseBrand({}, orderMap, orderCode);
+    final brand = brands.isNotEmpty
+        ? brands.first
+        : _parseBrand({}, orderMap, orderCode);
 
     return copyWith(
       data: data.copyWith(
@@ -204,10 +208,7 @@ class KitchenBoardTicket {
   KitchenBoardTicket withBrands(List<AssignedBrand> resolvedBrands) {
     if (resolvedBrands.isEmpty) return this;
     return copyWith(
-      data: data.copyWith(
-        brand: resolvedBrands.first,
-        brands: resolvedBrands,
-      ),
+      data: data.copyWith(brand: resolvedBrands.first, brands: resolvedBrands),
     );
   }
 
@@ -259,8 +260,9 @@ class KitchenBoardTicket {
         order;
 
     final createdAtRaw = json['created_at'] as String?;
-    final createdAt =
-        createdAtRaw != null ? DateTime.tryParse(createdAtRaw) : null;
+    final createdAt = createdAtRaw != null
+        ? DateTime.tryParse(createdAtRaw)
+        : null;
     final elapsed = _parseElapsed(json, now: now ?? DateTime.now());
     final age = _parseAge(json, elapsed);
     final brands = _parseBrands(json, orderMap, orderCode);
@@ -543,11 +545,7 @@ class KitchenBoardTicket {
         lower.contains('bulgogi') ||
         lower.contains('kimchi') ||
         lower.contains('pancake')) {
-      return const AssignedBrand(
-        id: 'brand-gc',
-        code: 'GC',
-        name: 'Gamcheon',
-      );
+      return const AssignedBrand(id: 'brand-gc', code: 'GC', name: 'Gamcheon');
     }
     if (lower.contains('king kung') ||
         lower.contains('latte') ||
@@ -573,14 +571,20 @@ class KitchenBoardTicket {
 
     void addBrandObj(dynamic obj) {
       if (obj is Map<String, dynamic>) {
-        final code = (obj['code'] as String?)?.trim() ??
+        final code =
+            (obj['code'] as String?)?.trim() ??
             (obj['brand_code'] as String?)?.trim();
-        final name = (obj['name'] as String?)?.trim() ??
+        final name =
+            (obj['name'] as String?)?.trim() ??
             (obj['brand_name'] as String?)?.trim();
-        final id = (obj['brand_id'] as String?) ??
+        final id =
+            (obj['brand_id'] as String?) ??
             (obj['id'] as String?) ??
             (code != null ? 'brand-${code.toLowerCase()}' : null);
-        if (code != null && code.isNotEmpty && name != null && name.isNotEmpty) {
+        if (code != null &&
+            code.isNotEmpty &&
+            name != null &&
+            name.isNotEmpty) {
           collected[code.toUpperCase()] = AssignedBrand(
             id: id ?? 'brand-$code',
             code: code.toUpperCase(),
@@ -588,14 +592,20 @@ class KitchenBoardTicket {
           );
         }
       } else if (obj is Map) {
-        final code = (obj['code'] as String?)?.trim() ??
+        final code =
+            (obj['code'] as String?)?.trim() ??
             (obj['brand_code'] as String?)?.trim();
-        final name = (obj['name'] as String?)?.trim() ??
+        final name =
+            (obj['name'] as String?)?.trim() ??
             (obj['brand_name'] as String?)?.trim();
-        final id = (obj['brand_id'] as String?) ??
+        final id =
+            (obj['brand_id'] as String?) ??
             (obj['id'] as String?) ??
             (code != null ? 'brand-${code.toLowerCase()}' : null);
-        if (code != null && code.isNotEmpty && name != null && name.isNotEmpty) {
+        if (code != null &&
+            code.isNotEmpty &&
+            name != null &&
+            name.isNotEmpty) {
           collected[code.toUpperCase()] = AssignedBrand(
             id: id ?? 'brand-$code',
             code: code.toUpperCase(),
@@ -616,7 +626,8 @@ class KitchenBoardTicket {
     }
 
     // 2. Brands attached to individual items
-    final rawItems = json['items'] ??
+    final rawItems =
+        json['items'] ??
         json['order_items'] ??
         json['order_items_order'] ??
         orderMap?['order_items_order'] ??
@@ -637,8 +648,8 @@ class KitchenBoardTicket {
     if (collected.isEmpty && rawItems is List) {
       for (final item in rawItems) {
         if (item is Map) {
-          final itemName = (item['name'] as String?) ??
-              (item['item_name'] as String?);
+          final itemName =
+              (item['name'] as String?) ?? (item['item_name'] as String?);
           final matched = _matchCatalogBrand(itemName);
           if (matched != null) {
             addBrandObj(matched);
@@ -805,14 +816,20 @@ class KitchenBoardTicket {
           final rawBrand = entry['brand'];
           AssignedBrand? itemBrand;
           if (rawBrand is Map<String, dynamic>) {
-            final code = (rawBrand['code'] as String?)?.trim() ??
+            final code =
+                (rawBrand['code'] as String?)?.trim() ??
                 (rawBrand['brand_code'] as String?)?.trim();
-            final name = (rawBrand['name'] as String?)?.trim() ??
+            final name =
+                (rawBrand['name'] as String?)?.trim() ??
                 (rawBrand['brand_name'] as String?)?.trim();
-            final id = (rawBrand['brand_id'] as String?) ??
+            final id =
+                (rawBrand['brand_id'] as String?) ??
                 (rawBrand['id'] as String?) ??
                 (code != null ? 'brand-${code.toLowerCase()}' : null);
-            if (code != null && code.isNotEmpty && name != null && name.isNotEmpty) {
+            if (code != null &&
+                code.isNotEmpty &&
+                name != null &&
+                name.isNotEmpty) {
               itemBrand = AssignedBrand(
                 id: id ?? 'brand-$code',
                 code: code.toUpperCase(),
@@ -820,24 +837,32 @@ class KitchenBoardTicket {
               );
             }
           } else if (rawBrand is Map) {
-            final code = (rawBrand['code'] as String?)?.trim() ??
+            final code =
+                (rawBrand['code'] as String?)?.trim() ??
                 (rawBrand['brand_code'] as String?)?.trim();
-            final name = (rawBrand['name'] as String?)?.trim() ??
+            final name =
+                (rawBrand['name'] as String?)?.trim() ??
                 (rawBrand['brand_name'] as String?)?.trim();
-            final id = (rawBrand['brand_id'] as String?) ??
+            final id =
+                (rawBrand['brand_id'] as String?) ??
                 (rawBrand['id'] as String?) ??
                 (code != null ? 'brand-${code.toLowerCase()}' : null);
-            if (code != null && code.isNotEmpty && name != null && name.isNotEmpty) {
+            if (code != null &&
+                code.isNotEmpty &&
+                name != null &&
+                name.isNotEmpty) {
               itemBrand = AssignedBrand(
                 id: id ?? 'brand-$code',
                 code: code.toUpperCase(),
                 name: name,
               );
             }
-          } else if (entry['brand_code'] != null || entry['brand_name'] != null) {
+          } else if (entry['brand_code'] != null ||
+              entry['brand_name'] != null) {
             final code = (entry['brand_code'] as String?)?.trim() ?? '';
             final name = (entry['brand_name'] as String?)?.trim() ?? '';
-            final id = (entry['brand_id'] as String?) ??
+            final id =
+                (entry['brand_id'] as String?) ??
                 (code.isNotEmpty ? 'brand-${code.toLowerCase()}' : null);
             if (code.isNotEmpty && name.isNotEmpty) {
               itemBrand = AssignedBrand(

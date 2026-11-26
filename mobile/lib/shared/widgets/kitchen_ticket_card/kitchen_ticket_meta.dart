@@ -59,14 +59,11 @@ class KitchenTicketChannelLine extends StatelessWidget {
 
 /// [KK] King Kungs Kafé · [AI] Aurelia's Inasal
 class KitchenTicketBrandRow extends StatelessWidget {
-  const KitchenTicketBrandRow({
-    super.key,
-    this.brand,
-    this.brands,
-  }) : assert(
-         brand != null || brands != null,
-         'Either brand or brands must be provided',
-       );
+  const KitchenTicketBrandRow({super.key, this.brand, this.brands})
+    : assert(
+        brand != null || brands != null,
+        'Either brand or brands must be provided',
+      );
 
   final AssignedBrand? brand;
   final List<AssignedBrand>? brands;

@@ -51,7 +51,8 @@ class KitchenBoardEnricher {
             prev.data.items.any((i) => i.brand != null);
 
         if (shouldPreserveMultiBrand) {
-          final isCurrentPlaceholder = current.data.items.isEmpty ||
+          final isCurrentPlaceholder =
+              current.data.items.isEmpty ||
               (current.data.items.length == 1 &&
                   (current.data.items.first.name.startsWith('Order ') ||
                       current.data.items.first.name == 'Kitchen Order'));
@@ -140,11 +141,13 @@ class KitchenBoardEnricher {
               : prev.data.effectiveBrands;
 
           current = current.copyWith(
-            data: current.data.copyWith(
-              items: preservedItems,
-              brands: effectiveBrands,
-              brand: prev.data.brand,
-            ).withItemsArrangedByBrand(),
+            data: current.data
+                .copyWith(
+                  items: preservedItems,
+                  brands: effectiveBrands,
+                  brand: prev.data.brand,
+                )
+                .withItemsArrangedByBrand(),
           );
         }
       }
@@ -170,22 +173,23 @@ class KitchenBoardEnricher {
     // Load or refresh catalog cache
     Map<String, AssignedBrand>? catalogMap = _cachedCatalog;
     final now = DateTime.now();
-    final isCatalogStale = _cachedCatalog == null ||
+    final isCatalogStale =
+        _cachedCatalog == null ||
         _catalogCacheTime == null ||
         now.difference(_catalogCacheTime!) > const Duration(minutes: 5);
 
     if (isCatalogStale && getMenuItems != null && isMounted()) {
       try {
-        final brands = cachedBrands ??
+        final brands =
+            cachedBrands ??
             await getBrands().timeout(const Duration(milliseconds: 300));
         cachedBrands = brands;
         final newCatalog = <String, AssignedBrand>{};
         for (final brand in brands) {
           if (!isMounted()) break;
           try {
-            final items = await getMenuItems(brand.id).timeout(
-              const Duration(milliseconds: 500),
-            );
+            final items = await getMenuItems(brand.id)
+                .timeout(const Duration(milliseconds: 500));
             for (final item in items) {
               newCatalog[item.id] = brand;
               newCatalog[item.name.trim().toLowerCase()] = brand;
@@ -265,7 +269,8 @@ class KitchenBoardEnricher {
               }
               catalogBrand ??= catalogMap[item.name.trim().toLowerCase()];
             }
-            final resolvedBrand = item.brand ??
+            final resolvedBrand =
+                item.brand ??
                 catalogBrand ??
                 _matchBrandFromItemName(item.name, cachedBrands) ??
                 current.data.brand;
@@ -279,15 +284,17 @@ class KitchenBoardEnricher {
           );
 
           current = current.copyWith(
-            data: current.data.copyWith(
-              items: updatedItems,
-              brand: resolvedBrands.isNotEmpty
-                  ? resolvedBrands.first
-                  : current.data.brand,
-              brands: resolvedBrands.isNotEmpty
-                  ? resolvedBrands
-                  : current.data.effectiveBrands,
-            ).withItemsArrangedByBrand(),
+            data: current.data
+                .copyWith(
+                  items: updatedItems,
+                  brand: resolvedBrands.isNotEmpty
+                      ? resolvedBrands.first
+                      : current.data.brand,
+                  brands: resolvedBrands.isNotEmpty
+                      ? resolvedBrands
+                      : current.data.effectiveBrands,
+                )
+                .withItemsArrangedByBrand(),
           );
         }
 
@@ -396,11 +403,7 @@ class KitchenBoardEnricher {
         code: 'AI',
         name: "Aurelia's Inasal",
       ),
-      'GC' => const AssignedBrand(
-        id: 'brand-gc',
-        code: 'GC',
-        name: 'Gamcheon',
-      ),
+      'GC' => const AssignedBrand(id: 'brand-gc', code: 'GC', name: 'Gamcheon'),
       _ => null,
     };
   }

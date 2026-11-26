@@ -240,10 +240,9 @@ class KitchenBoardNotifier extends Notifier<KitchenBoardState>
         if (returnedReason != null || mergedItems != t.data.items) {
           return t.copyWith(
             qcReturnedReason: returnedReason,
-            data: t.data.copyWith(
-              qcReturnedReason: returnedReason,
-              items: mergedItems,
-            ).withItemsArrangedByBrand(),
+            data: t.data
+                .copyWith(qcReturnedReason: returnedReason, items: mergedItems)
+                .withItemsArrangedByBrand(),
           );
         }
       }

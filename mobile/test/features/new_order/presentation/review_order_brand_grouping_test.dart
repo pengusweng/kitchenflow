@@ -72,11 +72,7 @@ class _FakeOrderEntryRepository implements OrderEntryRepository {
 }
 
 void main() {
-  const brandGc = AssignedBrand(
-    id: 'brand-gc',
-    code: 'GC',
-    name: 'Gamcheon',
-  );
+  const brandGc = AssignedBrand(id: 'brand-gc', code: 'GC', name: 'Gamcheon');
 
   const brandAi = AssignedBrand(
     id: 'brand-ai',
@@ -153,7 +149,9 @@ void main() {
           brandName: brandGc.name,
           item: gcItem,
           quantity: 2,
-          selections: const {'rice': 'kimchi-rice'}, // +30 PHP -> 250 each * 2 = 500
+          selections: const {
+            'rice': 'kimchi-rice',
+          }, // +30 PHP -> 250 each * 2 = 500
         ),
         CartLine(
           id: 'line-ai-1',
@@ -171,7 +169,9 @@ void main() {
       expect(find.text('2 lines · 3 items'), findsOneWidget);
 
       // 2. Verify Gamcheon Brand Section Header
-      final gcHeaderFinder = find.byKey(const ValueKey('review-brand-group-gc'));
+      final gcHeaderFinder = find.byKey(
+        const ValueKey('review-brand-group-gc'),
+      );
       expect(gcHeaderFinder, findsOneWidget);
       expect(
         find.descendant(of: gcHeaderFinder, matching: find.text('GC')),
@@ -191,14 +191,19 @@ void main() {
       );
 
       // 3. Verify Aurelia's Inasal Brand Section Header
-      final aiHeaderFinder = find.byKey(const ValueKey('review-brand-group-ai'));
+      final aiHeaderFinder = find.byKey(
+        const ValueKey('review-brand-group-ai'),
+      );
       expect(aiHeaderFinder, findsOneWidget);
       expect(
         find.descendant(of: aiHeaderFinder, matching: find.text('AI')),
         findsOneWidget,
       );
       expect(
-        find.descendant(of: aiHeaderFinder, matching: find.text("Aurelia's Inasal")),
+        find.descendant(
+          of: aiHeaderFinder,
+          matching: find.text("Aurelia's Inasal"),
+        ),
         findsOneWidget,
       );
       expect(

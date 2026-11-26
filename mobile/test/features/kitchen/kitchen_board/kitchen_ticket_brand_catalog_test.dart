@@ -12,9 +12,8 @@ import 'package:mobile/shared/widgets/status_badge/kkfc_status.dart';
 class _FakeKitchenBoardRepository extends Fake
     implements KitchenBoardRepository {
   @override
-  Future<List<KitchenQcAttempt>> fetchTicketQcAttempts(
-    String ticketId,
-  ) async => [];
+  Future<List<KitchenQcAttempt>> fetchTicketQcAttempts(String ticketId) async =>
+      [];
 
   @override
   Future<Map<String, dynamic>?> fetchOrder({
@@ -179,7 +178,9 @@ void main() {
 
       expect(enriched.first.data.isMultiBrand, isTrue);
       expect(enriched.first.data.effectiveBrands.length, 2);
-      final codes = enriched.first.data.effectiveBrands.map((b) => b.code).toSet();
+      final codes = enriched.first.data.effectiveBrands
+          .map((b) => b.code)
+          .toSet();
       expect(codes, containsAll(['GC', 'AI']));
     });
 
@@ -239,77 +240,90 @@ void main() {
   });
 
   group('Kitchen Ticket UI Multi-Brand Badges', () {
-    testWidgets('WT-MOB-KITCHEN-BRAND-006 KitchenTicketCard displays multi-brand badge row when ticket is multi-brand', (
-      tester,
-    ) async {
-      const multiBrandTicket = KitchenTicketData(
-        ticketNumber: 'T-401',
-        elapsed: Duration(minutes: 5),
-        age: KitchenTicketAge.onTime,
-        status: KkfcStatus.preparing,
-        channel: 'Dine-in',
-        reference: 'Table 7',
-        brand: brandGc,
-        brands: [brandGc, brandAi],
-        items: [
-          KitchenTicketItem(quantity: 1, name: 'Bulgogi Bowl'),
-          KitchenTicketItem(quantity: 1, name: 'Paa Inasal'),
-        ],
-      );
+    testWidgets(
+      'WT-MOB-KITCHEN-BRAND-006 KitchenTicketCard displays multi-brand badge row when ticket is multi-brand',
+      (tester) async {
+        const multiBrandTicket = KitchenTicketData(
+          ticketNumber: 'T-401',
+          elapsed: Duration(minutes: 5),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.preparing,
+          channel: 'Dine-in',
+          reference: 'Table 7',
+          brand: brandGc,
+          brands: [brandGc, brandAi],
+          items: [
+            KitchenTicketItem(quantity: 1, name: 'Bulgogi Bowl'),
+            KitchenTicketItem(quantity: 1, name: 'Paa Inasal'),
+          ],
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: KitchenTicketCard(
-              ticket: multiBrandTicket,
-            ),
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: KitchenTicketCard(ticket: multiBrandTicket)),
           ),
-        ),
-      );
+        );
 
-      // Brands at the top are removed on multi-brand cards
-      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')), findsNothing);
-      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-single')), findsNothing);
-      expect(find.text('Gamcheon'), findsWidgets);
-      expect(find.text("Aurelia's Inasal"), findsWidgets);
+        // Brands at the top are removed on multi-brand cards
+        expect(
+          find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const ValueKey('kitchen-ticket-brand-row-single')),
+          findsNothing,
+        );
+        expect(find.text('Gamcheon'), findsWidgets);
+        expect(find.text("Aurelia's Inasal"), findsWidgets);
 
-      // Verify that items are arranged and labeled by brand
-      expect(find.byKey(const ValueKey('kitchen-ticket-brand-group-gc')), findsOneWidget);
-      expect(find.byKey(const ValueKey('kitchen-ticket-brand-group-ai')), findsOneWidget);
-    });
+        // Verify that items are arranged and labeled by brand
+        expect(
+          find.byKey(const ValueKey('kitchen-ticket-brand-group-gc')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('kitchen-ticket-brand-group-ai')),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('WT-MOB-KITCHEN-BRAND-007 KitchenTicketCard displays single brand row without group headers when ticket has only 1 brand', (
-      tester,
-    ) async {
-      const singleBrandTicket = KitchenTicketData(
-        ticketNumber: 'T-402',
-        elapsed: Duration(minutes: 2),
-        age: KitchenTicketAge.onTime,
-        status: KkfcStatus.queued,
-        channel: 'Takeaway',
-        reference: 'Call: Sarah',
-        brand: brandKk,
-        brands: [brandKk],
-        items: [
-          KitchenTicketItem(quantity: 1, name: 'Iced Spanish Latte'),
-        ],
-      );
+    testWidgets(
+      'WT-MOB-KITCHEN-BRAND-007 KitchenTicketCard displays single brand row without group headers when ticket has only 1 brand',
+      (tester) async {
+        const singleBrandTicket = KitchenTicketData(
+          ticketNumber: 'T-402',
+          elapsed: Duration(minutes: 2),
+          age: KitchenTicketAge.onTime,
+          status: KkfcStatus.queued,
+          channel: 'Takeaway',
+          reference: 'Call: Sarah',
+          brand: brandKk,
+          brands: [brandKk],
+          items: [KitchenTicketItem(quantity: 1, name: 'Iced Spanish Latte')],
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: KitchenTicketCard(
-              ticket: singleBrandTicket,
-            ),
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: KitchenTicketCard(ticket: singleBrandTicket)),
           ),
-        ),
-      );
+        );
 
-      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-single')), findsOneWidget);
-      expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')), findsNothing);
-      expect(find.text('King Kungs Kafé'), findsOneWidget);
-      expect(find.byKey(const ValueKey('kitchen-ticket-brand-group-kk')), findsNothing);
-    });
+        expect(
+          find.byKey(const ValueKey('kitchen-ticket-brand-row-single')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('kitchen-ticket-brand-row-multi')),
+          findsNothing,
+        );
+        expect(find.text('King Kungs Kafé'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('kitchen-ticket-brand-group-kk')),
+          findsNothing,
+        );
+      },
+    );
 
     test('UT-MOB-KITCHEN-BRAND-008 Items in KitchenTicketData are arranged contiguously by brand', () {
       final ticket = const KitchenTicketData(
@@ -324,7 +338,11 @@ void main() {
         items: [
           KitchenTicketItem(quantity: 1, name: 'Bulgogi Bowl', brand: brandGc),
           KitchenTicketItem(quantity: 1, name: 'Paa Inasal', brand: brandAi),
-          KitchenTicketItem(quantity: 1, name: 'Kimchi Pancake', brand: brandGc),
+          KitchenTicketItem(
+            quantity: 1,
+            name: 'Kimchi Pancake',
+            brand: brandGc,
+          ),
         ],
       ).withItemsArrangedByBrand();
 
@@ -414,10 +432,9 @@ void main() {
         ),
       );
 
-      final preserved = KitchenBoardEnricher.preserveEnrichedDetails(
-        [rawAcknowledgedTicket],
-        prevMap,
-      );
+      final preserved = KitchenBoardEnricher.preserveEnrichedDetails([
+        rawAcknowledgedTicket,
+      ], prevMap);
 
       expect(preserved.length, 1);
       final ticket = preserved.first;
@@ -429,7 +446,10 @@ void main() {
       // Brands must be preserved
       expect(ticket.data.isMultiBrand, isTrue);
       expect(ticket.data.effectiveBrands.length, 2);
-      expect(ticket.data.effectiveBrands.map((b) => b.code), containsAll(['KK', 'AI']));
+      expect(
+        ticket.data.effectiveBrands.map((b) => b.code),
+        containsAll(['KK', 'AI']),
+      );
 
       // Each item must retain its brand
       expect(ticket.data.items[0].brand?.code, 'KK');
@@ -437,7 +457,11 @@ void main() {
 
       // Crucially, items must NOT be merged under 1 brand
       final groups = ticket.data.brandItemGroups;
-      expect(groups.length, 2, reason: 'Must maintain 2 separate brand groups, not merge into 1');
+      expect(
+        groups.length,
+        2,
+        reason: 'Must maintain 2 separate brand groups, not merge into 1',
+      );
       expect(groups[0].brand.code, 'KK');
       expect(groups[0].items.length, 1);
       expect(groups[0].items[0].name, 'House Blend Coffee');

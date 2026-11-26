@@ -273,7 +273,10 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                   for (var i = 0; i < widget.ticket.items.length; i++) ...[
                     if (i > 0) const SizedBox(height: 14),
                     KitchenTicketItemTile(
-                      item: _resolveItemWithFailReason(widget.ticket.items[i], i),
+                      item: _resolveItemWithFailReason(
+                        widget.ticket.items[i],
+                        i,
+                      ),
                     ),
                   ],
                 ],

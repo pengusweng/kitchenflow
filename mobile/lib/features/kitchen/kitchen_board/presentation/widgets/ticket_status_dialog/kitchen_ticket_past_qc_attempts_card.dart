@@ -215,10 +215,7 @@ class _KitchenTicketPastQcAttemptsCardState
               ),
               const SizedBox(width: KkfcSpace.s8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: badgeBg,
                   borderRadius: BorderRadius.circular(999),
