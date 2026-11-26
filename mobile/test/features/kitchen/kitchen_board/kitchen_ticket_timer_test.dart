@@ -41,12 +41,12 @@ class _MockQcAdapter implements HttpClientAdapter {
 
 void main() {
   group('Kitchen Ticket Timer Thresholds', () {
-    test('KkfcKitchen threshold constants are set to 15 and 30 minutes', () {
+    test('UT-MOB-KITCHEN-TIMER-001 KkfcKitchen threshold constants are set to 15 and 30 minutes', () {
       expect(KkfcKitchen.ageCautionMin, 15);
       expect(KkfcKitchen.ageLateMin, 30);
     });
 
-    test('KitchenBoardTicket.ageFromElapsed correctly categorizes durations', () {
+    test('UT-MOB-KITCHEN-TIMER-002 KitchenBoardTicket.ageFromElapsed correctly categorizes durations', () {
       // Below 15 mins is still early / green (onTime)
       expect(
         KitchenBoardTicket.ageFromElapsed(Duration.zero),
@@ -98,13 +98,13 @@ void main() {
       );
     });
 
-    test('Color tokens provide green for early, yellow for caution, red for late', () {
+    test('UT-MOB-KITCHEN-TIMER-003 Color tokens provide green for early, yellow for caution, red for late', () {
       expect(KkfcColors.ticketAgeOnTime, const Color(0xFF16A34A));
       expect(KkfcColors.ticketAgeDueSoon, const Color(0xFFD97706));
       expect(KkfcColors.ticketAgeLate, const Color(0xFFDC2626));
     });
 
-    test('KitchenTicketHeader.formatElapsed formats minutes and seconds cleanly', () {
+    test('UT-MOB-KITCHEN-TIMER-004 KitchenTicketHeader.formatElapsed formats minutes and seconds cleanly', () {
       expect(KitchenTicketHeader.formatElapsed(Duration.zero), '0:00');
       expect(KitchenTicketHeader.formatElapsed(const Duration(seconds: 45)), '0:45');
       expect(KitchenTicketHeader.formatElapsed(const Duration(minutes: 14, seconds: 9)), '14:09');
@@ -116,7 +116,7 @@ void main() {
   });
 
   group('Kitchen Ticket Live Timer Widget', () {
-    testWidgets('timer counts up live and ticks upwards every second', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-005 timer counts up live and ticks upwards every second', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -141,7 +141,7 @@ void main() {
       expect(find.text('2:36'), findsOneWidget);
     });
 
-    testWidgets('timer dynamically transitions to yellow dueSoon at 15 minutes', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-006 timer dynamically transitions to yellow dueSoon at 15 minutes', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -166,7 +166,7 @@ void main() {
       expect(find.text('DUE SOON'), findsOneWidget);
     });
 
-    testWidgets('timer dynamically transitions to red late at 30 minutes', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-007 timer dynamically transitions to red late at 30 minutes', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -189,7 +189,7 @@ void main() {
       expect(find.text('LATE'), findsOneWidget);
     });
 
-    testWidgets('KitchenTicketCard integrates live timer and ticks upwards', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-008 KitchenTicketCard integrates live timer and ticks upwards', (tester) async {
       final ticket = KitchenTicketData(
         ticketNumber: 'T-099',
         elapsed: const Duration(seconds: 58),
@@ -220,7 +220,7 @@ void main() {
       expect(find.text('1:00'), findsOneWidget);
     });
 
-    testWidgets('KitchenTicketDialogHeader integrates live timer and ticks upwards', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-009 KitchenTicketDialogHeader integrates live timer and ticks upwards', (tester) async {
       final boardTicket = KitchenBoardTicket(
         kitchenTicketId: 'ticket-1',
         orderId: 'order-1',
@@ -263,7 +263,7 @@ void main() {
     const brandAi = AssignedBrand(id: 'brand-ai', code: 'AI', name: "Aurelia's Inasal");
     const brandGc = AssignedBrand(id: 'brand-gc', code: 'GC', name: 'Gamcheon');
 
-    testWidgets('single-brand ticket displays standard single brand row', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-010 single-brand ticket displays standard single brand row', (tester) async {
       final ticket = KitchenTicketData(
         ticketNumber: 'T-010',
         elapsed: const Duration(minutes: 1),
@@ -289,7 +289,7 @@ void main() {
       expect(find.text('King Kungs Kafé'), findsOneWidget);
     });
 
-    testWidgets('multi-brand ticket removes top brand badges in KitchenTicketCard as items are labeled by brand', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-011 multi-brand ticket removes top brand badges in KitchenTicketCard as items are labeled by brand', (tester) async {
       final multiBrandTicket = KitchenTicketData(
         ticketNumber: 'T-020',
         elapsed: const Duration(minutes: 3),
@@ -324,7 +324,7 @@ void main() {
       expect(find.byKey(const ValueKey('kitchen-ticket-brand-group-gc')), findsOneWidget);
     });
 
-    testWidgets('multi-brand ticket omits top brand row in KitchenTicketDialogHeader', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-012 multi-brand ticket omits top brand row in KitchenTicketDialogHeader', (tester) async {
       final boardTicket = KitchenBoardTicket(
         kitchenTicketId: 'ticket-multi',
         orderId: 'order-multi',
@@ -362,7 +362,7 @@ void main() {
       expect(find.byKey(const ValueKey('kitchen-ticket-brand-row-single')), findsNothing);
     });
 
-    test('KitchenBoardTicket.tryFromApiJson parses multiple brands from API payload', () {
+    test('UT-MOB-KITCHEN-TIMER-013 KitchenBoardTicket.tryFromApiJson parses multiple brands from API payload', () {
       final json = {
         'kitchen_ticket_id': 'ticket-json-1',
         'order_id': 'order-json-1',
@@ -386,7 +386,7 @@ void main() {
       expect(parsed.data.isMultiBrand, isTrue);
     });
 
-    test('KitchenBoardTicket.tryFromApiJson extracts multiple brands from order item metadata', () {
+    test('UT-MOB-KITCHEN-TIMER-014 KitchenBoardTicket.tryFromApiJson extracts multiple brands from order item metadata', () {
       final json = {
         'kitchen_ticket_id': 'ticket-json-2',
         'order_id': 'order-json-2',
@@ -418,7 +418,7 @@ void main() {
   });
 
   group('Kitchen Ticket Card Action & Details Styling', () {
-    testWidgets('Details button has underline style with spacing', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-015 Details button has underline style with spacing', (tester) async {
       const ticket = KitchenTicketData(
         ticketNumber: 'T-099',
         elapsed: Duration(minutes: 5),
@@ -460,7 +460,7 @@ void main() {
       expect(padding?.bottom, greaterThan(0));
     });
 
-    testWidgets('Start Preparing CTA does not wrap to 2 lines on acknowledged ticket across narrow constraints', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-016 Start Preparing CTA does not wrap to 2 lines on acknowledged ticket across narrow constraints', (tester) async {
       const ticket = KitchenTicketData(
         ticketNumber: 'T-099',
         elapsed: Duration(minutes: 5),
@@ -563,7 +563,7 @@ void main() {
       },
     ];
 
-    test('fetchTicketQcAttempts calls GET /api/kitchen-qc/ticket/{ticketId} and parses attempts descending', () async {
+    test('UT-MOB-KITCHEN-TIMER-017 fetchTicketQcAttempts calls GET /api/kitchen-qc/ticket/{ticketId} and parses attempts descending', () async {
       final adapter = _MockQcAdapter((options) {
         return ResponseBody.fromString(
           jsonEncode(sampleApiPayload),
@@ -595,7 +595,7 @@ void main() {
       expect(attempts[1].rejections.first.displayReason, 'Rice portion short; plate again');
     });
 
-    testWidgets('Rework and QC views display past QC attempts card with attempt history and item rejections', (tester) async {
+    testWidgets('WT-MOB-KITCHEN-TIMER-018 Rework and QC views display past QC attempts card with attempt history and item rejections', (tester) async {
       final attempts = KitchenQcAttempt.parseList(sampleApiPayload);
       final baseTicket = KitchenBoardTicket(
         kitchenTicketId: 'ticket-100',
@@ -696,7 +696,7 @@ void main() {
       expect(find.byIcon(Icons.keyboard_arrow_up_rounded), findsOneWidget);
     });
 
-    test('KitchenBoardEnricher.preserveEnrichedDetails preserves qcReturnedReason and channel across server updates', () {
+    test('UT-MOB-KITCHEN-TIMER-019 KitchenBoardEnricher.preserveEnrichedDetails preserves qcReturnedReason and channel across server updates', () {
       const testBrand = AssignedBrand(id: 'brand-kk', code: 'KK', name: 'King Kungs Kafé');
       final prevTicket = KitchenBoardTicket(
         kitchenTicketId: 'ticket-enrich-1',

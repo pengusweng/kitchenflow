@@ -47,7 +47,7 @@ void main() {
   });
 
   group('Kitchen Ticket Item Model', () {
-    test('KitchenTicketItem stores and copies menuItemId correctly', () {
+    test('UT-MOB-KITCHEN-BRAND-001 KitchenTicketItem stores and copies menuItemId correctly', () {
       const item = KitchenTicketItem(
         quantity: 1,
         name: 'Paa Inasal',
@@ -65,7 +65,7 @@ void main() {
   });
 
   group('Static Catalog & Keyword Resolution in KitchenBoardTicket', () {
-    test('tryFromApiJson resolves multi-brand from item names without brand tags', () {
+    test('UT-MOB-KITCHEN-BRAND-002 tryFromApiJson resolves multi-brand from item names without brand tags', () {
       final json = {
         'kitchen_ticket_id': 'ticket-multi-static-1',
         'order_id': 'order-1',
@@ -87,7 +87,7 @@ void main() {
       expect(codes, containsAll(['GC', 'AI']));
     });
 
-    test('tryFromApiJson leaves single brand when all items belong to same brand', () {
+    test('UT-MOB-KITCHEN-BRAND-003 tryFromApiJson leaves single brand when all items belong to same brand', () {
       final json = {
         'kitchen_ticket_id': 'ticket-single-static-1',
         'order_id': 'order-2',
@@ -109,7 +109,7 @@ void main() {
   });
 
   group('Dynamic Catalog Enrichment in KitchenBoardEnricher', () {
-    test('enrichTicketsWithOrders resolves multi-brand using dynamic menu catalog', () async {
+    test('UT-MOB-KITCHEN-BRAND-004 enrichTicketsWithOrders resolves multi-brand using dynamic menu catalog', () async {
       final repo = _FakeKitchenBoardRepository();
 
       const item1Id = 'item-uuid-gc-1';
@@ -183,7 +183,7 @@ void main() {
       expect(codes, containsAll(['GC', 'AI']));
     });
 
-    test('preserveEnrichedDetails preserves multi-brand data across stream refreshes', () {
+    test('UT-MOB-KITCHEN-BRAND-005 preserveEnrichedDetails preserves multi-brand data across stream refreshes', () {
       final prevTicket = KitchenBoardTicket(
         kitchenTicketId: 'ticket-preserve-1',
         orderId: 'order-preserve-1',
@@ -239,7 +239,7 @@ void main() {
   });
 
   group('Kitchen Ticket UI Multi-Brand Badges', () {
-    testWidgets('KitchenTicketCard displays multi-brand badge row when ticket is multi-brand', (
+    testWidgets('WT-MOB-KITCHEN-BRAND-006 KitchenTicketCard displays multi-brand badge row when ticket is multi-brand', (
       tester,
     ) async {
       const multiBrandTicket = KitchenTicketData(
@@ -278,7 +278,7 @@ void main() {
       expect(find.byKey(const ValueKey('kitchen-ticket-brand-group-ai')), findsOneWidget);
     });
 
-    testWidgets('KitchenTicketCard displays single brand row without group headers when ticket has only 1 brand', (
+    testWidgets('WT-MOB-KITCHEN-BRAND-007 KitchenTicketCard displays single brand row without group headers when ticket has only 1 brand', (
       tester,
     ) async {
       const singleBrandTicket = KitchenTicketData(
@@ -311,7 +311,7 @@ void main() {
       expect(find.byKey(const ValueKey('kitchen-ticket-brand-group-kk')), findsNothing);
     });
 
-    test('Items in KitchenTicketData are arranged contiguously by brand', () {
+    test('UT-MOB-KITCHEN-BRAND-008 Items in KitchenTicketData are arranged contiguously by brand', () {
       final ticket = const KitchenTicketData(
         ticketNumber: 'T-501',
         elapsed: Duration.zero,
@@ -340,7 +340,7 @@ void main() {
       expect(groups[1].items[0].name, 'Paa Inasal');
     });
 
-    test('preserveEnrichedDetails preserves item-level brand assignments and does not merge under 1 brand', () {
+    test('UT-MOB-KITCHEN-BRAND-009 preserveEnrichedDetails preserves item-level brand assignments and does not merge under 1 brand', () {
       // 1. Initial enriched ticket in state
       const enrichedTicket = KitchenBoardTicket(
         kitchenTicketId: 'ticket-multi-ack',
