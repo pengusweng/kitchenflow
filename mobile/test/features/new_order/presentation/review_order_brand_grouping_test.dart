@@ -132,7 +132,7 @@ void main() {
   }
 
   testWidgets(
-    'Step 4: Separates and labels menu items by brand in a multi-brand order',
+    'WT-MOB-REVIEW-BRAND-001 Step 4: Separates and labels menu items by brand in a multi-brand order',
     (tester) async {
       final container = ProviderContainer(
         overrides: [
@@ -224,7 +224,7 @@ void main() {
   );
 
   testWidgets(
-    'Step 4: Labels single-brand order with clean brand group header',
+    'WT-MOB-REVIEW-BRAND-002 Step 4: Labels single-brand order with clean brand group header',
     (tester) async {
       final container = ProviderContainer(
         overrides: [
@@ -262,7 +262,7 @@ void main() {
   );
 
   testWidgets(
-    'Step 4: Pressing Confirm and send clears the cart',
+    'WT-MOB-REVIEW-BRAND-003 Step 4: Pressing Confirm and send clears the cart',
     (tester) async {
       final container = ProviderContainer(
         overrides: [

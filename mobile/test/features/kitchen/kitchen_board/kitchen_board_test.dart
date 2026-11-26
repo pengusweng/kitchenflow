@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app/theme/theme.dart';
 import 'package:mobile/app/theme/tokens.dart';
+import 'package:mobile/core/api/api_client.dart';
 import 'package:mobile/core/auth/token_store.dart';
 import 'package:mobile/core/config/app_config.dart';
 import 'package:mobile/core/models/user_role.dart';
@@ -550,6 +551,7 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          dioProvider.overrideWithValue(dio),
           kitchenBoardRepositoryProvider.overrideWithValue(repo),
           initialRoleProvider.overrideWithValue(UserRole.kitchenHead),
           authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
@@ -559,6 +561,18 @@ void main() {
         unawaited(streamController.close());
         container.dispose();
       });
+
+      // Helper to wait for asynchronous SSE stream processing without fragile timing
+      Future<KitchenBoardState> waitForState(
+        bool Function(KitchenBoardState) predicate,
+      ) async {
+        for (var i = 0; i < 50; i++) {
+          final state = container.read(kitchenBoardProvider);
+          if (predicate(state)) return state;
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        return container.read(kitchenBoardProvider);
+      }
 
       // Trigger initial build & stream subscription
       container.read(kitchenBoardProvider);
@@ -574,9 +588,8 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      var boardState = container.read(kitchenBoardProvider);
+      var boardState = await waitForState((s) => !s.isLoading && s.tickets.isNotEmpty);
       expect(boardState.isLoading, isFalse);
       expect(boardState.tickets, hasLength(1));
       expect(boardState.tickets.first.data.ticketNumber, 'T-016');
@@ -593,9 +606,10 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      boardState = container.read(kitchenBoardProvider);
+      boardState = await waitForState(
+        (s) => s.tickets.length == 2 && s.tickets.first.lane == KitchenBoardLane.preparing,
+      );
       expect(boardState.tickets, hasLength(2));
       expect(boardState.tickets[0].lane, KitchenBoardLane.preparing);
       expect(boardState.tickets[1].data.ticketNumber, 'T-017');
