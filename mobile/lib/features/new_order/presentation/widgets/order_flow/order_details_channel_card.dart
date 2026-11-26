@@ -160,6 +160,20 @@ class OrderDetailsChannelCard extends StatelessWidget {
                 horizontal: 14,
                 vertical: 13,
               ),
+              suffixIcon: controller.text.isNotEmpty
+                  ? IconButton(
+                      key: const ValueKey('clear-table-reference-button'),
+                      icon: const Icon(
+                        Icons.cancel,
+                        size: 18.0,
+                        color: Color(0xFF76849A),
+                      ),
+                      onPressed: () {
+                        controller.clear();
+                        onChanged('');
+                      },
+                    )
+                  : null,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
                 borderSide: BorderSide(

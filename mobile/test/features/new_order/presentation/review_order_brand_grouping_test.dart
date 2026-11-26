@@ -260,4 +260,62 @@ void main() {
       expect(find.text('₱220.00'), findsWidgets);
     },
   );
+
+  testWidgets(
+    'Step 4: Pressing Confirm and send clears the cart',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          assignedBrandsProvider.overrideWithValue([brandGc]),
+          orderEntryRepositoryProvider.overrideWithValue(
+            _FakeOrderEntryRepository(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final cartNotifier = container.read(cartProvider.notifier);
+      cartNotifier.state = [
+        CartLine(
+          id: 'line-gc-1',
+          brandId: brandGc.id,
+          brandName: brandGc.name,
+          item: gcItem,
+          quantity: 2,
+        ),
+      ];
+
+      expect(container.read(cartProvider).length, 1);
+
+      container.read(orderReferenceProvider.notifier).set('Table 42');
+      expect(container.read(orderReferenceProvider), 'Table 42');
+
+      bool confirmed = false;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: ReviewOrderStepView(
+                onConfirm: () => confirmed = true,
+                cooldownDuration: Duration.zero,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap "Confirm and send"
+      await tester.tap(find.byKey(const ValueKey('confirm-and-send-button')));
+      await tester.pumpAndSettle();
+
+      // Callback invoked
+      expect(confirmed, isTrue);
+
+      // Cart and table input are now cleared!
+      expect(container.read(cartProvider), isEmpty);
+      expect(container.read(orderReferenceProvider), isEmpty);
+    },
+  );
 }

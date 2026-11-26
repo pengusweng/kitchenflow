@@ -183,6 +183,7 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
       final paymentMethod = channel.isPlatform ? 'PLATFORM_SETTLED' : 'CASH';
       final paymentStatus = channel.isPlatform ? 'PAID' : 'UNPAID';
 
+      final currentRef = ref.read(orderReferenceProvider);
       final confirmed = await ref
           .read(orderEntryRepositoryProvider)
           .confirmOrder(
@@ -192,9 +193,14 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
             paymentStatus: paymentStatus,
           );
 
-      final updatedDraft = OrderDraft.fromJson(confirmed);
-      ref.read(activeOrderDraftProvider.notifier).set(updatedDraft);
-      ref.read(clientOrderIdProvider.notifier).regenerate();
+      final confirmedDraft = OrderDraft.fromJson(confirmed).copyWith(
+        tableReference: (confirmed['table_reference'] as String?) ??
+            draft?.tableReference ??
+            (currentRef.isNotEmpty ? currentRef : null),
+      );
+      ref.read(cartProvider.notifier).clear();
+      ref.read(orderReferenceProvider.notifier).clear();
+      ref.read(activeOrderDraftProvider.notifier).set(confirmedDraft);
 
       if (mounted) {
         setState(() => _isSubmitting = false);

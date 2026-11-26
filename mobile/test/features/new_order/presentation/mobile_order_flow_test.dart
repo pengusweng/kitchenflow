@@ -314,6 +314,8 @@ void main() {
       expect(find.text('ORD-2026-1105-017'), findsOneWidget);
       expect(find.text('New order'), findsOneWidget);
       expect(find.text('Cancel order'), findsNothing);
+      expect(container.read(cartProvider), isEmpty);
+      expect(container.read(orderReferenceProvider), isEmpty);
     },
   );
 
