@@ -10,6 +10,7 @@ type SnapshotModel =
   | 'user'
   | 'brand'
   | 'order'
+  | 'payment'
   | 'menuItem'
   | 'menuItemChannel'
   | 'modifier'
@@ -62,6 +63,19 @@ export const SNAPSHOT_CONFIGS: Readonly<Record<string, SnapshotConfig>> = {
       'table_reference',
       'merchant_store_reference',
       'external_order_reference',
+    ],
+  },
+  // payment_reference is a card/e-wallet reference and stays out (forbidden).
+  payments: {
+    model: 'payment',
+    key: 'payment_id',
+    fields: [
+      'order_id',
+      'received_by_id',
+      'payment_method',
+      'amount',
+      'amount_tendered',
+      'paid_at',
     ],
   },
   menu_items: {

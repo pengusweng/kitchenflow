@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
-  IsIn,
+  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
@@ -11,20 +11,14 @@ import {
 } from 'class-validator';
 import { PaymentMethod } from '@prisma/client';
 
-const INTERNAL_PAYMENT_METHODS = [
-  PaymentMethod.CASH,
-  PaymentMethod.E_WALLET,
-  PaymentMethod.CARD,
-] as const;
-
 export class CreatePaymentDTO {
-  @IsIn(INTERNAL_PAYMENT_METHODS, {
-    message: 'Payment method must be CASH, E_WALLET or CARD.',
+  @IsEnum(PaymentMethod, {
+    message: `Payment method must be one of: ${Object.values(PaymentMethod).join(', ')}.`,
   })
   @ApiProperty({
-    enum: INTERNAL_PAYMENT_METHODS,
+    enum: PaymentMethod,
     description:
-      'CASH, E_WALLET or CARD. PLATFORM_SETTLED is reserved for platform orders and is not accepted.',
+      'CASH, E_WALLET, CARD or PLATFORM_SETTLED. PLATFORM_SETTLED is only for GrabFood/Foodpanda orders, and its amount must equal amount_tendered.',
   })
   payment_method: PaymentMethod;
 

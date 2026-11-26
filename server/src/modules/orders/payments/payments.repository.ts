@@ -16,6 +16,8 @@ const RECEIVED_BY_NAME = {
   },
 } as const;
 
+export type PaymentUniqueKey = { payment_id: string } | { order_id: string };
+
 function manilaMidnight(date: string): Date {
   return new Date(`${date}T00:00:00+08:00`);
 }
@@ -67,7 +69,6 @@ export class PaymentsRepository {
   }
 
   async findAll(
-    orderId: string,
     dto: FindPaymentsDTO,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
@@ -75,7 +76,6 @@ export class PaymentsRepository {
     const take = dto.limit;
 
     const where: Prisma.PaymentWhereInput = {
-      order_id: orderId,
       payment_method: dto.payment_method,
       received_by_id: dto.received_by_id,
       paid_at: this.paidAtRange(dto.from, dto.to),
@@ -105,15 +105,11 @@ export class PaymentsRepository {
   }
 
   async findOne(
-    paymentId: string,
-    orderId: string,
+    key: PaymentUniqueKey,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
     const payment = await tx.payment.findUnique({
-      where: {
-        payment_id: paymentId,
-        order_id: orderId,
-      },
+      where: key,
       include: RECEIVED_BY_NAME,
     });
 
