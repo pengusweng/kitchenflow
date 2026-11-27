@@ -61,6 +61,11 @@ export class PaymentsService {
     if (dto.payment_method === PaymentMethod.CASH) {
       this.validateCashPayment(dto.amount, dto.amount_tendered);
     } else {
+      this.assertExistingPaymentReference(
+        dto.payment_method,
+        dto.payment_reference,
+      );
+
       this.validateExactPayment(dto.amount, dto.amount_tendered);
     }
 
@@ -151,6 +156,20 @@ export class PaymentsService {
       throw new BadRequestException({
         code: 'INVALID_DATE_RANGE',
         message: 'From must be on or before to.',
+      });
+    }
+  }
+
+  private assertExistingPaymentReference(
+    paymentMethod: PaymentMethod,
+    paymentReference?: string,
+  ) {
+    if (!paymentReference) {
+      this.logger.warn(`No payment reference found for ${paymentMethod}`);
+
+      throw new BadRequestException({
+        code: 'PAYMENT_REFERENCE_REQUIRED',
+        message: `Payment reference is required for ${paymentMethod} payments.`,
       });
     }
   }

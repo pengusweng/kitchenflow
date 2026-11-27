@@ -25,11 +25,19 @@ describe('PaymentsService', () => {
   let usersRepository: { findOne: jest.Mock };
   let service: PaymentsService;
 
+  // Non-cash payments carry a reference by default, as the service requires.
   function payment(
     payment_method: PaymentMethod,
     amount_tendered: number,
   ): CreatePaymentDTO {
-    return { payment_method, amount: 250, amount_tendered };
+    return payment_method === PaymentMethod.CASH
+      ? { payment_method, amount: 250, amount_tendered }
+      : {
+          payment_method,
+          amount: 250,
+          amount_tendered,
+          payment_reference: 'REF-1234',
+        };
   }
 
   beforeEach(() => {
@@ -191,6 +199,45 @@ describe('PaymentsService', () => {
       expect(paymentsRepository.create).not.toHaveBeenCalled();
     },
   );
+
+  it.each([
+    [PaymentMethod.CARD, undefined],
+    [PaymentMethod.CARD, ''],
+    [PaymentMethod.E_WALLET, undefined],
+    [PaymentMethod.E_WALLET, ''],
+    [PaymentMethod.PLATFORM_SETTLED, undefined],
+    [PaymentMethod.PLATFORM_SETTLED, ''],
+  ])(
+    'UT-PAY-015: rejects %s with payment reference %p as PAYMENT_REFERENCE_REQUIRED without writing',
+    async (method, payment_reference) => {
+      const result = service.create(
+        { ...payment(method, 250), payment_reference },
+        orderId,
+        receivedById,
+      );
+
+      await expect(result).rejects.toBeInstanceOf(BadRequestException);
+      await expect(result).rejects.toMatchObject({
+        response: { code: 'PAYMENT_REFERENCE_REQUIRED' },
+      });
+      expect(paymentsRepository.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it('UT-PAY-016: accepts cash without a payment reference', async () => {
+    const dto = payment(PaymentMethod.CASH, 300);
+
+    await expect(
+      service.create(dto, orderId, receivedById),
+    ).resolves.toMatchObject({ payment_method: PaymentMethod.CASH });
+    expect(dto).not.toHaveProperty('payment_reference');
+    expect(paymentsRepository.create).toHaveBeenCalledWith(
+      dto,
+      orderId,
+      receivedById,
+      undefined,
+    );
+  });
 
   describe('findOne', () => {
     const saved = {

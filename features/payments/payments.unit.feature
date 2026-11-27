@@ -31,7 +31,7 @@ Feature: Payment creation rules
 
   @UT-PAY-005
   Scenario Outline: Accept exact non-cash payments
-    Given a <method> payment of 250 pesos
+    Given a <method> payment of 250 pesos with a payment reference
     When the amount tendered is 250 pesos
     Then the payment is saved with the order and receiving user
     Examples:
@@ -42,7 +42,7 @@ Feature: Payment creation rules
 
   @UT-PAY-006
   Scenario Outline: Reject non-cash payments whose amount tendered differs
-    Given a <method> payment of 250 pesos
+    Given a <method> payment of 250 pesos with a payment reference
     When the amount tendered is <tendered> pesos
     Then the service returns AMOUNT_TENDERED_MISMATCH without writing a payment
     Examples:
@@ -118,3 +118,23 @@ Feature: Payment creation rules
       | status   | code                   |
       | PAID     | ORDER_ALREADY_PAID     |
       | REFUNDED | ORDER_ALREADY_REFUNDED |
+
+  @UT-PAY-015
+  Scenario Outline: Require a payment reference for non-cash payments
+    Given a <method> payment with a <reference> payment reference
+    When the payment is created
+    Then the service returns PAYMENT_REFERENCE_REQUIRED without writing a payment
+    Examples:
+      | method           | reference |
+      | CARD             | missing   |
+      | CARD             | empty     |
+      | E_WALLET         | missing   |
+      | E_WALLET         | empty     |
+      | PLATFORM_SETTLED | missing   |
+      | PLATFORM_SETTLED | empty     |
+
+  @UT-PAY-016
+  Scenario: Accept cash without a payment reference
+    Given a cash payment with no payment reference
+    When the payment is created
+    Then the payment is saved with the order and receiving user
