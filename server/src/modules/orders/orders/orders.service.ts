@@ -8,7 +8,13 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { Order, OrderChannel, OrderStatus, Prisma } from '@prisma/client';
+import {
+  Order,
+  OrderChannel,
+  OrderStatus,
+  PaymentMethod,
+  Prisma,
+} from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { assertExists } from '../../../shared/assertions/assert-exists';
 import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
@@ -16,11 +22,9 @@ import { FindAllOrdersDTO } from './dto/find-all-orders.dto';
 import { FindOrdersDTO } from './dto/find-orders.dto';
 import { FindUnpaidTodayOrdersDTO } from './dto/find-unpaid-today-orders.dto';
 import { OrdersRepository, type SavedOrder } from './orders.repository';
-import {
-  ConfirmOrderDTO,
-  CreateOrderDTO,
-  CancelOrderDTO,
-} from './dto/order.dto';
+import { CreateOrderDTO, CancelOrderDTO } from './dto/order.dto';
+import { PaymentsRepository } from '../../payments/payments.repository';
+import { isPlatformChannel } from '../../payments/payment-rules';
 
 @Injectable()
 export class OrdersService {
@@ -29,6 +33,7 @@ export class OrdersService {
   constructor(
     private readonly repository: OrdersRepository,
     private readonly items: OrderItemsService,
+    private readonly payments: PaymentsRepository,
   ) {}
 
   async create(brandId: string, actorId: string, dto: CreateOrderDTO) {
@@ -43,7 +48,7 @@ export class OrdersService {
         return this.response(existing);
       }
 
-      if (this.isDelivery(dto.order_channel)) {
+      if (isPlatformChannel(dto.order_channel)) {
         await this.assertValidDeliveryOrder(dto, brandId, tx);
       } else if (dto.merchant_store_reference || dto.external_order_reference) {
         throw new BadRequestException({
@@ -80,9 +85,6 @@ export class OrdersService {
           order_date,
           created_at,
           lines,
-          payment: this.isDelivery(dto.order_channel)
-            ? { payment_status: 'PAID' }
-            : undefined,
         },
         tx,
       );
@@ -188,13 +190,12 @@ export class OrdersService {
     return this.response(order);
   }
 
-  async verify(brandId: string, orderId: string, dto: ConfirmOrderDTO) {
+  async verify(brandId: string, orderId: string) {
     return this.repository.transaction(async (tx) => {
       const order = await this.load(tx, brandId, orderId);
       this.assertConfirmable(order);
       if (order.status !== 'DRAFT')
         throw new ConflictException('Only draft orders can be verified.');
-      const payment = this.payment(order.order_channel, dto);
       const { lines } = await this.snapshots(
         tx,
         brandId,
@@ -204,25 +205,18 @@ export class OrdersService {
       return {
         order_id: orderId,
         valid: true,
-        ...payment,
         lines: lines.map((line) => omit(line, 'recipe_snapshot')),
       };
     });
   }
 
-  async confirm(
-    brandId: string,
-    orderId: string,
-    actorId: string,
-    dto: ConfirmOrderDTO,
-  ) {
+  async confirm(brandId: string, orderId: string, actorId: string) {
     return this.repository.transaction(async (tx) => {
       const order = await this.load(tx, brandId, orderId);
       this.assertConfirmable(order);
       if (order.kitchen_tickets_order) return this.response(order);
       if (order.status !== 'DRAFT')
         throw new ConflictException('Only draft orders can be confirmed.');
-      const payment = this.payment(order.order_channel, dto);
       const { lines } = await this.snapshots(
         tx,
         brandId,
@@ -262,11 +256,15 @@ export class OrdersService {
         tx,
       );
 
+      if (isPlatformChannel(order.order_channel)) {
+        await this.recordPlatformPayment(order, subtotal, actorId, tx);
+      }
+
       const confirmed = await this.repository.updateStatus(
         orderId,
         OrderStatus.CONFIRMED,
         OrderStatus.DRAFT,
-        { confirmed_at: new Date(), subtotal, ...payment },
+        { confirmed_at: new Date(), subtotal },
         tx,
       );
       return this.response(confirmed);
@@ -434,12 +432,6 @@ export class OrdersService {
     }
   }
 
-  private isDelivery(channel: OrderChannel) {
-    return (
-      channel === OrderChannel.GRABFOOD || channel === OrderChannel.FOODPANDA
-    );
-  }
-
   private async assertValidDeliveryOrder(
     dto: CreateOrderDTO,
     brandId: string,
@@ -527,15 +519,29 @@ export class OrdersService {
     return order;
   }
 
-  private payment(channel: OrderChannel, dto: ConfirmOrderDTO) {
-    if (this.isDelivery(channel)) {
-      if (dto.payment_status && dto.payment_status !== 'PAID')
-        throw new BadRequestException('Platform orders must be PAID.');
-      return { payment_status: 'PAID' as const };
-    }
-    if (!dto.payment_status || !['UNPAID', 'PAID'].includes(dto.payment_status))
-      throw new BadRequestException('An UNPAID or PAID status is required.');
-    return { payment_status: dto.payment_status };
+  /**
+   * GrabFood and Foodpanda collect the money themselves, so their orders are
+   * paid in full the moment they are confirmed. The platform's order reference
+   * is the payment reference, and whoever confirms the order receives it.
+   */
+  private async recordPlatformPayment(
+    order: SavedOrder,
+    subtotal: Prisma.Decimal,
+    actorId: string,
+    tx: Prisma.TransactionClient,
+  ) {
+    await this.payments.create(
+      {
+        payment_method: PaymentMethod.PLATFORM_SETTLED,
+        amount: subtotal.toNumber(),
+        amount_tendered: subtotal.toNumber(),
+        payment_reference: order.external_order_reference ?? undefined,
+      },
+      order.order_id,
+      actorId,
+      tx,
+    );
+    await this.repository.markPaid(order.order_id, tx);
   }
 
   private draftLines(order: SavedOrder): OrderLineDTO[] {

@@ -335,8 +335,6 @@ export class VerifyOrderResponseDTO {
   order_id: string;
   @ApiProperty({ example: true, enum: [true] })
   valid: boolean;
-  @ApiProperty({ enum: PaymentStatus })
-  payment_status: PaymentStatus;
   @ApiProperty({ type: [VerifiedLineResponseDTO] })
   lines: VerifiedLineResponseDTO[];
 }

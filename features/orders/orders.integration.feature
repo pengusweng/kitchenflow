@@ -23,8 +23,8 @@ Feature: Order validation and transactional persistence
   @IT-ORD-002
   Scenario Outline: Validate verify and confirm request boundaries
     Given a persisted draft
-    When <operation> receives invalid order UUIDs or invalid payment fields or unknown fields
-    Then each request returns 400
+    When <operation> receives an invalid order UUID
+    Then the request returns 400
     And the stored draft and its lines remain unchanged
     Examples:
       | operation |

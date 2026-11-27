@@ -19,6 +19,7 @@ import {
 } from '../../../../shared/testing/catalog.fixture';
 import { OrdersRepository } from '../orders.repository';
 import { OrdersService } from '../orders.service';
+import { PaymentsRepository } from '../../../payments/payments.repository';
 import { AuthService } from '../../../auth/auth.service';
 import { AllOrdersController } from '../all-orders.controller';
 import { OrdersController } from '../orders.controller';
@@ -290,6 +291,21 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     const body = orderBody(order_channel);
     expect((await request(ordersPath(), 'POST', body, 1)).status).toBe(201);
     return body;
+  }
+  // Pays a confirmed order in cash through the payments endpoint, as a cashier.
+  async function pay(orderId: string) {
+    const { subtotal } = await savedOrder(orderId);
+    const response = await request(
+      `/payments/order/${orderId}`,
+      'POST',
+      {
+        payment_method: 'CASH',
+        amount: subtotal.toNumber(),
+        amount_tendered: subtotal.toNumber(),
+      },
+      1,
+    );
+    expect(response.status).toBe(201);
   }
   async function savedOrder(orderId: string) {
     return prisma.order.findUniqueOrThrow({
@@ -922,41 +938,65 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
   }
 
   it.each(['verify', 'confirm'])(
-    'IT-ORD-002 Given invalid UUIDs or payment fields When calling %s Then reject without changing the draft',
+    'IT-ORD-002 Given an invalid order UUID When calling %s Then reject without changing the draft',
     async (operation) => {
       const order = await draft();
       const before = await savedOrder(order.order_id);
       expect(
-        (
-          await request(
-            `${ordersPath()}/invalid/${operation}`,
-            'POST',
-            payment,
-            1,
-          )
-        ).status,
-      ).toBe(400);
-      expect(
-        (
-          await request(
-            `${ordersPath()}/${order.order_id}/${operation}`,
-            'POST',
-            { payment_status: 'INVALID' },
-            1,
-          )
-        ).status,
-      ).toBe(400);
-      expect(
-        (
-          await request(
-            `${ordersPath()}/${order.order_id}/${operation}`,
-            'POST',
-            { ...payment, unexpected: true },
-            1,
-          )
-        ).status,
+        (await request(`${ordersPath()}/invalid/${operation}`, 'POST', {}, 1))
+          .status,
       ).toBe(400);
       expect(await savedOrder(order.order_id)).toEqual(before);
+    },
+  );
+
+  it('IT-ORD-055: Given an old client still sending payment_status PAID When confirming a takeaway order Then the order stays UNPAID with no payment', async () => {
+    const order = await draft();
+    const response = await request(
+      `${ordersPath()}/${order.order_id}/confirm`,
+      'POST',
+      { payment_status: 'PAID' },
+      1,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await json(response)).toMatchObject({
+      status: 'CONFIRMED',
+      payment_status: 'UNPAID',
+    });
+    expect(
+      await prisma.payment.count({ where: { order_id: order.order_id } }),
+    ).toBe(0);
+  });
+
+  it.each(['GRABFOOD', 'FOODPANDA'] as const)(
+    'IT-ORD-056: Given a %s draft When confirming Then save a PLATFORM_SETTLED payment for the subtotal and mark the order PAID',
+    async (order_channel) => {
+      await channel(order_channel);
+      const order = await draft(order_channel);
+      const response = await request(
+        `${ordersPath()}/${order.order_id}/confirm`,
+        'POST',
+        undefined,
+        1,
+      );
+
+      expect(response.status).toBe(200);
+      // 2 × (120 channel price + 25 extra rice)
+      expect(await json(response)).toMatchObject({
+        payment_status: 'PAID',
+        subtotal: '290',
+      });
+      const payment = await prisma.payment.findUniqueOrThrow({
+        where: { order_id: order.order_id },
+      });
+      expect(payment).toMatchObject({
+        payment_method: 'PLATFORM_SETTLED',
+        payment_reference: order.external_order_reference,
+        received_by_id: fixture.users[1].user_id,
+      });
+      expect(payment.amount.toFixed(2)).toBe('290.00');
+      expect(payment.amount_tendered.toFixed(2)).toBe('290.00');
     },
   );
 
@@ -1048,13 +1088,13 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     const service = new OrdersService(
       new OrdersRepository(failingClient as unknown as PrismaService),
       new OrderItemsService(new OrderItemsRepository()),
+      new PaymentsRepository(failingClient as unknown as PrismaService),
     );
     await expect(
       service.confirm(
         fixture.brand.brand_id,
         order.order_id,
         fixture.users[1].user_id,
-        payment as { payment_status: 'UNPAID' },
       ),
     ).rejects.toThrow('Injected ticket failure');
     expect(await savedOrder(order.order_id)).toEqual(before);
@@ -1418,6 +1458,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     const service = new OrdersService(
       new OrdersRepository(failingClient as unknown as PrismaService),
       new OrderItemsService(new OrderItemsRepository()),
+      new PaymentsRepository(failingClient as unknown as PrismaService),
     );
     await expect(
       service.create(fixture.brand.brand_id, fixture.users[1].user_id, body),
@@ -1458,13 +1499,13 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     const service = new OrdersService(
       new OrdersRepository(failingClient as unknown as PrismaService),
       new OrderItemsService(new OrderItemsRepository()),
+      new PaymentsRepository(failingClient as unknown as PrismaService),
     );
     await expect(
       service.confirm(
         fixture.brand.brand_id,
         body.order_id,
         fixture.users[1].user_id,
-        payment as { payment_status: 'UNPAID' },
       ),
     ).rejects.toThrow('Injected failure after ticket insertion');
     expect(await savedOrder(body.order_id)).toEqual(before);
@@ -1490,11 +1531,12 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
         await request(
           `${ordersPath()}/${second.order_id}/confirm`,
           'POST',
-          { payment_status: 'PAID' },
+          undefined,
           1,
         )
       ).status,
     ).toBe(200);
+    await pay(second.order_id);
     const { order_code } = await savedOrder(second.order_id);
     const brand = fixture.brand.brand_id;
     type Page = {
@@ -1565,11 +1607,12 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
           await request(
             `${ordersPath()}/${body.order_id}/confirm`,
             'POST',
-            { payment_status },
+            undefined,
             1,
           )
         ).status,
       ).toBe(200);
+      if (payment_status === 'PAID') await pay(body.order_id);
       return body.order_id;
     };
     await draft();
@@ -1740,6 +1783,7 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     const service = new OrdersService(
       new OrdersRepository(failingClient as unknown as PrismaService),
       new OrderItemsService(new OrderItemsRepository()),
+      new PaymentsRepository(failingClient as unknown as PrismaService),
     );
     await expect(
       service.create(fixture.brand.brand_id, fixture.users[1].user_id, body),

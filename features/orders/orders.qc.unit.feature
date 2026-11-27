@@ -9,4 +9,4 @@ Feature: Order draft snapshot persistence
     Test Case ID: UT-ORD-043
     Given a valid internal or platform order with menu and modifier snapshots
     When a draft order is created
-    Then the persisted draft contains request fields, authenticated actor and brand, generated metadata, validated item prices and modifiers, and channel payment defaults
+    Then the persisted draft contains request fields, authenticated actor and brand, generated metadata, validated item prices and modifiers, and no payment status, so every draft starts UNPAID

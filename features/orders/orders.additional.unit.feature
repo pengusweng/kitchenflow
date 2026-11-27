@@ -233,9 +233,9 @@ Feature: Additional orders unit coverage
   # Jest: server/src/modules/orders/orders/orders.service.spec.ts
   # Context: Order lifecycle
   @UT-ORD-030
-  Scenario: Reject invalid payment or missing menu entries before writing
+  Scenario: Reject missing menu entries before writing
     Test Case ID: UT-ORD-030
-    Given an invalid payment or missing menu item
+    Given a draft whose menu item is missing
     When confirmation is requested
     Then the request is rejected before writing
 
@@ -251,11 +251,11 @@ Feature: Additional orders unit coverage
   # Jest: server/src/modules/orders/orders/orders.service.spec.ts
   # Context: Order lifecycle
   @UT-ORD-032
-  Scenario: Enforce platform settlement for GrabFood and Foodpanda orders
+  Scenario: Pay GrabFood and Foodpanda orders on confirmation
     Test Case ID: UT-ORD-032
-    Given a GrabFood or Foodpanda order
+    Given a GrabFood or Foodpanda draft
     When confirmation is requested
-    Then platform-settled payment semantics are enforced
+    Then a PLATFORM_SETTLED payment for the subtotal is saved with the platform order reference, received by the confirming user, and the order is marked PAID
 
   # Jest: server/src/modules/orders/orders/orders.service.spec.ts
   # Context: Order lifecycle

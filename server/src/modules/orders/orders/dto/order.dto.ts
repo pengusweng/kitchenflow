@@ -13,7 +13,7 @@ import {
   Matches,
   ValidateNested,
 } from 'class-validator';
-import { OrderChannel, PaymentStatus } from '@prisma/client';
+import { OrderChannel } from '@prisma/client';
 
 export class CreateOrderDTO {
   // Client-generated UUID reused unchanged on retries.
@@ -80,17 +80,6 @@ export class CreateOrderDTO {
       'Items from multiple active brands may share one order and ticket.',
   })
   lines: OrderLineDTO[];
-}
-
-export class ConfirmOrderDTO {
-  @ApiPropertyOptional({
-    enum: PaymentStatus,
-    description:
-      'Required for DINE_IN/TAKEAWAY: UNPAID or PAID. Platform orders default to and only accept PAID.',
-  })
-  @IsOptional()
-  @IsEnum(PaymentStatus)
-  payment_status?: PaymentStatus;
 }
 
 export class CancelOrderDTO {

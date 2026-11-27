@@ -37,36 +37,24 @@ Feature: Order catalog and payment rules
       | using infinite component quantity |
 
   @UT-ORD-004
-  Scenario Outline: Accept each supported internal payment combination
+  Scenario Outline: Leave internal orders unpaid on confirmation
     Given a <channel> draft
-    When it is verified with <method> and <status>
-    Then verification preserves that payment without updating the order
+    When it is confirmed
+    Then the order stays UNPAID and no payment is saved
     Examples:
-      | channel  | method   | status |
-      | DINE_IN  | CASH     | UNPAID |
-      | DINE_IN  | CASH     | PAID   |
-      | DINE_IN  | E_WALLET | UNPAID |
-      | DINE_IN  | E_WALLET | PAID   |
-      | DINE_IN  | CARD     | UNPAID |
-      | DINE_IN  | CARD     | PAID   |
-      | TAKEAWAY | CASH     | UNPAID |
-      | TAKEAWAY | CASH     | PAID   |
-      | TAKEAWAY | E_WALLET | UNPAID |
-      | TAKEAWAY | E_WALLET | PAID   |
-      | TAKEAWAY | CARD     | UNPAID |
-      | TAKEAWAY | CARD     | PAID   |
+      | channel  |
+      | DINE_IN  |
+      | TAKEAWAY |
 
   @UT-ORD-005
-  Scenario Outline: Reject incompatible payment
-    Given a <channel> draft
-    When confirmation requests <method> and <status>
-    Then the service returns a bad request without snapshot or ticket writes
+  Scenario Outline: Never pay a platform order twice
+    Given a <channel> order that is already confirmed and paid
+    When confirmation is retried
+    Then the saved order is returned without saving another payment
     Examples:
-      | channel   | method           | status   |
-      | TAKEAWAY  | PLATFORM_SETTLED | PAID     |
-      | DINE_IN   | CASH             | REFUNDED |
-      | GRABFOOD  | CASH             | PAID     |
-      | FOODPANDA | PLATFORM_SETTLED | UNPAID   |
+      | channel   |
+      | GRABFOOD  |
+      | FOODPANDA |
 
   @UT-ORD-006
   Scenario Outline: Reject missing operational references
