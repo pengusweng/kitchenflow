@@ -234,6 +234,11 @@ export class OrdersService {
         lines,
         tx,
       );
+
+      // Prices are fixed at confirmation, so the subtotal is computed from the
+      // same snapshots that were just saved.
+      const subtotal = this.items.subtotal(lines);
+
       const sequence = await this.repository.nextTicketNumber(tx);
       if (
         !sequence ||
@@ -261,7 +266,7 @@ export class OrdersService {
         orderId,
         OrderStatus.CONFIRMED,
         OrderStatus.DRAFT,
-        { confirmed_at: new Date(), ...payment },
+        { confirmed_at: new Date(), subtotal, ...payment },
         tx,
       );
       return this.response(confirmed);

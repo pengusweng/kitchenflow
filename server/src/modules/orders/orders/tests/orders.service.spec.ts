@@ -595,6 +595,8 @@ describe('OrdersService', () => {
         status: 'CONFIRMED',
         confirmed_at: expect.any(Date) as Date,
         modified_at: expect.any(Date) as Date,
+        // 2 × (12 channel price + 2 modifier)
+        subtotal: new Prisma.Decimal(28),
         ...payment,
       },
       include: {

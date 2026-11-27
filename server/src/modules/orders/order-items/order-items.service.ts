@@ -110,6 +110,24 @@ export class OrderItemsService {
     }
   }
 
+  /** The order's subtotal: every line's total added together, before discounts. */
+  subtotal(lines: ItemSnapshot[]): Prisma.Decimal {
+    return lines.reduce(
+      (subtotal, line) => subtotal.plus(this.lineTotal(line)),
+      new Prisma.Decimal(0),
+    );
+  }
+
+  /** quantity × (unit price + each modifier's additional price) */
+  private lineTotal(line: ItemSnapshot): Prisma.Decimal {
+    const unitPrice = line.modifiers.reduce(
+      (price, modifier) => price.plus(modifier.additional_price),
+      new Prisma.Decimal(line.unit_price),
+    );
+
+    return unitPrice.times(line.quantity);
+  }
+
   private validatePrice(price: Prisma.Decimal) {
     if (!price.isFinite() || price.lt(0) || price.gt('9999999999.99'))
       throw new BadRequestException(
