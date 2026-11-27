@@ -165,48 +165,61 @@ class _RecentOrdersMasterPaneState
                   for (var i = 0; i < _channels.length; i++) ...[
                     if (i > 0) const SizedBox(width: KkfcSpace.s8),
                     Center(
-                      child: FilterChip(
-                        label: Text(
-                          _channels[i],
-                          style: TextStyle(
-                            fontFamily: KkfcFonts.ibmPlexSans,
-                            fontSize: KkfcTextSizes.textXs,
-                            fontWeight:
-                                state.channelFilter.toLowerCase() ==
-                                    _channels[i].toLowerCase()
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            color:
-                                state.channelFilter.toLowerCase() ==
-                                    _channels[i].toLowerCase()
-                                ? Colors.white
-                                : KkfcColors.ink2,
-                          ),
-                        ),
-                        selected:
+                      child: AnimatedScale(
+                        scale:
                             state.channelFilter.toLowerCase() ==
-                            _channels[i].toLowerCase(),
-                        showCheckmark: false,
-                        backgroundColor: KkfcColors.surfaceSubtle,
-                        selectedColor: KkfcColors.shell,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(KkfcRadius.pill),
-                          side: BorderSide(
-                            color:
-                                state.channelFilter.toLowerCase() ==
-                                    _channels[i].toLowerCase()
-                                ? KkfcColors.shell
-                                : KkfcColors.border,
-                            width: 1.0,
+                                _channels[i].toLowerCase()
+                            ? 1.03
+                            : 1.0,
+                        duration: KkfcMotion.durMicro,
+                        curve: KkfcMotion.easeOut,
+                        child: FilterChip(
+                          label: AnimatedDefaultTextStyle(
+                            duration: KkfcMotion.durMicro,
+                            curve: KkfcMotion.easeOut,
+                            style: TextStyle(
+                              fontFamily: KkfcFonts.ibmPlexSans,
+                              fontSize: KkfcTextSizes.textXs,
+                              fontWeight:
+                                  state.channelFilter.toLowerCase() ==
+                                      _channels[i].toLowerCase()
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color:
+                                  state.channelFilter.toLowerCase() ==
+                                      _channels[i].toLowerCase()
+                                  ? Colors.white
+                                  : KkfcColors.ink2,
+                            ),
+                            child: Text(_channels[i]),
                           ),
+                          selected:
+                              state.channelFilter.toLowerCase() ==
+                              _channels[i].toLowerCase(),
+                          showCheckmark: false,
+                          backgroundColor: KkfcColors.surfaceSubtle,
+                          selectedColor: KkfcColors.shell,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              KkfcRadius.pill,
+                            ),
+                            side: BorderSide(
+                              color:
+                                  state.channelFilter.toLowerCase() ==
+                                      _channels[i].toLowerCase()
+                                  ? KkfcColors.shell
+                                  : KkfcColors.border,
+                              width: 1.0,
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: KkfcSpace.s8,
+                            vertical: KkfcSpace.s2,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (_) =>
+                              notifier.setChannelFilter(_channels[i]),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: KkfcSpace.s8,
-                          vertical: KkfcSpace.s2,
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        onSelected: (_) =>
-                            notifier.setChannelFilter(_channels[i]),
                       ),
                     ),
                   ],
@@ -221,64 +234,102 @@ class _RecentOrdersMasterPaneState
             color: KkfcColors.divider,
           ),
 
-          // 4. Order List
+          // 4. Order List with animated switching on tab & filter changes
           Expanded(
-            child: filteredOrders.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(KkfcSpace.s24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.receipt_long_outlined,
-                            size: 48.0,
-                            color: KkfcColors.ink3.withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(height: KkfcSpace.s12),
-                          Text(
-                            state.searchQuery.isEmpty
-                                ? 'No ${state.selectedTab.label.toLowerCase()} orders'
-                                : 'No orders matching "${state.searchQuery}"',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontFamily: KkfcFonts.ibmPlexSans,
-                              fontSize: KkfcTextSizes.textBase,
-                              fontWeight: FontWeight.w600,
-                              color: KkfcColors.ink2,
-                            ),
-                          ),
-                          const SizedBox(height: KkfcSpace.s4),
-                          const Text(
-                            'Try selecting a different tab or resetting filters.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: KkfcFonts.ibmPlexSans,
-                              fontSize: KkfcTextSizes.textSm,
-                              color: KkfcColors.ink3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: KkfcSpace.s16),
-                    itemCount: filteredOrders.length,
-                    itemBuilder: (context, index) {
-                      final order = filteredOrders[index];
-                      final isSelected = selectedOrder?.id == order.id;
-
-                      return RecentOrderCard(
-                        order: order,
-                        isSelected: isSelected,
-                        onTap: () {
-                          notifier.selectOrder(order.id);
-                          widget.onOrderSelected(order);
-                        },
-                      );
-                    },
+            child: AnimatedSwitcher(
+              duration: KkfcMotion.durScreen,
+              switchInCurve: KkfcMotion.easeOut,
+              switchOutCurve: KkfcMotion.easeIn,
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [...previousChildren, ?currentChild],
+                );
+              },
+              transitionBuilder: (child, animation) {
+                if (MediaQuery.disableAnimationsOf(context)) {
+                  return child;
+                }
+                final inCurve = CurvedAnimation(
+                  parent: animation,
+                  curve: KkfcMotion.easeOut,
+                  reverseCurve: KkfcMotion.easeIn,
+                );
+                return FadeTransition(
+                  opacity: inCurve,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.0, 0.025),
+                      end: Offset.zero,
+                    ).animate(inCurve),
+                    child: child,
                   ),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey(
+                  'orders-list-${state.selectedTab.name}-${state.channelFilter}',
+                ),
+                child: filteredOrders.isEmpty
+                    ? Center(
+                        key: const ValueKey('orders-empty-state'),
+                        child: Padding(
+                          padding: const EdgeInsets.all(KkfcSpace.s24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.receipt_long_outlined,
+                                size: 48.0,
+                                color: KkfcColors.ink3.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: KkfcSpace.s12),
+                              Text(
+                                state.searchQuery.isEmpty
+                                    ? 'No ${state.selectedTab.label.toLowerCase()} orders'
+                                    : 'No orders matching "${state.searchQuery}"',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontFamily: KkfcFonts.ibmPlexSans,
+                                  fontSize: KkfcTextSizes.textBase,
+                                  fontWeight: FontWeight.w600,
+                                  color: KkfcColors.ink2,
+                                ),
+                              ),
+                              const SizedBox(height: KkfcSpace.s4),
+                              const Text(
+                                'Try selecting a different tab or resetting filters.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: KkfcFonts.ibmPlexSans,
+                                  fontSize: KkfcTextSizes.textSm,
+                                  color: KkfcColors.ink3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        key: const ValueKey('orders-list-view'),
+                        padding: const EdgeInsets.only(bottom: KkfcSpace.s16),
+                        itemCount: filteredOrders.length,
+                        itemBuilder: (context, index) {
+                          final order = filteredOrders[index];
+                          final isSelected = selectedOrder?.id == order.id;
+
+                          return RecentOrderCard(
+                            order: order,
+                            isSelected: isSelected,
+                            onTap: () {
+                              notifier.selectOrder(order.id);
+                              widget.onOrderSelected(order);
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ),
           ),
         ],
       ),
@@ -295,7 +346,10 @@ class _RecentOrdersMasterPaneState
     return InkWell(
       key: key,
       onTap: onTap,
-      child: Container(
+      borderRadius: BorderRadius.circular(KkfcRadius.sm),
+      child: AnimatedContainer(
+        duration: KkfcMotion.durMicro,
+        curve: KkfcMotion.easeOut,
         padding: const EdgeInsets.symmetric(
           vertical: KkfcSpace.s12,
           horizontal: KkfcSpace.s4,
@@ -311,19 +365,21 @@ class _RecentOrdersMasterPaneState
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            RichText(
-              text: TextSpan(
-                text: tab.label,
-                style: TextStyle(
-                  fontFamily: KkfcFonts.ibmPlexSans,
-                  fontSize: 15.0,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? KkfcColors.ink : KkfcColors.ink3,
-                ),
+            AnimatedDefaultTextStyle(
+              duration: KkfcMotion.durMicro,
+              curve: KkfcMotion.easeOut,
+              style: TextStyle(
+                fontFamily: KkfcFonts.ibmPlexSans,
+                fontSize: 15.0,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? KkfcColors.ink : KkfcColors.ink3,
               ),
+              child: Text(tab.label),
             ),
             const SizedBox(width: KkfcSpace.s8),
-            Container(
+            AnimatedContainer(
+              duration: KkfcMotion.durMicro,
+              curve: KkfcMotion.easeOut,
               padding: const EdgeInsets.symmetric(
                 horizontal: 6.0,
                 vertical: 2.0,
@@ -336,14 +392,16 @@ class _RecentOrdersMasterPaneState
                   width: 1.0,
                 ),
               ),
-              child: Text(
-                count.toString(),
+              child: AnimatedDefaultTextStyle(
+                duration: KkfcMotion.durMicro,
+                curve: KkfcMotion.easeOut,
                 style: TextStyle(
                   fontFamily: KkfcFonts.ibmPlexSans,
                   fontSize: 11.0,
                   fontWeight: FontWeight.w600,
                   color: isSelected ? Colors.white : KkfcColors.ink3,
                 ),
+                child: Text(count.toString()),
               ),
             ),
           ],

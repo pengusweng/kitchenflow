@@ -199,7 +199,11 @@ class _ResponsiveMenuLayoutState extends ConsumerState<_ResponsiveMenuLayout>
                                 letterSpacing: 0.2,
                               ),
                             ),
-                            onPressed: () => context.push(AppRoutes.orders),
+                            onPressed: () {
+                              if (GoRouter.maybeOf(context) != null) {
+                                context.push(AppRoutes.orders);
+                              }
+                            },
                           ),
                         ),
 

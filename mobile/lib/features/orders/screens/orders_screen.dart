@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/app/routes.dart';
+import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/features/orders/presentation/widgets/recent_order_detail_pane.dart';
 import 'package:mobile/features/orders/presentation/widgets/recent_orders_master_pane.dart';
 import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
@@ -79,7 +80,28 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                             ),
                           ),
                           Expanded(
-                            child: RecentOrderDetailPane(order: selectedOrder),
+                            child: AnimatedSwitcher(
+                              duration: KkfcMotion.durScreen,
+                              switchInCurve: KkfcMotion.easeOut,
+                              switchOutCurve: KkfcMotion.easeIn,
+                              transitionBuilder: (child, animation) {
+                                if (MediaQuery.disableAnimationsOf(context)) {
+                                  return child;
+                                }
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                              child: KeyedSubtree(
+                                key: ValueKey(
+                                  selectedOrder?.id ?? 'empty-detail',
+                                ),
+                                child: RecentOrderDetailPane(
+                                  order: selectedOrder,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       );
