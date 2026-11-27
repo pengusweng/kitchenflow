@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:mobile/app/routes.dart';
 import 'package:mobile/app/theme/theme.dart';
 import 'package:mobile/core/auth/token_store.dart';
 import 'package:mobile/features/auth/data/repository/auth_repository.dart';
 import 'package:mobile/features/auth/providers/session_provider.dart';
 import 'package:mobile/features/orders/screens/orders_screen.dart';
+import 'package:mobile/shared/widgets/logout_button.dart';
 
 class _FakeAuthRepository extends AuthRepository {
   _FakeAuthRepository() : super(Dio(), TokenStore());
@@ -62,6 +62,8 @@ void main() {
         expired: true,
       );
 
+      await tester.tap(find.byType(LogoutButton));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Logout'));
       await tester.pump();
 
@@ -78,6 +80,8 @@ void main() {
     final repo = _FakeAuthRepository();
     final container = await _pumpOrders(tester, repo);
 
+    await tester.tap(find.byType(LogoutButton));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Logout'));
     await tester.pump();
 
@@ -86,9 +90,8 @@ void main() {
   });
 
   testWidgets(
-    'WT-MOB-ORDERS-003 opens the live cancel screen with the entered order UUID',
+    'WT-MOB-ORDERS-003 opens the live cancel screen from an open order',
     (tester) async {
-      const orderId = '11111111-1111-4111-8111-111111111111';
       final router = GoRouter(
         initialLocation: AppRoutes.orders,
         routes: [
@@ -113,13 +116,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Cancel a real order (live API, QA)'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), orderId);
-      await tester.tap(find.text('Open'));
+      // Switch to open orders tab
+      await tester.tap(find.byKey(const Key('recent-orders-tab-open')));
       await tester.pumpAndSettle();
 
-      expect(find.text('order=$orderId'), findsOneWidget);
+      // Tap Cancel Order button in detail pane
+      await tester.tap(find.text('Cancel Order'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('order=ord-1001-1633'), findsOneWidget);
     },
   );
 

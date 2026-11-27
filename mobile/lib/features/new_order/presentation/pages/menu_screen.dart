@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/app/routes.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_bar.dart';
@@ -197,7 +199,7 @@ class _ResponsiveMenuLayoutState extends ConsumerState<_ResponsiveMenuLayout>
                                 letterSpacing: 0.2,
                               ),
                             ),
-                            onPressed: () {},
+                            onPressed: () => context.push(AppRoutes.orders),
                           ),
                         ),
 
