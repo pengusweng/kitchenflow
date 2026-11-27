@@ -65,7 +65,7 @@ export class PaymentsService {
 
     this.assertPayable(order);
     this.assertMethodFitsChannel(dto.payment_method, order.order_channel);
-    this.assertAmountMatchesSubtotal(dto.amount, order.subtotal);
+    this.assertAmountMatchesTotal(dto.amount, order.total);
 
     if (dto.payment_method === PaymentMethod.CASH) {
       this.validateCashPayment(dto.amount, dto.amount_tendered);
@@ -196,14 +196,12 @@ export class PaymentsService {
     }
   }
 
-  private assertAmountMatchesSubtotal(
-    amount: number,
-    subtotal: Prisma.Decimal,
-  ) {
-    if (!subtotal.equals(amount)) {
+  // The total is the subtotal less any senior citizen or PWD discount.
+  private assertAmountMatchesTotal(amount: number, total: Prisma.Decimal) {
+    if (!total.equals(amount)) {
       throw new BadRequestException({
-        code: 'AMOUNT_DOES_NOT_MATCH_SUBTOTAL',
-        message: `Amount must equal the order subtotal of ${subtotal.toFixed(2)}.`,
+        code: 'AMOUNT_DOES_NOT_MATCH_TOTAL',
+        message: `Amount must equal the order total of ${total.toFixed(2)}.`,
       });
     }
   }

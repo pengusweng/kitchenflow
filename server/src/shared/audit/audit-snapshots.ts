@@ -11,6 +11,7 @@ type SnapshotModel =
   | 'brand'
   | 'order'
   | 'payment'
+  | 'orderDiscount'
   | 'menuItem'
   | 'menuItemChannel'
   | 'modifier'
@@ -76,6 +77,19 @@ export const SNAPSHOT_CONFIGS: Readonly<Record<string, SnapshotConfig>> = {
       'amount',
       'amount_tendered',
       'paid_at',
+    ],
+  },
+  // The holder's ID number and name are personal data and stay out (forbidden).
+  order_discounts: {
+    model: 'orderDiscount',
+    key: 'order_discount_id',
+    fields: [
+      'order_id',
+      'applied_by_id',
+      'discount_type',
+      'vat_exempt_amount',
+      'discount_amount',
+      'applied_at',
     ],
   },
   menu_items: {
@@ -162,6 +176,8 @@ export const FORBIDDEN_SNAPSHOT_FIELDS: readonly string[] = [
   'recipe_id',
   'recipe_snapshot',
   'payment_reference',
+  'id_number',
+  'holder_name',
   'notes',
   'cancellation_reason',
 ];

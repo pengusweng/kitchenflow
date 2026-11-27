@@ -411,6 +411,7 @@ describe('OrdersService', () => {
             include: { order_item_modifiers_order_item: true },
           },
           kitchen_tickets_order: true,
+          discount_order: true,
         },
       });
     },
@@ -599,12 +600,14 @@ describe('OrdersService', () => {
         modified_at: expect.any(Date) as Date,
         // 2 × (12 channel price + 2 modifier)
         subtotal: new Prisma.Decimal(28),
+        total: new Prisma.Decimal(28),
       },
       include: {
         order_items_order: {
           include: { order_item_modifiers_order_item: true },
         },
         kitchen_tickets_order: true,
+        discount_order: true,
       },
     });
     expect(
@@ -805,6 +808,7 @@ describe('OrdersService', () => {
           include: { order_item_modifiers_order_item: true },
         },
         kitchen_tickets_order: true,
+        discount_order: true,
       },
     });
     expect(tx.order.create).not.toHaveBeenCalled();

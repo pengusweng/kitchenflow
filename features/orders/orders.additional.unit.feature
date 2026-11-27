@@ -129,7 +129,7 @@ Feature: Additional orders unit coverage
     Test Case ID: UT-ORD-018
     Given a valid draft with channel pricing, modifiers, and recipe components
     When confirmation is requested
-    Then prices, the subtotal and complete recipe snapshots are saved with a ticket and no stock effects
+    Then prices, the subtotal, a total equal to the subtotal and complete recipe snapshots are saved with a ticket and no stock effects
 
   # Jest: server/src/modules/orders/orders/orders.service.spec.ts
   # Context: Order lifecycle

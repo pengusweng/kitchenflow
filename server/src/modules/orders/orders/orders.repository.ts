@@ -17,6 +17,7 @@ import type { CreateOrderDTO } from './dto/order.dto';
 const includeOrder = {
   order_items_order: { include: { order_item_modifiers_order_item: true } },
   kitchen_tickets_order: true,
+  discount_order: true,
 } satisfies Prisma.OrderInclude;
 export type SavedOrder = Prisma.OrderGetPayload<{
   include: typeof includeOrder;
@@ -291,6 +292,17 @@ export class OrdersRepository {
     return tx.order.update({
       where: { order_id: orderId },
       data: { payment_status: PaymentStatus.PAID, modified_at: new Date() },
+    });
+  }
+
+  setTotal(
+    orderId: string,
+    total: Prisma.Decimal,
+    tx: Prisma.TransactionClient,
+  ) {
+    return tx.order.update({
+      where: { order_id: orderId },
+      data: { total, modified_at: new Date() },
     });
   }
 

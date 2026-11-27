@@ -1,6 +1,7 @@
 import { ApiProperty, OmitType } from '@nestjs/swagger';
 import {
   OrderChannel,
+  DiscountType,
   OrderStatus,
   PaymentStatus,
   KitchenTicketStatus,
@@ -110,6 +111,32 @@ export class OrderTicketResponseDTO {
   modified_at: string;
 }
 
+export class OrderDiscountResponseDTO {
+  @ApiProperty({ type: String, format: 'uuid' })
+  order_discount_id: string;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  applied_by_id: string;
+
+  @ApiProperty({ type: String, enum: DiscountType })
+  discount_type: DiscountType;
+
+  @ApiProperty({ type: String, example: 'OSCA-2026-001234' })
+  id_number: string;
+
+  @ApiProperty({ type: String, example: 'Juan Dela Cruz' })
+  holder_name: string;
+
+  @ApiProperty({ type: String, example: '60' })
+  vat_exempt_amount: string;
+
+  @ApiProperty({ type: String, example: '100' })
+  discount_amount: string;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  applied_at: string;
+}
+
 export class OrderResponseDTO {
   @ApiProperty({ type: 'integer', minimum: 1 })
   order_number: number;
@@ -147,6 +174,21 @@ export class OrderResponseDTO {
   @ApiProperty({ type: String, enum: PaymentStatus })
   payment_status: PaymentStatus;
 
+  @ApiProperty({
+    type: String,
+    example: '560',
+    description: 'Sum of the lines before any discount. Set on confirmation.',
+  })
+  subtotal: string;
+
+  @ApiProperty({
+    type: String,
+    example: '400',
+    description:
+      'Amount due: the subtotal less any senior citizen or PWD discount. The payment must match it.',
+  })
+  total: string;
+
   @ApiProperty({ type: String, nullable: true })
   notes: string | null;
 
@@ -176,6 +218,9 @@ export class OrderResponseDTO {
 
   @ApiProperty({ type: OrderTicketResponseDTO, nullable: true })
   kitchen_tickets_order: OrderTicketResponseDTO | null;
+
+  @ApiProperty({ type: OrderDiscountResponseDTO, nullable: true })
+  discount_order: OrderDiscountResponseDTO | null;
 }
 
 export class OrderListResponseDTO {
@@ -201,6 +246,7 @@ export class OrderBrandResponseDTO {
 export class OrderSummaryResponseDTO extends OmitType(OrderResponseDTO, [
   'order_items_order',
   'kitchen_tickets_order',
+  'discount_order',
 ] as const) {
   @ApiProperty({ type: OrderBrandResponseDTO })
   brand: OrderBrandResponseDTO;
