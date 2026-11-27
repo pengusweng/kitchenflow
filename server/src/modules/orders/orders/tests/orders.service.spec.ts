@@ -5,10 +5,11 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import { OrdersRepository } from '../orders.repository';
 import { OrdersService } from '../orders.service';
+import { PaymentsRepository } from '../../../payments/payments.repository';
 import { CreateOrderDTO } from '../dto/order.dto';
 
 function adapterError(originalCode: string, kind = 'TransactionWriteConflict') {
@@ -18,7 +19,6 @@ function adapterError(originalCode: string, kind = 'TransactionWriteConflict') {
 }
 
 describe('OrdersService', () => {
-  const payment = { payment_status: 'UNPAID' } as const;
   const request: CreateOrderDTO = {
     order_id: 'order',
     order_channel: 'TAKEAWAY',
@@ -103,6 +103,15 @@ describe('OrdersService', () => {
       orderItem: { update: jest.fn() },
       orderItemModifier: { update: jest.fn() },
       kitchenTicket: { create: jest.fn(), update: jest.fn() },
+      payment: {
+        create: jest.fn(({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({
+            payment_id: 'payment',
+            ...data,
+            received_by: { first_name: 'Juan', last_name: 'Dela Cruz' },
+          }),
+        ),
+      },
       $queryRaw: jest.fn().mockResolvedValue([
         {
           number: 14n,
@@ -126,6 +135,7 @@ describe('OrdersService', () => {
     service = new OrdersService(
       new OrdersRepository(prisma as unknown as PrismaService),
       new OrderItemsService(new OrderItemsRepository()),
+      new PaymentsRepository(prisma as unknown as PrismaService),
     );
   });
 
@@ -188,11 +198,9 @@ describe('OrdersService', () => {
           }),
         );
       } else if (operation === 'verify') {
-        expect(
-          (await service.verify('brand', 'order', payment)).lines,
-        ).toHaveLength(2);
+        expect((await service.verify('brand', 'order')).lines).toHaveLength(2);
       } else {
-        await service.confirm('brand', 'order', 'actor', payment);
+        await service.confirm('brand', 'order', 'actor');
         expect(tx.orderItem.update).toHaveBeenCalledTimes(2);
         expect(tx.kitchenTicket.create).toHaveBeenCalledTimes(1);
       }
@@ -216,10 +224,10 @@ describe('OrdersService', () => {
         menu_item_channels_menu_item: [],
       });
       if (operation === 'verify') {
-        const result = await service.verify('brand', 'order', payment);
+        const result = await service.verify('brand', 'order');
         expect(result.lines[0].unit_price.toString()).toBe('10');
       } else {
-        await service.confirm('brand', 'order', 'actor', payment);
+        await service.confirm('brand', 'order', 'actor');
         const saved = (tx.orderItem.update.mock.calls as unknown[][])[0][0] as {
           data: { unit_price: Prisma.Decimal };
         };
@@ -240,8 +248,8 @@ describe('OrdersService', () => {
       });
       const result =
         operation === 'verify'
-          ? service.verify('brand', 'order', payment)
-          : service.confirm('brand', 'order', 'actor', payment);
+          ? service.verify('brand', 'order')
+          : service.confirm('brand', 'order', 'actor');
       await expect(result).rejects.toThrow(
         'Menu item is unavailable on this channel.',
       );
@@ -262,50 +270,48 @@ describe('OrdersService', () => {
         recipe: invalidRecipe,
       });
       await expect(
-        service.confirm('brand', 'order', 'actor', payment),
+        service.confirm('brand', 'order', 'actor'),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(tx.orderItem.update).not.toHaveBeenCalled();
       expect(tx.kitchenTicket.create).not.toHaveBeenCalled();
     },
   );
 
-  it.each(
-    (['DINE_IN', 'TAKEAWAY'] as const).flatMap((channel) =>
-      (['UNPAID', 'PAID'] as const).map((payment_status) => ({
-        channel,
-        payment_status,
-      })),
-    ),
-  )(
-    'UT-ORD-004 Given $channel with $payment_status When verifying Then preserve payment',
-    async ({ channel, ...inputs }) => {
+  it.each(['DINE_IN', 'TAKEAWAY'] as const)(
+    'UT-ORD-004 Given a %s draft When confirming Then leave it UNPAID without saving a payment',
+    async (channel) => {
       tx.order.findFirst.mockResolvedValue({
         ...draft,
         order_channel: channel,
       });
+
+      await service.confirm('brand', 'order', 'actor');
+
+      expect(tx.payment.create).not.toHaveBeenCalled();
+      expect(tx.order.update).toHaveBeenCalledTimes(1);
+      expect(
+        ((tx.order.update.mock.calls as unknown[][])[0][0] as { data: object })
+          .data,
+      ).not.toHaveProperty('payment_status');
+    },
+  );
+
+  it.each(['GRABFOOD', 'FOODPANDA'] as const)(
+    'UT-ORD-005 Given a confirmed %s order When confirming again Then return it without saving another payment',
+    async (channel) => {
+      tx.order.findFirst.mockResolvedValue({
+        ...draft,
+        order_channel: channel,
+        status: 'CONFIRMED',
+        payment_status: 'PAID',
+        kitchen_tickets_order: { ticket_number: 'T-014' },
+      });
+
       await expect(
-        service.verify('brand', 'order', inputs),
-      ).resolves.toMatchObject(inputs);
+        service.confirm('brand', 'order', 'actor'),
+      ).resolves.toMatchObject({ status: 'CONFIRMED', payment_status: 'PAID' });
+      expect(tx.payment.create).not.toHaveBeenCalled();
       expect(tx.order.update).not.toHaveBeenCalled();
-    },
-  );
-
-  it.each([
-    { channel: 'TAKEAWAY' },
-    { channel: 'DINE_IN', payment_status: 'REFUNDED' },
-    { channel: 'FOODPANDA', payment_status: 'UNPAID' },
-  ] as const)(
-    'UT-ORD-005 Given incompatible $channel payment When confirming Then reject without writes',
-    async ({ channel, ...inputs }) => {
-      tx.order.findFirst.mockResolvedValue({
-        ...draft,
-        order_channel: channel,
-      });
-      await expect(
-        service.confirm('brand', 'order', 'actor', inputs),
-      ).rejects.toBeInstanceOf(BadRequestException);
-      expect(tx.orderItem.update).not.toHaveBeenCalled();
-      expect(tx.kitchenTicket.create).not.toHaveBeenCalled();
     },
   );
 
@@ -333,7 +339,6 @@ describe('OrdersService', () => {
     {
       order_channel: 'DINE_IN',
       references: { table_reference: 'Table 3' },
-      settlement: {},
     },
     {
       order_channel: 'GRABFOOD',
@@ -341,7 +346,6 @@ describe('OrdersService', () => {
         merchant_store_reference: 'grab-store',
         external_order_reference: 'grab-order',
       },
-      settlement: { payment_status: 'PAID' },
     },
     {
       order_channel: 'FOODPANDA',
@@ -349,11 +353,10 @@ describe('OrdersService', () => {
         merchant_store_reference: 'panda-store',
         external_order_reference: 'panda-order',
       },
-      settlement: { payment_status: 'PAID' },
     },
   ] as const)(
     'UT-ORD-043: persists $order_channel draft fields and validated item snapshots',
-    async ({ order_channel, references, settlement }) => {
+    async ({ order_channel, references }) => {
       tx.order.findFirst.mockResolvedValue(null);
       const dto: CreateOrderDTO = {
         ...request,
@@ -382,7 +385,6 @@ describe('OrdersService', () => {
           create_request_hash: expect.stringMatching(
             /^[a-f0-9]{64}$/,
           ) as string,
-          ...settlement,
           order_items_order: {
             create: [
               {
@@ -437,7 +439,7 @@ describe('OrdersService', () => {
   });
 
   it('UT-ORD-011: verifies without persisting any effects or exposing recipe instructions', async () => {
-    const result = await service.verify('brand', 'order', payment);
+    const result = await service.verify('brand', 'order');
     expect(result.valid).toBe(true);
     expect(JSON.stringify(result)).not.toContain('Restricted');
     expect(tx.orderItem.update).not.toHaveBeenCalled();
@@ -536,10 +538,10 @@ describe('OrdersService', () => {
 
   it.each([
     { name: 'create', run: () => service.create('brand', 'actor', request) },
-    { name: 'verify', run: () => service.verify('brand', 'order', payment) },
+    { name: 'verify', run: () => service.verify('brand', 'order') },
     {
       name: 'confirm',
-      run: () => service.confirm('brand', 'order', 'actor', payment),
+      run: () => service.confirm('brand', 'order', 'actor'),
     },
   ])(
     'UT-ORD-016: $name rejects an inactive menu modifier before writing',
@@ -563,10 +565,10 @@ describe('OrdersService', () => {
 
   it.each([
     { name: 'create', run: () => service.create('brand', 'actor', request) },
-    { name: 'verify', run: () => service.verify('brand', 'order', payment) },
+    { name: 'verify', run: () => service.verify('brand', 'order') },
     {
       name: 'confirm',
-      run: () => service.confirm('brand', 'order', 'actor', payment),
+      run: () => service.confirm('brand', 'order', 'actor'),
     },
   ])(
     'UT-ORD-017: $name rejects an unavailable menu item before writing',
@@ -587,7 +589,7 @@ describe('OrdersService', () => {
   );
 
   it('UT-ORD-018: confirms with channel price, modifier and full recipe snapshots', async () => {
-    const result = await service.confirm('brand', 'order', 'actor', payment);
+    const result = await service.confirm('brand', 'order', 'actor');
     expect(result.status).toBe('CONFIRMED');
     expect(tx.order.update).toHaveBeenCalledWith({
       where: { order_id: 'order', status: 'DRAFT' },
@@ -595,7 +597,8 @@ describe('OrdersService', () => {
         status: 'CONFIRMED',
         confirmed_at: expect.any(Date) as Date,
         modified_at: expect.any(Date) as Date,
-        ...payment,
+        // 2 × (12 channel price + 2 modifier)
+        subtotal: new Prisma.Decimal(28),
       },
       include: {
         order_items_order: {
@@ -644,7 +647,7 @@ describe('OrdersService', () => {
       status: 'CONFIRMED',
       kitchen_tickets_order: { ticket_number: 'T-014' },
     });
-    const result = await service.confirm('brand', 'order', 'actor', {});
+    const result = await service.confirm('brand', 'order', 'actor');
     expect(result.kitchen_tickets_order?.ticket_number).toBe('T-014');
     expect(tx.menuItem.findFirst).not.toHaveBeenCalled();
     expect(tx.kitchenTicket.create).not.toHaveBeenCalled();
@@ -663,7 +666,7 @@ describe('OrdersService', () => {
       status: 'CONFIRMED',
       kitchen_tickets_order: { ticket_number: 'T-014' },
     });
-    const result = await service.confirm('brand', 'order', 'actor', payment);
+    const result = await service.confirm('brand', 'order', 'actor');
     expect(result.kitchen_tickets_order?.ticket_number).toBe('T-014');
     expect(prisma.$transaction).toHaveBeenCalledTimes(2);
     expect(tx.kitchenTicket.create).not.toHaveBeenCalled();
@@ -671,9 +674,9 @@ describe('OrdersService', () => {
 
   it('UT-ORD-021: does not mark an order confirmed when ticket insertion fails', async () => {
     tx.kitchenTicket.create.mockRejectedValue(new Error('database failure'));
-    await expect(
-      service.confirm('brand', 'order', 'actor', payment),
-    ).rejects.toThrow('database failure');
+    await expect(service.confirm('brand', 'order', 'actor')).rejects.toThrow(
+      'database failure',
+    );
     expect(tx.order.update).not.toHaveBeenCalled();
   });
 
@@ -686,7 +689,7 @@ describe('OrdersService', () => {
     'UT-ORD-022: formats ticket %s without truncation or numeric precision loss',
     async (number, ticket) => {
       tx.$queryRaw.mockResolvedValue([{ number }]);
-      await service.confirm('brand', 'order', 'actor', payment);
+      await service.confirm('brand', 'order', 'actor');
       expect(tx.kitchenTicket.create).toHaveBeenCalledWith({
         data: {
           order_id: 'order',
@@ -707,9 +710,9 @@ describe('OrdersService', () => {
     'UT-ORD-023: rejects an invalid sequence result ($name) without issuing a ticket',
     async ({ rows }) => {
       tx.$queryRaw.mockResolvedValue(rows);
-      await expect(
-        service.confirm('brand', 'order', 'actor', payment),
-      ).rejects.toThrow('Ticket sequence returned an invalid number.');
+      await expect(service.confirm('brand', 'order', 'actor')).rejects.toThrow(
+        'Ticket sequence returned an invalid number.',
+      );
       expect(tx.kitchenTicket.create).not.toHaveBeenCalled();
       expect(tx.order.update).not.toHaveBeenCalled();
     },
@@ -723,7 +726,7 @@ describe('OrdersService', () => {
         order_items_order: [{ ...draft.order_items_order[0], quantity }],
       });
       await expect(
-        service.confirm('brand', 'order', 'actor', payment),
+        service.confirm('brand', 'order', 'actor'),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(tx.orderItem.update).not.toHaveBeenCalled();
       expect(tx.kitchenTicket.create).not.toHaveBeenCalled();
@@ -746,7 +749,7 @@ describe('OrdersService', () => {
         ],
       });
       await expect(
-        service.confirm('brand', 'order', 'actor', payment),
+        service.confirm('brand', 'order', 'actor'),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(tx.orderItem.update).not.toHaveBeenCalled();
     },
@@ -761,7 +764,7 @@ describe('OrdersService', () => {
     async (state) => {
       tx.order.findFirst.mockResolvedValue({ ...draft, ...state });
       await expect(
-        service.confirm('brand', 'order', 'actor', payment),
+        service.confirm('brand', 'order', 'actor'),
       ).rejects.toBeInstanceOf(ConflictException);
       expect(tx.kitchenTicket.create).not.toHaveBeenCalled();
       expect(tx.orderItem.update).not.toHaveBeenCalled();
@@ -776,7 +779,7 @@ describe('OrdersService', () => {
       }),
     );
     await expect(
-      service.confirm('brand', 'order', 'actor', payment),
+      service.confirm('brand', 'order', 'actor'),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(prisma.$transaction).toHaveBeenCalledTimes(5);
     expect(tx.kitchenTicket.create).not.toHaveBeenCalled();
@@ -817,13 +820,10 @@ describe('OrdersService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('UT-ORD-030: rejects invalid payment and unavailable modifiers before writing', async () => {
-    await expect(
-      service.confirm('brand', 'order', 'actor', {}),
-    ).rejects.toBeInstanceOf(BadRequestException);
+  it('UT-ORD-030: rejects unavailable menu items before writing', async () => {
     tx.menuItem.findFirst.mockResolvedValue(null);
     await expect(
-      service.confirm('brand', 'order', 'actor', payment),
+      service.confirm('brand', 'order', 'actor'),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(tx.orderItem.update).not.toHaveBeenCalled();
   });
@@ -831,7 +831,7 @@ describe('OrdersService', () => {
   it('UT-ORD-031: does not expose orders outside the requested brand', async () => {
     tx.order.findFirst.mockResolvedValue(null);
     await expect(
-      service.confirm('other', 'order', 'actor', payment),
+      service.confirm('other', 'order', 'actor'),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(tx.order.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -841,18 +841,31 @@ describe('OrdersService', () => {
   });
 
   it.each(['GRABFOOD', 'FOODPANDA'] as const)(
-    'UT-ORD-032: forces platform settlement for %s',
+    'UT-ORD-032: pays a %s order with a PLATFORM_SETTLED payment for its subtotal on confirmation',
     async (channel) => {
       tx.order.findFirst.mockResolvedValue({
         ...draft,
         order_channel: channel,
+        external_order_reference: 'platform-order',
       });
-      await service.confirm('brand', 'order', 'actor', {});
-      expect(
-        ((tx.order.update.mock.calls as unknown[][])[0][0] as { data: unknown })
-          .data,
-      ).toMatchObject({
-        payment_status: 'PAID',
+
+      await service.confirm('brand', 'order', 'actor');
+
+      expect(tx.payment.create).toHaveBeenCalledWith({
+        data: {
+          payment_method: PaymentMethod.PLATFORM_SETTLED,
+          // 2 × (12 channel price + 2 modifier)
+          amount: 28,
+          amount_tendered: 28,
+          payment_reference: 'platform-order',
+          order_id: 'order',
+          received_by_id: 'actor',
+        },
+        include: expect.any(Object) as object,
+      });
+      expect(tx.order.update).toHaveBeenCalledWith({
+        where: { order_id: 'order' },
+        data: { payment_status: 'PAID', modified_at: expect.any(Date) as Date },
       });
     },
   );
@@ -949,7 +962,7 @@ describe('OrdersService', () => {
           },
         );
         await expect(
-          service.confirm('brand', 'order', 'actor', payment),
+          service.confirm('brand', 'order', 'actor'),
         ).resolves.toMatchObject({ status: 'CONFIRMED' });
         expect(tx.order.findFirst).toHaveBeenCalledTimes(2);
         expect(prisma.$transaction).toHaveBeenCalledTimes(2);
@@ -961,7 +974,7 @@ describe('OrdersService', () => {
       async ({ error }) => {
         prisma.$transaction.mockRejectedValue(error);
         const result = await service
-          .confirm('brand', 'order', 'actor', payment)
+          .confirm('brand', 'order', 'actor')
           .catch((error: unknown) => error);
         expect(result).toBeInstanceOf(ConflictException);
         expect((result as ConflictException).getResponse()).toEqual({
@@ -988,9 +1001,9 @@ describe('OrdersService', () => {
       'UT-ORD-009: propagates non-retryable errors without replaying confirmation (%s)',
       async (error) => {
         prisma.$transaction.mockRejectedValue(error);
-        await expect(
-          service.confirm('brand', 'order', 'actor', payment),
-        ).rejects.toBe(error);
+        await expect(service.confirm('brand', 'order', 'actor')).rejects.toBe(
+          error,
+        );
         expect(prisma.$transaction).toHaveBeenCalledTimes(1);
         expect(tx.kitchenTicket.create).not.toHaveBeenCalled();
       },
@@ -1005,6 +1018,7 @@ describe('OrdersService', () => {
       service = new OrdersService(
         new OrdersRepository(tx as unknown as PrismaService),
         new OrderItemsService(new OrderItemsRepository()),
+        new PaymentsRepository(tx as unknown as PrismaService),
       );
     });
 
@@ -1296,6 +1310,7 @@ describe('OrdersService', () => {
       reads = new OrdersService(
         new OrdersRepository(tx as unknown as PrismaService),
         new OrderItemsService(new OrderItemsRepository()),
+        new PaymentsRepository(tx as unknown as PrismaService),
       );
     });
 
@@ -1407,6 +1422,7 @@ describe('OrdersService', () => {
       overview = new OrdersService(
         new OrdersRepository(root as unknown as PrismaService),
         new OrderItemsService(new OrderItemsRepository()),
+        new PaymentsRepository(root as unknown as PrismaService),
       );
     });
 

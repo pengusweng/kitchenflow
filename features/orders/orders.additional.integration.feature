@@ -314,3 +314,25 @@ Feature: Additional orders integration coverage
     Given an invalid page, limit or search, or a filter the endpoint does not accept
     When GET /orders/unpaid/today is called
     Then the response is 400 before calling the orders service
+
+  # Jest: server/src/modules/orders/orders/tests/orders.http.spec.ts
+  # Context: Orders HTTP endpoints (PostgreSQL integration)
+  @IT-ORD-055
+  Scenario: Ignores a payment status sent by an old client on confirmation
+    Test Case ID: IT-ORD-055
+    Given a takeaway draft and a request body with payment_status PAID
+    When POST confirm is called
+    Then the response is 200, the order is CONFIRMED and still UNPAID, and no payment is saved
+
+  # Jest: server/src/modules/orders/orders/tests/orders.http.spec.ts
+  # Context: Orders HTTP endpoints (PostgreSQL integration)
+  @IT-ORD-056
+  Scenario Outline: Pays platform orders on confirmation
+    Test Case ID: IT-ORD-056
+    Given a <channel> draft with a channel price
+    When POST confirm is called by a cashier
+    Then the order is PAID and a PLATFORM_SETTLED payment for the subtotal is saved with the platform order reference, received by that cashier
+    Examples:
+      | channel   |
+      | GRABFOOD  |
+      | FOODPANDA |

@@ -129,7 +129,7 @@ Feature: Additional orders unit coverage
     Test Case ID: UT-ORD-018
     Given a valid draft with channel pricing, modifiers, and recipe components
     When confirmation is requested
-    Then prices and complete recipe snapshots are saved with a ticket and no stock effects
+    Then prices, the subtotal and complete recipe snapshots are saved with a ticket and no stock effects
 
   # Jest: server/src/modules/orders/orders/orders.service.spec.ts
   # Context: Order lifecycle
@@ -233,9 +233,9 @@ Feature: Additional orders unit coverage
   # Jest: server/src/modules/orders/orders/orders.service.spec.ts
   # Context: Order lifecycle
   @UT-ORD-030
-  Scenario: Reject invalid payment or missing menu entries before writing
+  Scenario: Reject missing menu entries before writing
     Test Case ID: UT-ORD-030
-    Given an invalid payment or missing menu item
+    Given a draft whose menu item is missing
     When confirmation is requested
     Then the request is rejected before writing
 
@@ -251,11 +251,11 @@ Feature: Additional orders unit coverage
   # Jest: server/src/modules/orders/orders/orders.service.spec.ts
   # Context: Order lifecycle
   @UT-ORD-032
-  Scenario: Enforce platform settlement for GrabFood and Foodpanda orders
+  Scenario: Pay GrabFood and Foodpanda orders on confirmation
     Test Case ID: UT-ORD-032
-    Given a GrabFood or Foodpanda order
+    Given a GrabFood or Foodpanda draft
     When confirmation is requested
-    Then platform-settled payment semantics are enforced
+    Then a PLATFORM_SETTLED payment for the subtotal is saved with the platform order reference, received by the confirming user, and the order is marked PAID
 
   # Jest: server/src/modules/orders/orders/orders.service.spec.ts
   # Context: Order lifecycle
@@ -346,3 +346,18 @@ Feature: Additional orders unit coverage
     Given the order cancellation write fails
     When the order is cancelled
     Then the failure propagates without touching the kitchen ticket
+
+  # Jest: server/src/modules/orders/order-items/tests/order-items.service.spec.ts
+  # Context: Order subtotal
+  @UT-ORD-062
+  Scenario Outline: Compute the order subtotal from line snapshots
+    Test Case ID: UT-ORD-062
+    Given <lines>
+    When the subtotal is computed
+    Then the subtotal is <subtotal> pesos
+    Examples:
+      | lines                                                            | subtotal |
+      | 2 items at 189 with a 15 modifier and 1 item at 25 with none      | 433.00   |
+      | 3 items at 50 with modifiers of 10 and 5                          | 195.00   |
+      | 1 item at 0.10 and 1 item at 0.20                                 | 0.30     |
+      | no lines                                                         | 0.00     |

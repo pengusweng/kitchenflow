@@ -3,9 +3,15 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
-import { OrdersRepository } from '../../orders/orders.repository';
-import { UsersRepository } from '../../../users/users.repository';
+import {
+  OrderChannel,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  Prisma,
+} from '@prisma/client';
+import { OrdersRepository } from '../../orders/orders/orders.repository';
+import { UsersRepository } from '../../users/users.repository';
 import { FindPaymentsDTO } from '../dto/find-payments.dto';
 import { CreatePaymentDTO } from '../dto/payment.dto';
 import { PaymentsRepository } from '../payments.repository';
@@ -21,15 +27,51 @@ describe('PaymentsService', () => {
     findOne: jest.Mock;
     findAll: jest.Mock;
   };
-  let ordersRepository: { findById: jest.Mock };
+  let ordersRepository: {
+    findById: jest.Mock;
+    markPaid: jest.Mock;
+    transaction: jest.Mock;
+  };
   let usersRepository: { findOne: jest.Mock };
   let service: PaymentsService;
 
+  // Non-cash payments carry a reference by default, as the service requires.
   function payment(
     payment_method: PaymentMethod,
     amount_tendered: number,
   ): CreatePaymentDTO {
-    return { payment_method, amount: 250, amount_tendered };
+    return payment_method === PaymentMethod.CASH
+      ? { payment_method, amount: 250, amount_tendered }
+      : {
+          payment_method,
+          amount: 250,
+          amount_tendered,
+          payment_reference: 'REF-1234',
+        };
+  }
+
+  // A confirmed, unpaid dine-in order with a subtotal of 250 pesos.
+  function order(overrides: object = {}) {
+    return {
+      order_id: orderId,
+      status: OrderStatus.CONFIRMED,
+      order_channel: OrderChannel.DINE_IN,
+      payment_status: PaymentStatus.UNPAID,
+      subtotal: new Prisma.Decimal(250),
+      ...overrides,
+    };
+  }
+
+  // Platform-settled payments only belong to GrabFood and Foodpanda orders.
+  function orderPaidWith(method: PaymentMethod) {
+    return method === PaymentMethod.PLATFORM_SETTLED
+      ? order({ order_channel: OrderChannel.GRABFOOD })
+      : order();
+  }
+
+  function expectNothingWritten() {
+    expect(paymentsRepository.create).not.toHaveBeenCalled();
+    expect(ordersRepository.markPaid).not.toHaveBeenCalled();
   }
 
   beforeEach(() => {
@@ -48,10 +90,11 @@ describe('PaymentsService', () => {
       findAll: jest.fn().mockResolvedValue({ payments: [], total: 0 }),
     };
     ordersRepository = {
-      findById: jest.fn().mockResolvedValue({
-        order_id: orderId,
-        payment_status: PaymentStatus.UNPAID,
-      }),
+      findById: jest.fn().mockResolvedValue(order()),
+      markPaid: jest.fn().mockResolvedValue({}),
+      transaction: jest.fn(
+        (work: (tx: Prisma.TransactionClient) => Promise<unknown>) => work(tx),
+      ),
     };
     usersRepository = {
       findOne: jest.fn().mockResolvedValue({ user_id: receivedById }),
@@ -69,7 +112,7 @@ describe('PaymentsService', () => {
     await expect(
       service.create(payment(PaymentMethod.CASH, 250), orderId, receivedById),
     ).rejects.toBeInstanceOf(NotFoundException);
-    expect(paymentsRepository.create).not.toHaveBeenCalled();
+    expectNothingWritten();
   });
 
   it('UT-PAY-002: rejects a payment received by a missing or inactive user without writing', async () => {
@@ -81,9 +124,9 @@ describe('PaymentsService', () => {
     expect(usersRepository.findOne).toHaveBeenCalledWith(
       receivedById,
       true,
-      undefined,
+      tx,
     );
-    expect(paymentsRepository.create).not.toHaveBeenCalled();
+    expectNothingWritten();
   });
 
   it.each([250, 300])(
@@ -125,7 +168,7 @@ describe('PaymentsService', () => {
     await expect(result).rejects.toMatchObject({
       response: { code: 'INSUFFICIENT_AMOUNT_TENDERED' },
     });
-    expect(paymentsRepository.create).not.toHaveBeenCalled();
+    expectNothingWritten();
   });
 
   it.each([
@@ -133,6 +176,7 @@ describe('PaymentsService', () => {
     PaymentMethod.E_WALLET,
     PaymentMethod.PLATFORM_SETTLED,
   ])('UT-PAY-005: accepts an exact %s payment', async (method) => {
+    ordersRepository.findById.mockResolvedValue(orderPaidWith(method));
     const dto = payment(method, 250);
 
     await expect(
@@ -142,7 +186,7 @@ describe('PaymentsService', () => {
       dto,
       orderId,
       receivedById,
-      undefined,
+      tx,
     );
   });
 
@@ -156,6 +200,7 @@ describe('PaymentsService', () => {
   ])(
     'UT-PAY-006: rejects %s with %d pesos tendered for 250 pesos as AMOUNT_TENDERED_MISMATCH',
     async (method, tendered) => {
+      ordersRepository.findById.mockResolvedValue(orderPaidWith(method));
       const result = service.create(
         payment(method, tendered),
         orderId,
@@ -166,7 +211,7 @@ describe('PaymentsService', () => {
       await expect(result).rejects.toMatchObject({
         response: { code: 'AMOUNT_TENDERED_MISMATCH' },
       });
-      expect(paymentsRepository.create).not.toHaveBeenCalled();
+      expectNothingWritten();
     },
   );
 
@@ -176,10 +221,7 @@ describe('PaymentsService', () => {
   ])(
     'UT-PAY-014: rejects a payment for a %s order as %s without writing',
     async (payment_status, code) => {
-      ordersRepository.findById.mockResolvedValue({
-        order_id: orderId,
-        payment_status,
-      });
+      ordersRepository.findById.mockResolvedValue(order({ payment_status }));
       const result = service.create(
         payment(PaymentMethod.CASH, 250),
         orderId,
@@ -188,7 +230,151 @@ describe('PaymentsService', () => {
 
       await expect(result).rejects.toBeInstanceOf(ConflictException);
       await expect(result).rejects.toMatchObject({ response: { code } });
-      expect(paymentsRepository.create).not.toHaveBeenCalled();
+      expectNothingWritten();
+    },
+  );
+
+  it.each([
+    [PaymentMethod.CARD, undefined],
+    [PaymentMethod.CARD, ''],
+    [PaymentMethod.E_WALLET, undefined],
+    [PaymentMethod.E_WALLET, ''],
+    [PaymentMethod.PLATFORM_SETTLED, undefined],
+    [PaymentMethod.PLATFORM_SETTLED, ''],
+  ])(
+    'UT-PAY-015: rejects %s with payment reference %p as PAYMENT_REFERENCE_REQUIRED without writing',
+    async (method, payment_reference) => {
+      ordersRepository.findById.mockResolvedValue(orderPaidWith(method));
+      const result = service.create(
+        { ...payment(method, 250), payment_reference },
+        orderId,
+        receivedById,
+      );
+
+      await expect(result).rejects.toBeInstanceOf(BadRequestException);
+      await expect(result).rejects.toMatchObject({
+        response: { code: 'PAYMENT_REFERENCE_REQUIRED' },
+      });
+      expectNothingWritten();
+    },
+  );
+
+  it('UT-PAY-016: accepts cash without a payment reference', async () => {
+    const dto = payment(PaymentMethod.CASH, 300);
+
+    await expect(
+      service.create(dto, orderId, receivedById),
+    ).resolves.toMatchObject({ payment_method: PaymentMethod.CASH });
+    expect(dto).not.toHaveProperty('payment_reference');
+    expect(paymentsRepository.create).toHaveBeenCalledWith(
+      dto,
+      orderId,
+      receivedById,
+      tx,
+    );
+  });
+
+  it('UT-PAY-017: saves the payment and marks the order PAID in a new transaction', async () => {
+    await service.create(
+      payment(PaymentMethod.CASH, 300),
+      orderId,
+      receivedById,
+    );
+
+    expect(ordersRepository.transaction).toHaveBeenCalledTimes(1);
+    expect(paymentsRepository.create).toHaveBeenCalledWith(
+      expect.anything(),
+      orderId,
+      receivedById,
+      tx,
+    );
+    expect(ordersRepository.markPaid).toHaveBeenCalledWith(orderId, tx);
+  });
+
+  it('UT-PAY-018: reuses the given transaction instead of opening one', async () => {
+    await service.create(
+      payment(PaymentMethod.CASH, 300),
+      orderId,
+      receivedById,
+      tx,
+    );
+
+    expect(ordersRepository.transaction).not.toHaveBeenCalled();
+    expect(ordersRepository.markPaid).toHaveBeenCalledWith(orderId, tx);
+  });
+
+  it.each([
+    [OrderStatus.DRAFT, 'ORDER_NOT_CONFIRMED'],
+    [OrderStatus.CANCELLED, 'ORDER_CANCELLED'],
+  ])(
+    'UT-PAY-019: rejects a payment for a %s order as %s without writing',
+    async (status, code) => {
+      ordersRepository.findById.mockResolvedValue(order({ status }));
+      const result = service.create(
+        payment(PaymentMethod.CASH, 250),
+        orderId,
+        receivedById,
+      );
+
+      await expect(result).rejects.toBeInstanceOf(ConflictException);
+      await expect(result).rejects.toMatchObject({ response: { code } });
+      expectNothingWritten();
+    },
+  );
+
+  it.each([
+    OrderStatus.CONFIRMED,
+    OrderStatus.PREPARING,
+    OrderStatus.COMPLETED,
+  ])('UT-PAY-020: accepts a payment for a %s order', async (status) => {
+    ordersRepository.findById.mockResolvedValue(order({ status }));
+
+    await expect(
+      service.create(payment(PaymentMethod.CASH, 250), orderId, receivedById),
+    ).resolves.toMatchObject({ order_id: orderId });
+    expect(ordersRepository.markPaid).toHaveBeenCalledWith(orderId, tx);
+  });
+
+  it.each([
+    [PaymentMethod.CASH, OrderChannel.GRABFOOD],
+    [PaymentMethod.CARD, OrderChannel.FOODPANDA],
+    [PaymentMethod.PLATFORM_SETTLED, OrderChannel.DINE_IN],
+    [PaymentMethod.PLATFORM_SETTLED, OrderChannel.TAKEAWAY],
+  ])(
+    'UT-PAY-021: rejects a %s payment for a %s order as PAYMENT_METHOD_NOT_ALLOWED without writing',
+    async (method, order_channel) => {
+      ordersRepository.findById.mockResolvedValue(order({ order_channel }));
+      const result = service.create(
+        payment(method, 250),
+        orderId,
+        receivedById,
+      );
+
+      await expect(result).rejects.toBeInstanceOf(BadRequestException);
+      await expect(result).rejects.toMatchObject({
+        response: { code: 'PAYMENT_METHOD_NOT_ALLOWED' },
+      });
+      expectNothingWritten();
+    },
+  );
+
+  it.each(['249.99', '250.01'])(
+    'UT-PAY-022: rejects 250 pesos for a subtotal of %s as AMOUNT_DOES_NOT_MATCH_SUBTOTAL without writing',
+    async (subtotal) => {
+      ordersRepository.findById.mockResolvedValue(
+        order({ subtotal: new Prisma.Decimal(subtotal) }),
+      );
+      const result = service.create(
+        payment(PaymentMethod.CASH, 300),
+        orderId,
+        receivedById,
+      );
+
+      await expect(result).rejects.toBeInstanceOf(BadRequestException);
+      await expect(result).rejects.toMatchObject({
+        response: { code: 'AMOUNT_DOES_NOT_MATCH_SUBTOTAL' },
+      });
+      expectNothingWritten();
     },
   );
 

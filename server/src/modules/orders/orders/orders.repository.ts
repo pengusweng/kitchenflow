@@ -31,7 +31,6 @@ type CreateOrderContext = {
   order_date: Date;
   created_at: Date;
   lines: Awaited<ReturnType<OrderItemsService['snapshots']>>;
-  payment?: { payment_status: PaymentStatus };
 };
 
 export type OrderListFilters = {
@@ -80,7 +79,6 @@ export class OrdersRepository {
         order_date: context.order_date,
         created_at: context.created_at,
         create_request_hash: context.hash,
-        ...context.payment,
         order_items_order: {
           create: context.lines.map((line) => ({
             menu_item_id: line.menu_item_id,
@@ -286,6 +284,13 @@ export class OrdersRepository {
         modified_at: new Date(),
       },
       include: includeOrder,
+    });
+  }
+
+  markPaid(orderId: string, tx: Prisma.TransactionClient) {
+    return tx.order.update({
+      where: { order_id: orderId },
+      data: { payment_status: PaymentStatus.PAID, modified_at: new Date() },
     });
   }
 

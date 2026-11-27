@@ -31,7 +31,7 @@ Feature: Payment creation rules
 
   @UT-PAY-005
   Scenario Outline: Accept exact non-cash payments
-    Given a <method> payment of 250 pesos
+    Given a <method> payment of 250 pesos with a payment reference for an order that fits the method
     When the amount tendered is 250 pesos
     Then the payment is saved with the order and receiving user
     Examples:
@@ -42,7 +42,7 @@ Feature: Payment creation rules
 
   @UT-PAY-006
   Scenario Outline: Reject non-cash payments whose amount tendered differs
-    Given a <method> payment of 250 pesos
+    Given a <method> payment of 250 pesos with a payment reference for an order that fits the method
     When the amount tendered is <tendered> pesos
     Then the service returns AMOUNT_TENDERED_MISMATCH without writing a payment
     Examples:
@@ -118,3 +118,78 @@ Feature: Payment creation rules
       | status   | code                   |
       | PAID     | ORDER_ALREADY_PAID     |
       | REFUNDED | ORDER_ALREADY_REFUNDED |
+
+  @UT-PAY-015
+  Scenario Outline: Require a payment reference for non-cash payments
+    Given a <method> payment with a <reference> payment reference
+    When the payment is created
+    Then the service returns PAYMENT_REFERENCE_REQUIRED without writing a payment
+    Examples:
+      | method           | reference |
+      | CARD             | missing   |
+      | CARD             | empty     |
+      | E_WALLET         | missing   |
+      | E_WALLET         | empty     |
+      | PLATFORM_SETTLED | missing   |
+      | PLATFORM_SETTLED | empty     |
+
+  @UT-PAY-016
+  Scenario: Accept cash without a payment reference
+    Given a cash payment with no payment reference
+    When the payment is created
+    Then the payment is saved with the order and receiving user
+
+  @UT-PAY-017
+  Scenario: Save the payment and mark the order paid together
+    Given a confirmed, unpaid order and no open transaction
+    When a payment is created for that order
+    Then the service opens one transaction that saves the payment and marks the order PAID
+
+  @UT-PAY-018
+  Scenario: Reuse the given transaction
+    Given a confirmed, unpaid order and an open transaction
+    When a payment is created inside that transaction
+    Then the service saves the payment and marks the order PAID without opening another transaction
+
+  @UT-PAY-019
+  Scenario Outline: Reject a payment for an order that cannot be paid yet or anymore
+    Given an order whose status is <status>
+    When a payment is created for that order
+    Then the service returns <code> without writing a payment
+    Examples:
+      | status    | code                |
+      | DRAFT     | ORDER_NOT_CONFIRMED |
+      | CANCELLED | ORDER_CANCELLED     |
+
+  @UT-PAY-020
+  Scenario Outline: Accept a payment any time after confirmation
+    Given an unpaid order whose status is <status>
+    When a payment is created for that order
+    Then the payment is saved and the order is marked PAID
+    Examples:
+      | status    |
+      | CONFIRMED |
+      | PREPARING |
+      | COMPLETED |
+
+  @UT-PAY-021
+  Scenario Outline: Reject a payment method that does not fit the order channel
+    Given an unpaid <channel> order
+    When a <method> payment is created for that order
+    Then the service returns PAYMENT_METHOD_NOT_ALLOWED without writing a payment
+    Examples:
+      | method           | channel   |
+      | CASH             | GRABFOOD  |
+      | CARD             | FOODPANDA |
+      | PLATFORM_SETTLED | DINE_IN   |
+      | PLATFORM_SETTLED | TAKEAWAY  |
+
+  @UT-PAY-022
+  Scenario Outline: Reject an amount that differs from the order subtotal
+    Given an unpaid order with a subtotal of <subtotal> pesos
+    When a payment of 250 pesos is created for that order
+    Then the service returns AMOUNT_DOES_NOT_MATCH_SUBTOTAL without writing a payment
+    Examples:
+      | subtotal |
+      | 249.99   |
+      | 250.01   |

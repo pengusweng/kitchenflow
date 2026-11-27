@@ -26,11 +26,7 @@ import {
 } from '../../auth/auth.guard';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { Roles } from '../../../shared/decorators/roles.decorator';
-import {
-  CreateOrderDTO,
-  ConfirmOrderDTO,
-  CancelOrderDTO,
-} from './dto/order.dto';
+import { CreateOrderDTO, CancelOrderDTO } from './dto/order.dto';
 import { FindOrdersDTO } from './dto/find-orders.dto';
 import { KitchenTicketChanges } from '../../kitchen/kitchen-ticket/kitchen-ticket-changes.service';
 import { OrdersService } from './orders.service';
@@ -99,9 +95,8 @@ export class OrdersController {
   verify(
     @Param('brandId', ParseUUIDPipe) brandId: string,
     @Param('orderId', ParseUUIDPipe) orderId: string,
-    @Body() dto: ConfirmOrderDTO,
   ) {
-    return this.orders.verify(brandId, orderId, dto);
+    return this.orders.verify(brandId, orderId);
   }
 
   @ConfirmOrderDocs()
@@ -116,14 +111,12 @@ export class OrdersController {
   async confirm(
     @Param('brandId', ParseUUIDPipe) brandId: string,
     @Param('orderId', ParseUUIDPipe) orderId: string,
-    @Body() dto: ConfirmOrderDTO,
     @Req() req: AuthenticatedRequest,
   ) {
     const order = await this.orders.confirm(
       brandId,
       orderId,
       req.session.user.user_id,
-      dto,
     );
     // Confirming creates the kitchen ticket; the transaction has committed here.
     this.kitchenTicketChanges.notify();

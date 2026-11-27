@@ -105,7 +105,7 @@ export function VerifyOrderDocs() {
     ApiOperation({
       summary: 'Validate a draft without saving',
       description:
-        'Returns current catalog prices and recipe IDs; does not reserve prices or stock. Only drafts can be verified. Internal orders require payment_status; platform orders may send an empty object.',
+        'Returns current catalog prices and recipe IDs; does not reserve prices or stock. Only drafts can be verified. Send no body.',
     }),
     ApiParam({
       name: 'orderId',
@@ -126,7 +126,7 @@ export function ConfirmOrderDocs() {
     ApiOperation({
       summary: 'Confirm an order and create its kitchen ticket',
       description:
-        'Saves current catalog snapshots and a QUEUED ticket atomically. Repeated confirmation returns the saved order and ticket without changing payment. Internal orders require payment_status; platform orders may send an empty object.',
+        'Saves current catalog snapshots, the subtotal and a QUEUED ticket atomically. Dine-in and takeaway orders stay UNPAID until a payment is recorded through POST /payments/order/{orderId}. GrabFood and Foodpanda orders get a PLATFORM_SETTLED payment for the subtotal and are marked PAID. Repeated confirmation returns the saved order and ticket without creating another payment. Send no body.',
     }),
     ApiParam({
       name: 'orderId',
@@ -137,7 +137,7 @@ export function ConfirmOrderDocs() {
       status: 200,
       type: OrderResponseDTO,
       description:
-        'Saves current catalog snapshots and a QUEUED ticket atomically. Repeated confirmation returns the saved order and ticket without changing payment.',
+        'The confirmed order with its subtotal, payment status and kitchen ticket.',
     }),
     ApiResponse({
       status: 503,

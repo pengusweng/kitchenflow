@@ -68,7 +68,6 @@ export class OrderItemsService {
     return snapshots;
   }
 
-  // The orders service supplies its transaction so confirmation remains atomic.
   async saveSnapshots(
     ids: string[],
     snapshots: ItemSnapshot[],
@@ -109,6 +108,24 @@ export class OrderItemsService {
           'Modifiers must be a unique list of at most 100 IDs.',
         );
     }
+  }
+
+  /** The order's subtotal: every line's total added together, before discounts. */
+  subtotal(lines: ItemSnapshot[]): Prisma.Decimal {
+    return lines.reduce(
+      (subtotal, line) => subtotal.plus(this.lineTotal(line)),
+      new Prisma.Decimal(0),
+    );
+  }
+
+  /** quantity × (unit price + each modifier's additional price) */
+  private lineTotal(line: ItemSnapshot): Prisma.Decimal {
+    const unitPrice = line.modifiers.reduce(
+      (price, modifier) => price.plus(modifier.additional_price),
+      new Prisma.Decimal(line.unit_price),
+    );
+
+    return unitPrice.times(line.quantity);
   }
 
   private validatePrice(price: Prisma.Decimal) {
