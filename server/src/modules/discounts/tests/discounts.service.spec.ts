@@ -94,7 +94,7 @@ describe('DiscountsService', () => {
       expect(ordersRepository.transaction).toHaveBeenCalledTimes(1);
       expect(ordersRepository.findById).toHaveBeenCalledWith(orderId, tx);
       expect(discountsRepository.create).toHaveBeenCalledWith(
-        { ...dto, discount_type, diners: 1, holders: 1 },
+        { ...dto, discount_type },
         {
           vat_exempt_amount: new Prisma.Decimal('60.00'),
           discount_amount: new Prisma.Decimal('100.00'),
@@ -127,53 +127,6 @@ describe('DiscountsService', () => {
       service.apply(dto, orderId, appliedById),
     ).resolves.toMatchObject({ order_id: orderId });
   });
-
-  it('UT-DSC-009: discounts only the holders’ share of a shared bill', async () => {
-    // 560 ÷ 4 = 140; 140 ÷ 1.12 = 125; 20% of 125 = 25.
-    const result = await service.apply(
-      { ...dto, diners: 4, holders: 1 },
-      orderId,
-      appliedById,
-    );
-
-    expect(discountsRepository.create).toHaveBeenCalledWith(
-      { ...dto, diners: 4, holders: 1 },
-      {
-        vat_exempt_amount: new Prisma.Decimal('15.00'),
-        discount_amount: new Prisma.Decimal('25.00'),
-      },
-      orderId,
-      appliedById,
-      tx,
-    );
-    expect(ordersRepository.setTotal).toHaveBeenCalledWith(
-      orderId,
-      new Prisma.Decimal('520.00'),
-      tx,
-    );
-    expect(result).toMatchObject({ total: new Prisma.Decimal('520.00') });
-  });
-
-  it.each([
-    { diners: 2, holders: 3 },
-    { diners: undefined, holders: 2 },
-  ])(
-    'UT-DSC-010: rejects $holders holders among $diners diners as HOLDERS_EXCEED_DINERS without reading the order',
-    async (headcount) => {
-      const result = service.apply(
-        { ...dto, ...headcount },
-        orderId,
-        appliedById,
-      );
-
-      await expect(result).rejects.toBeInstanceOf(BadRequestException);
-      await expect(result).rejects.toMatchObject({
-        response: { code: 'HOLDERS_EXCEED_DINERS' },
-      });
-      expect(ordersRepository.findById).not.toHaveBeenCalled();
-      expectNothingWritten();
-    },
-  );
 
   it('UT-DSC-005: rejects a missing order as ORDER_NOT_FOUND without writing', async () => {
     ordersRepository.findById.mockResolvedValue(null);

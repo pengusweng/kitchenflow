@@ -127,12 +127,6 @@ export class OrderDiscountResponseDTO {
   @ApiProperty({ type: String, example: 'Juan Dela Cruz' })
   holder_name: string;
 
-  @ApiProperty({ type: 'integer', example: 1 })
-  diners: number;
-
-  @ApiProperty({ type: 'integer', example: 1 })
-  holders: number;
-
   @ApiProperty({ type: String, example: '60' })
   vat_exempt_amount: string;
 

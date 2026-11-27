@@ -14,8 +14,6 @@ const discountExample = {
   discount_type: 'SENIOR_CITIZEN',
   id_number: 'OSCA-2026-001234',
   holder_name: 'Juan Dela Cruz',
-  diners: 1,
-  holders: 1,
   vat_exempt_amount: '60',
   discount_amount: '100',
   applied_at: '2026-11-28T04:15:00.000Z',
@@ -40,7 +38,7 @@ export function ApplyDiscountDocs() {
     ApiOperation({
       summary: 'Apply a senior citizen or PWD discount to an order',
       description:
-        'For confirmed, unpaid dine-in and takeaway orders, one discount per order. Only the holders’ share of the bill is discounted: subtotal ÷ diners × holders (both default to 1, i.e. the whole order). VAT (12%) comes off that share first, then 20% of the VAT-exclusive amount. The order total becomes the new amount due, which the payment must match.',
+        'For confirmed, unpaid dine-in and takeaway orders, one discount per order. VAT (12%) comes off the subtotal first, then 20% of the VAT-exclusive amount. The order total becomes the new amount due, which the payment must match.',
     }),
     ApiParam({ name: 'id', format: 'uuid', description: 'Order UUID.' }),
     ApiResponse({
@@ -51,7 +49,7 @@ export function ApplyDiscountDocs() {
     ApiResponse({
       status: 400,
       description:
-        'Invalid UUID or body, HOLDERS_EXCEED_DINERS, or DISCOUNT_NOT_ALLOWED_FOR_PLATFORM for a GrabFood or Foodpanda order.',
+        'Invalid UUID or body, or DISCOUNT_NOT_ALLOWED_FOR_PLATFORM for a GrabFood or Foodpanda order.',
     }),
     ApiResponse({ status: 404, description: 'ORDER_NOT_FOUND.' }),
     ApiResponse({

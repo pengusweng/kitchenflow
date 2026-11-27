@@ -26,27 +26,19 @@ export class DiscountsService {
 
   /** Saves the discount and the order's new amount due, both or neither. */
   async apply(dto: ApplyDiscountDTO, orderId: string, appliedById: string) {
-    // A senior or PWD eating alone is one holder among one diner.
-    const { diners = 1, holders = 1 } = dto;
-
     this.logger.debug(
-      `Applying a ${dto.discount_type} discount to order ${orderId} for ${holders} of ${diners} diners, by ${appliedById}`,
+      `Applying a ${dto.discount_type} discount to order ${orderId}, by ${appliedById}`,
     );
-    this.assertHoldersWithinDiners(holders, diners);
 
     return this.ordersRepository.transaction(async (tx) => {
       const order = await this.ordersRepository.findById(orderId, tx);
       assertExists(order, 'Order', orderId, this.logger);
       this.assertDiscountable(order);
 
-      const { vatExempt, discount, total } = seniorDiscount(
-        order.subtotal,
-        holders,
-        diners,
-      );
+      const { vatExempt, discount, total } = seniorDiscount(order.subtotal);
 
       const saved = await this.discountsRepository.create(
-        { ...dto, diners, holders },
+        dto,
         { vat_exempt_amount: vatExempt, discount_amount: discount },
         orderId,
         appliedById,
@@ -60,15 +52,6 @@ export class DiscountsService {
 
       return { ...saved, total };
     });
-  }
-
-  private assertHoldersWithinDiners(holders: number, diners: number) {
-    if (holders > diners) {
-      throw new BadRequestException({
-        code: 'HOLDERS_EXCEED_DINERS',
-        message: 'Holders must not exceed diners.',
-      });
-    }
   }
 
   // A discount changes what the customer owes, so it must come before payment.

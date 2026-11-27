@@ -87,8 +87,6 @@ export const SNAPSHOT_CONFIGS: Readonly<Record<string, SnapshotConfig>> = {
       'order_id',
       'applied_by_id',
       'discount_type',
-      'diners',
-      'holders',
       'vat_exempt_amount',
       'discount_amount',
       'applied_at',
