@@ -11,7 +11,7 @@ import 'package:mobile/features/orders/screens/orders_screen.dart';
 void main() {
   group('Recent Orders Page Tests', () {
     testWidgets(
-      'displays Open and Closed tabs and DOES NOT contain Voided tab',
+      'WT-MOB-ORDERS-PAGE-001 displays Open and Closed tabs and DOES NOT contain Voided tab',
       (tester) async {
         tester.view.physicalSize = const Size(1200, 900);
         tester.view.devicePixelRatio = 1.0;
@@ -49,7 +49,7 @@ void main() {
     );
 
     testWidgets(
-      'displays split GrabFood and foodpanda channels and no Quick Serve',
+      'WT-MOB-ORDERS-PAGE-002 displays split GrabFood and foodpanda channels and no Quick Serve',
       (tester) async {
         tester.view.physicalSize = const Size(1200, 900);
         tester.view.devicePixelRatio = 1.0;
@@ -75,7 +75,7 @@ void main() {
     );
 
     testWidgets(
-      'detail pane removes components not in backend API and keeps Total',
+      'WT-MOB-ORDERS-PAGE-003 detail pane removes components not in backend API and keeps Total',
       (tester) async {
         tester.view.physicalSize = const Size(1200, 900);
         tester.view.devicePixelRatio = 1.0;
@@ -105,47 +105,8 @@ void main() {
       },
     );
 
-    testWidgets('allows switching between Open and Closed tabs', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1200, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(theme: counterTheme, home: const OrdersScreen()),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Initially Open tab is active: open orders appear
-      expect(find.text('#1001-16330'), findsOneWidget);
-      expect(find.text('#1001-16331'), findsOneWidget);
-      expect(find.text('#1001-16332'), findsOneWidget);
-      expect(find.text('#1001-16333'), findsOneWidget);
-
-      // Tap on #1001-16330 to inspect its details
-      await tester.tap(find.text('#1001-16330'));
-      await tester.pumpAndSettle();
-
-      // Details of open order 1001-16330
-      expect(find.text('Order 1001-16330'), findsOneWidget);
-      expect(find.text('Spicy Glazed Wings (6pcs)'), findsOneWidget);
-      expect(find.text('Cancel Order'), findsOneWidget);
-
-      // Tap on Closed tab
-      await tester.tap(find.byKey(const Key('recent-orders-tab-closed')));
-      await tester.pumpAndSettle();
-
-      // Closed orders should appear
-      expect(find.text('#1001-16329'), findsOneWidget);
-      expect(find.text('Cancel Order'), findsNothing);
-      expect(find.text('#1001-16330'), findsNothing);
-    });
-
     testWidgets(
-      'reopen order button is removed and cancel order is kept on open orders',
+      'WT-MOB-ORDERS-PAGE-004 allows switching between Open and Closed tabs',
       (tester) async {
         tester.view.physicalSize = const Size(1200, 900);
         tester.view.devicePixelRatio = 1.0;
@@ -158,15 +119,55 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Initially open order #1001-16330 is selected: Cancel Order exists, NO Reopen Order button
-        expect(find.text('Cancel Order'), findsOneWidget);
+        // Initially Open tab is active: open orders appear
+        expect(find.text('#1001-16330'), findsOneWidget);
+        expect(find.text('#1001-16331'), findsOneWidget);
+        expect(find.text('#1001-16332'), findsOneWidget);
+        expect(find.text('#1001-16333'), findsOneWidget);
+
+        // Tap on #1001-16330 to inspect its details
+        await tester.tap(find.text('#1001-16330'));
+        await tester.pumpAndSettle();
+
+        // Details of open order 1001-16330
+        expect(find.text('Order 1001-16330'), findsOneWidget);
+        expect(find.text('Spicy Glazed Wings (6pcs)'), findsOneWidget);
+        expect(find.text('Cancel Order'), findsNothing);
+
+        // Tap on Closed tab
+        await tester.tap(find.byKey(const Key('recent-orders-tab-closed')));
+        await tester.pumpAndSettle();
+
+        // Closed orders should appear
+        expect(find.text('#1001-16329'), findsOneWidget);
+        expect(find.text('Cancel Order'), findsNothing);
+        expect(find.text('#1001-16330'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-ORDERS-PAGE-005 reopen order and cancel order buttons are removed from recent orders screen',
+      (tester) async {
+        tester.view.physicalSize = const Size(1200, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(theme: counterTheme, home: const OrdersScreen()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Initially open order #1001-16330 is selected: neither Cancel Order nor Reopen Order exist
+        expect(find.text('Cancel Order'), findsNothing);
         expect(find.text('Reopen Order'), findsNothing);
 
         // Switch to closed orders tab
         await tester.tap(find.byKey(const Key('recent-orders-tab-closed')));
         await tester.pumpAndSettle();
 
-        // Closed orders have neither Reopen Order nor Cancel Order
+        // Closed orders also have neither Reopen Order nor Cancel Order
         expect(find.text('Reopen Order'), findsNothing);
         expect(find.text('Cancel Order'), findsNothing);
 
@@ -174,13 +175,15 @@ void main() {
         await tester.tap(find.byKey(const Key('recent-orders-tab-open')));
         await tester.pumpAndSettle();
 
-        // Open orders keep the Cancel Order button
-        expect(find.text('Cancel Order'), findsOneWidget);
+        // Open orders also do not show Cancel Order
+        expect(find.text('Cancel Order'), findsNothing);
         expect(find.text('Reopen Order'), findsNothing);
       },
     );
 
-    testWidgets('search filters orders dynamically', (tester) async {
+    testWidgets('WT-MOB-ORDERS-PAGE-006 search filters orders dynamically', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1200, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -205,32 +208,33 @@ void main() {
       expect(find.text('#1001-16331'), findsNothing);
     });
 
-    testWidgets('excludes DRAFT orders from state, display, and counts', (
-      tester,
-    ) async {
-      final draftOrder = RecentOrder(
-        id: 'ord-draft-001',
-        orderCode: 'GC-DRAFT-001',
-        ticketNumber: '#DRAFT-001',
-        channel: 'Dine In',
-        tableOrPickup: 'Table 9',
-        tab: RecentOrderTab.open,
-        orderStatus: 'DRAFT',
-        statusLabel: 'Draft',
-        totalCentavos: 1000,
-        createdAt: DateTime.now(),
-        items: const [],
-      );
+    testWidgets(
+      'WT-MOB-ORDERS-PAGE-007 excludes DRAFT orders from state, display, and counts',
+      (tester) async {
+        final draftOrder = RecentOrder(
+          id: 'ord-draft-001',
+          orderCode: 'GC-DRAFT-001',
+          ticketNumber: '#DRAFT-001',
+          channel: 'Dine In',
+          tableOrPickup: 'Table 9',
+          tab: RecentOrderTab.open,
+          orderStatus: 'DRAFT',
+          statusLabel: 'Draft',
+          totalCentavos: 1000,
+          createdAt: DateTime.now(),
+          items: const [],
+        );
 
-      final state = RecentOrdersState(
-        orders: [draftOrder, ...createSampleRecentOrders()],
-      );
+        final state = RecentOrdersState(
+          orders: [draftOrder, ...createSampleRecentOrders()],
+        );
 
-      // Draft orders are never stored in state.orders or returned in filteredOrders
-      expect(state.orders.any((o) => o.isDraft), isFalse);
-      expect(state.filteredOrders.any((o) => o.isDraft), isFalse);
-      expect(state.countForTab(RecentOrderTab.open), 4);
-      expect(state.selectedOrder?.isDraft, isNot(true));
-    });
+        // Draft orders are never stored in state.orders or returned in filteredOrders
+        expect(state.orders.any((o) => o.isDraft), isFalse);
+        expect(state.filteredOrders.any((o) => o.isDraft), isFalse);
+        expect(state.countForTab(RecentOrderTab.open), 4);
+        expect(state.selectedOrder?.isDraft, isNot(true));
+      },
+    );
   });
 }

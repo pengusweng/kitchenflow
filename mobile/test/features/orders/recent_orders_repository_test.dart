@@ -205,7 +205,7 @@ void main() {
     expect(order.items.first.notes, ['Extra sauce on the side']);
   });
 
-  test('fetchRecentOrders strictly removes orders with DRAFT status', () async {
+  test('UT-MOB-ORDERS-REPO-002 fetchRecentOrders strictly removes orders with DRAFT status', () async {
     final adapter = _StubAdapter((options) {
       return _jsonResponse(200, {
         'data': [

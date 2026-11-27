@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:mobile/app/routes.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
 import 'package:mobile/features/orders/data/models/recent_order.dart';
 
 /// Detail pane for Recent Orders, strictly aligned with the backend Orders API:
-/// - Action bar (Cancel Order on open orders)
 /// - Hero summary (Order code, grand total, table/pickup/platform reference)
 /// - Metadata bar (Operational status, Channel, plus optional order notes / cancellation reason)
 /// - Line item breakdown with indented modifiers and special notes
@@ -66,8 +63,8 @@ class RecentOrderDetailPane extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // 1. Action Bar (shown when Cancel Order or mobile Back is available)
-          if (ord.isOpen || onBack != null) ...[
+          // 1. Action Bar (shown when mobile Back is available)
+          if (onBack != null) ...[
             _buildActionBar(context, ord),
             const Divider(
               height: 1.0,
@@ -134,48 +131,11 @@ class RecentOrderDetailPane extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (onBack != null) ...[
+          if (onBack != null)
             IconButton(
               icon: const Icon(Icons.arrow_back, color: KkfcColors.ink),
               tooltip: 'Back to list',
               onPressed: onBack,
-            ),
-            const SizedBox(width: KkfcSpace.s8),
-          ],
-
-          // Primary action: Cancel Order for open orders
-          if (order.isOpen)
-            OutlinedButton.icon(
-              onPressed: () {
-                final brandParam = order.brandId.isNotEmpty
-                    ? 'brandId=${Uri.encodeQueryComponent(order.brandId)}&'
-                    : '';
-                context.go(
-                  '${AppRoutes.cancelOrder}?${brandParam}orderId=${Uri.encodeQueryComponent(order.id)}&orderCode=${Uri.encodeQueryComponent(order.orderCode)}&ticketNumber=${Uri.encodeQueryComponent(order.ticketNumber)}',
-                );
-              },
-              icon: const Icon(
-                Icons.cancel_outlined,
-                size: 16.0,
-                color: Color(0xFFB3261E),
-              ),
-              label: const Text(
-                'Cancel Order',
-                style: TextStyle(color: Color(0xFFB3261E)),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFB3261E),
-                side: BorderSide(
-                  color: const Color(0xFFB3261E).withValues(alpha: 0.5),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(KkfcRadius.sm),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: KkfcSpace.s16,
-                  vertical: KkfcSpace.s8,
-                ),
-              ),
             ),
         ],
       ),

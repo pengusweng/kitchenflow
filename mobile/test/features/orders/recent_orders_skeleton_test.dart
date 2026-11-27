@@ -47,70 +47,73 @@ class _ControllableRecentOrdersRepository extends RecentOrdersRepository {
 
 void main() {
   group('RecentOrdersListSkeleton', () {
-    testWidgets('renders default 6 skeleton cards with shimmer and semantics', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: counterTheme,
-          home: const Scaffold(body: RecentOrdersListSkeleton()),
-        ),
-      );
-
-      // Verify accessible semantics label
-      expect(find.bySemanticsLabel('Loading recent orders'), findsOneWidget);
-
-      // Advance animation slightly to verify shimmer renders
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.byType(RecentOrdersListSkeleton), findsOneWidget);
-      expect(find.byType(RecentOrderCardSkeleton), findsNWidgets(6));
-      expect(
-        find.byKey(const ValueKey('recent-order-skeleton-card-0')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('recent-order-skeleton-card-5')),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('renders specified itemCount of skeleton cards', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: counterTheme,
-          home: const Scaffold(body: RecentOrdersListSkeleton(itemCount: 4)),
-        ),
-      );
-
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.byType(RecentOrdersListSkeleton), findsOneWidget);
-      expect(find.byType(RecentOrderCardSkeleton), findsNWidgets(4));
-    });
-
-    testWidgets('respects disableAnimations / reduceMotion without throwing', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: counterTheme,
-          home: const MediaQuery(
-            data: MediaQueryData(disableAnimations: true),
-            child: Scaffold(body: RecentOrdersListSkeleton()),
+    testWidgets(
+      'WT-MOB-ORDERS-SKEL-001 renders default 6 skeleton cards with shimmer and semantics',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: counterTheme,
+            home: const Scaffold(body: RecentOrdersListSkeleton()),
           ),
-        ),
-      );
+        );
 
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(find.byType(RecentOrdersListSkeleton), findsOneWidget);
-    });
+        // Verify accessible semantics label
+        expect(find.bySemanticsLabel('Loading recent orders'), findsOneWidget);
+
+        // Advance animation slightly to verify shimmer renders
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.byType(RecentOrdersListSkeleton), findsOneWidget);
+        expect(find.byType(RecentOrderCardSkeleton), findsNWidgets(6));
+        expect(
+          find.byKey(const ValueKey('recent-order-skeleton-card-0')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('recent-order-skeleton-card-5')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-ORDERS-SKEL-002 renders specified itemCount of skeleton cards',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: counterTheme,
+            home: const Scaffold(body: RecentOrdersListSkeleton(itemCount: 4)),
+          ),
+        );
+
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.byType(RecentOrdersListSkeleton), findsOneWidget);
+        expect(find.byType(RecentOrderCardSkeleton), findsNWidgets(4));
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-ORDERS-SKEL-003 respects disableAnimations / reduceMotion without throwing',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: counterTheme,
+            home: const MediaQuery(
+              data: MediaQueryData(disableAnimations: true),
+              child: Scaffold(body: RecentOrdersListSkeleton()),
+            ),
+          ),
+        );
+
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(find.byType(RecentOrdersListSkeleton), findsOneWidget);
+      },
+    );
   });
 
   group('Screen switch reload & skeleton integration', () {
     testWidgets(
-      'switching from MenuScreen to OrdersScreen reloads recent orders and displays skeleton loading',
+      'WT-MOB-ORDERS-SKEL-004 switching from MenuScreen to OrdersScreen reloads recent orders and displays skeleton loading',
       (tester) async {
         tester.view.physicalSize = const Size(1200, 900);
         tester.view.devicePixelRatio = 1.0;

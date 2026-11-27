@@ -90,7 +90,7 @@ void main() {
   });
 
   testWidgets(
-    'WT-MOB-ORDERS-003 opens the live cancel screen from an open order',
+    'WT-MOB-ORDERS-003 does not show Cancel Order button in recent orders detail pane',
     (tester) async {
       final router = GoRouter(
         initialLocation: AppRoutes.orders,
@@ -98,12 +98,6 @@ void main() {
           GoRoute(
             path: AppRoutes.orders,
             builder: (context, state) => const OrdersScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.cancelOrder,
-            builder: (context, state) => Scaffold(
-              body: Text('order=${state.uri.queryParameters['orderId']}'),
-            ),
           ),
         ],
       );
@@ -116,11 +110,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap Cancel Order button in detail pane for default unpaid order
-      await tester.tap(find.text('Cancel Order'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('order=ord-1001-16330'), findsOneWidget);
+      expect(find.text('Cancel Order'), findsNothing);
     },
   );
 
