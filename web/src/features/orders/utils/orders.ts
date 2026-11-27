@@ -1,12 +1,14 @@
 import type {
   OrderChannel,
   OrderDetailRecord,
+  OrderPaymentRecord,
   OrderStatus,
   OrderSummaryRecord,
+  PaymentMethod,
   PaymentStatus,
 } from "../schemas/orderSchema";
 
-export type { OrderChannel, OrderStatus, PaymentStatus };
+export type { OrderChannel, OrderStatus, PaymentMethod, PaymentStatus };
 
 /** A row of the orders table. It carries every order column, so the modal can show its summary before the lines load. */
 export type OrderSummary = {
@@ -100,6 +102,13 @@ export type KitchenTicket = {
   handedOverAt: string | null;
 };
 
+/** How an order was paid. */
+export type OrderPayment = {
+  method: PaymentMethod;
+  /** Card, e-wallet or platform reference; cash has none. */
+  reference: string | null;
+};
+
 export type OrderDetail = OrderSummary & {
   items: OrderItem[];
   ticket: KitchenTicket | null;
@@ -161,6 +170,17 @@ export function toOrderDetail(summary: OrderSummary, record: OrderDetailRecord):
       : null,
   };
 }
+
+export function toOrderPayment(record: OrderPaymentRecord): OrderPayment {
+  return { method: record.payment_method, reference: record.payment_reference };
+}
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  CASH: "Cash",
+  E_WALLET: "E-wallet",
+  CARD: "Card",
+  PLATFORM_SETTLED: "Settled by platform",
+};
 
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 

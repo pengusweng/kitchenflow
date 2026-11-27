@@ -7,8 +7,10 @@ import DetailRow from "@/src/components/ui/molecules/detail-row";
 import {
   CHANNEL_LABEL,
   formatPlacedAt,
+  PAYMENT_METHOD_LABEL,
   type KitchenTicket,
   type OrderDetail,
+  type OrderPayment,
   type OrderSummary,
 } from "../../utils/orders";
 import OrderStatusBadge from "../atoms/order-status-badge";
@@ -24,6 +26,8 @@ type OrderDetailModalProps = {
   detail: OrderDetail | null;
   /** Why the lines couldn't load, if they couldn't. */
   error?: string | null;
+  /** How the order was paid, once loaded; null while unpaid or hidden from this role. */
+  payment?: OrderPayment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenTicket?: (ticket: KitchenTicket, order: OrderDetail) => void;
@@ -49,6 +53,7 @@ export default function OrderDetailModal({
   order,
   detail,
   error = null,
+  payment = null,
   open,
   onOpenChange,
   onOpenTicket,
@@ -99,7 +104,13 @@ export default function OrderDetailModal({
                 </time>
               </DetailRow>
               <DetailRow label="Payment">
-                <PaymentStatus payment={shown.payment} />
+                <span className="flex flex-col gap-0.5">
+                  <span className="flex flex-wrap items-baseline gap-x-1.5">
+                    <PaymentStatus payment={shown.payment} />
+                    {payment ? <span className="text-ink-muted">· {PAYMENT_METHOD_LABEL[payment.method]}</span> : null}
+                  </span>
+                  {payment?.reference ? <Code>{payment.reference}</Code> : null}
+                </span>
               </DetailRow>
               {shown.notes ? <DetailRow label="Order note">{shown.notes}</DetailRow> : null}
             </dl>

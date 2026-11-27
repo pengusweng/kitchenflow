@@ -1,9 +1,11 @@
 import {
   brandsPageSchema,
   orderDetailSchema,
+  orderPaymentSchema,
   ordersPageSchema,
   type BrandsPage,
   type OrderDetailRecord,
+  type OrderPaymentRecord,
   type OrdersPage,
   type OrderStatus,
   type PaymentStatus,
@@ -76,6 +78,20 @@ export async function getOrder(brandId: string, orderId: string): Promise<OrderD
 
   const result = orderDetailSchema.safeParse(body);
   if (!result.success) throw new Error("The server returned an invalid order.");
+  return result.data;
+}
+
+/**
+ * The order's payment, or null when there is none to show: the order has no
+ * payment yet (404) or the viewer's role cannot read payments (403).
+ */
+export async function getOrderPayment(orderId: string): Promise<OrderPaymentRecord | null> {
+  const { status: code, body } = await getJson(`/api/payments/order/${encodeURIComponent(orderId)}`);
+  if (code === 403 || code === 404) return null;
+  if (code < 200 || code >= 300) throw new Error("Unable to load this payment. Please try again.");
+
+  const result = orderPaymentSchema.safeParse(body);
+  if (!result.success) throw new Error("The server returned an invalid payment.");
   return result.data;
 }
 
