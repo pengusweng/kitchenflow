@@ -195,7 +195,7 @@ void main() {
     expect(order.ticketNumber, 'T-001');
     expect(order.channel, 'Dine In');
     expect(order.tableOrPickup, 'Table 12');
-    expect(order.tab, RecentOrderTab.unpaid);
+    expect(order.tab, RecentOrderTab.open);
     expect(order.statusLabel, 'Preparing in kitchen');
     // 2 * (185.00 + 25.00) = 420.00 PHP = 42000 centavos
     expect(order.totalCentavos, 42000);
@@ -298,7 +298,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 1. Default Unpaid tab displays backend order GC-00101 (Ticket T-101)
+      // 1. Default Open tab displays backend order GC-00101 (Ticket T-101) and GC-00102 (Ticket T-102)
       expect(find.text('T-101'), findsOneWidget);
       expect(find.text('Order GC-00101'), findsOneWidget);
       expect(find.text('Table 8'), findsOneWidget);
@@ -312,16 +312,10 @@ void main() {
       expect(find.textContaining('Last Modified:'), findsNothing);
       expect(find.textContaining('Due'), findsNothing);
 
-      // 2. Switch to Paid tab -> displays GC-00102 (Ticket T-102)
-      await tester.tap(find.byKey(const Key('recent-orders-tab-paid')));
-      await tester.pumpAndSettle();
-
+      // Both unpaid and paid open orders appear on the Open tab
       expect(find.text('T-102'), findsOneWidget);
-      expect(find.text('Order GC-00102'), findsOneWidget);
-      expect(find.text('Order #GF-5501'), findsOneWidget);
-      expect(find.text('Bulgogi Rice Bowl'), findsOneWidget);
 
-      // 3. Switch to Closed tab -> displays GC-00103 (Ticket T-103)
+      // 2. Switch to Closed tab -> displays GC-00103 (Ticket T-103)
       await tester.tap(find.byKey(const Key('recent-orders-tab-closed')));
       await tester.pumpAndSettle();
 

@@ -189,7 +189,7 @@ void main() {
             tableOrPickup: 'Table 12',
             orderStatus: 'CONFIRMED',
             statusLabel: 'Received',
-            tab: RecentOrderTab.unpaid,
+            tab: RecentOrderTab.open,
             totalCentavos: 88800,
             paymentStatus: 'UNPAID',
             createdAt: DateTime.now(),

@@ -12,7 +12,7 @@ import 'package:mobile/features/orders/data/seed/sample_recent_orders.dart';
 class RecentOrdersState {
   const RecentOrdersState({
     required this.orders,
-    this.selectedTab = RecentOrderTab.unpaid,
+    this.selectedTab = RecentOrderTab.open,
     this.searchQuery = '',
     this.channelFilter = 'All',
     this.selectedOrderId,
@@ -134,7 +134,7 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
     Future.microtask(loadOrders);
     return RecentOrdersState(
       orders: createSampleRecentOrders(),
-      selectedTab: RecentOrderTab.unpaid,
+      selectedTab: RecentOrderTab.open,
       selectedOrderId: 'ord-1001-16330',
     );
   }

@@ -155,7 +155,7 @@ List<RecentOrder> createSampleRecentOrders() {
       ],
     ),
 
-    // --- Unpaid Open Orders ---
+    // --- Open Orders ---
     RecentOrder(
       id: 'ord-1001-16330',
       brandId: 'brand-gc',
@@ -164,7 +164,7 @@ List<RecentOrder> createSampleRecentOrders() {
       ticketNumber: '#1001-16330',
       channel: 'Dine In',
       tableOrPickup: 'Table 5',
-      tab: RecentOrderTab.unpaid,
+      tab: RecentOrderTab.open,
       orderStatus: 'PREPARING',
       statusLabel: 'Preparing in kitchen',
       totalCentavos: 5250,
@@ -200,7 +200,7 @@ List<RecentOrder> createSampleRecentOrders() {
       ticketNumber: '#1001-16331',
       channel: 'Takeaway',
       tableOrPickup: 'Pick Up',
-      tab: RecentOrderTab.unpaid,
+      tab: RecentOrderTab.open,
       orderStatus: 'CONFIRMED',
       statusLabel: 'Ready for handover',
       totalCentavos: 3350,
@@ -221,8 +221,6 @@ List<RecentOrder> createSampleRecentOrders() {
         ),
       ],
     ),
-
-    // --- Paid Open Orders ---
     RecentOrder(
       id: 'ord-1001-16332',
       brandId: 'brand-gc',
@@ -231,7 +229,7 @@ List<RecentOrder> createSampleRecentOrders() {
       ticketNumber: '#1001-16332',
       channel: 'GrabFood',
       tableOrPickup: 'Order #GF-8841',
-      tab: RecentOrderTab.paid,
+      tab: RecentOrderTab.open,
       orderStatus: 'PREPARING',
       statusLabel: 'Preparing in kitchen',
       totalCentavos: 7800,
@@ -259,7 +257,7 @@ List<RecentOrder> createSampleRecentOrders() {
       ticketNumber: '#1001-16333',
       channel: 'foodpanda',
       tableOrPickup: 'Order #FP-4410',
-      tab: RecentOrderTab.paid,
+      tab: RecentOrderTab.open,
       orderStatus: 'PREPARING',
       statusLabel: 'Preparing in kitchen',
       totalCentavos: 4200,

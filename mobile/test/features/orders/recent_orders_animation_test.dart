@@ -42,13 +42,13 @@ void main() {
     (tester) async {
       await _pumpOrders(tester);
 
-      // Initially on unpaid tab: order 1001-16330 is visible
+      // Initially on open tab: order 1001-16330 is visible
       expect(find.text('#1001-16330'), findsOneWidget);
 
-      // Tap Paid tab
-      final paidTab = find.byKey(const Key('recent-orders-tab-paid'));
-      expect(paidTab, findsOneWidget);
-      await tester.tap(paidTab);
+      // Tap Closed tab
+      final closedTab = find.byKey(const Key('recent-orders-tab-closed'));
+      expect(closedTab, findsOneWidget);
+      await tester.tap(closedTab);
 
       // Advance halfway through the 240ms screen/tab transition
       await tester.pump(const Duration(milliseconds: 120));
@@ -60,8 +60,8 @@ void main() {
       // Settle transition
       await tester.pumpAndSettle();
 
-      // Paid orders are now fully active
-      expect(find.text('#1001-16332'), findsOneWidget);
+      // Closed orders are now fully active
+      expect(find.text('#1001-16329'), findsOneWidget);
     },
   );
 

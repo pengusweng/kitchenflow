@@ -8,7 +8,7 @@ import 'package:mobile/features/orders/screens/orders_screen.dart';
 void main() {
   group('Recent Orders Page Tests', () {
     testWidgets(
-      'displays Paid, Unpaid, and Closed tabs and DOES NOT contain Voided tab',
+      'displays Open and Closed tabs and DOES NOT contain Voided tab',
       (tester) async {
         tester.view.physicalSize = const Size(1200, 900);
         tester.view.devicePixelRatio = 1.0;
@@ -27,24 +27,21 @@ void main() {
           findsOneWidget,
         );
 
-        // Paid, Unpaid, and Closed tabs exist
+        // Open and Closed tabs exist
         expect(find.byType(RecentOrdersMasterPane), findsOneWidget);
-        expect(find.byKey(const Key('recent-orders-tab-paid')), findsOneWidget);
-        expect(
-          find.byKey(const Key('recent-orders-tab-unpaid')),
-          findsOneWidget,
-        );
+        expect(find.byKey(const Key('recent-orders-tab-open')), findsOneWidget);
         expect(
           find.byKey(const Key('recent-orders-tab-closed')),
           findsOneWidget,
         );
-        expect(find.textContaining('Paid', findRichText: true), findsWidgets);
-        expect(find.textContaining('Unpaid', findRichText: true), findsWidgets);
+        expect(find.textContaining('Open', findRichText: true), findsWidgets);
         expect(find.textContaining('Closed', findRichText: true), findsWidgets);
 
-        // Explicit user requirement: "Remove the voided tab"
+        // Explicit user requirement: "Remove the voided tab", no separate paid/unpaid tabs
         expect(find.text('Voided'), findsNothing);
         expect(find.textContaining('Voided', findRichText: true), findsNothing);
+        expect(find.byKey(const Key('recent-orders-tab-paid')), findsNothing);
+        expect(find.byKey(const Key('recent-orders-tab-unpaid')), findsNothing);
       },
     );
 
@@ -105,7 +102,7 @@ void main() {
       },
     );
 
-    testWidgets('allows switching between Unpaid, Paid, and Closed tabs', (
+    testWidgets('allows switching between Open and Closed tabs', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1200, 900);
@@ -119,36 +116,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Initially Unpaid tab is active: unpaid orders appear
+      // Initially Open tab is active: open orders appear
       expect(find.text('#1001-16330'), findsOneWidget);
       expect(find.text('#1001-16331'), findsOneWidget);
-      expect(find.text('#1001-16332'), findsNothing);
-      expect(find.text('#1001-16333'), findsNothing);
+      expect(find.text('#1001-16332'), findsOneWidget);
+      expect(find.text('#1001-16333'), findsOneWidget);
 
       // Tap on #1001-16330 to inspect its details
       await tester.tap(find.text('#1001-16330'));
       await tester.pumpAndSettle();
 
-      // Details of unpaid order 1001-16330
+      // Details of open order 1001-16330
       expect(find.text('Order 1001-16330'), findsOneWidget);
       expect(find.text('Spicy Glazed Wings (6pcs)'), findsOneWidget);
-      expect(find.text('Cancel Order'), findsOneWidget);
-
-      // Tap on Paid tab
-      await tester.tap(find.byKey(const Key('recent-orders-tab-paid')));
-      await tester.pumpAndSettle();
-
-      // Paid orders should appear
-      expect(find.text('#1001-16332'), findsOneWidget);
-      expect(find.text('#1001-16333'), findsOneWidget);
-      expect(find.text('#1001-16330'), findsNothing);
-
-      // Tap on #1001-16332 to inspect its details
-      await tester.tap(find.text('#1001-16332'));
-      await tester.pumpAndSettle();
-
-      // Details of paid order 1001-16332
-      expect(find.text('Order 1001-16332'), findsOneWidget);
       expect(find.text('Cancel Order'), findsOneWidget);
 
       // Tap on Closed tab
@@ -158,6 +138,7 @@ void main() {
       // Closed orders should appear
       expect(find.text('#1001-16329'), findsOneWidget);
       expect(find.text('Cancel Order'), findsNothing);
+      expect(find.text('#1001-16330'), findsNothing);
     });
 
     testWidgets(
@@ -174,7 +155,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Initially unpaid order #1001-16330 is selected: Cancel Order exists, NO Reopen Order button
+        // Initially open order #1001-16330 is selected: Cancel Order exists, NO Reopen Order button
         expect(find.text('Cancel Order'), findsOneWidget);
         expect(find.text('Reopen Order'), findsNothing);
 
@@ -186,11 +167,11 @@ void main() {
         expect(find.text('Reopen Order'), findsNothing);
         expect(find.text('Cancel Order'), findsNothing);
 
-        // Switch to paid orders tab
-        await tester.tap(find.byKey(const Key('recent-orders-tab-paid')));
+        // Switch back to open orders tab
+        await tester.tap(find.byKey(const Key('recent-orders-tab-open')));
         await tester.pumpAndSettle();
 
-        // Paid orders keep the Cancel Order button
+        // Open orders keep the Cancel Order button
         expect(find.text('Cancel Order'), findsOneWidget);
         expect(find.text('Reopen Order'), findsNothing);
       },

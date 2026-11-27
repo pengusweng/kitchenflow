@@ -61,14 +61,19 @@ class _RecentOrdersMasterPaneState
     return Container(
       color: Colors.transparent,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Tab Bar (Unpaid vs Paid vs Closed) - with top-left Back button
+          // 1. Tab Bar (Open vs Closed) - with top-left Back button (left-aligned)
           Container(
+            width: double.infinity,
+            alignment: Alignment.centerLeft,
             color: Colors.transparent,
             padding: const EdgeInsets.symmetric(horizontal: KkfcSpace.s8),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   IconButton(
                     key: const ValueKey('recent-orders-back-button'),
@@ -87,19 +92,11 @@ class _RecentOrdersMasterPaneState
                   ),
                   const SizedBox(width: KkfcSpace.s8),
                   _buildTabItem(
-                    key: const Key('recent-orders-tab-unpaid'),
-                    tab: RecentOrderTab.unpaid,
-                    isSelected: state.selectedTab == RecentOrderTab.unpaid,
-                    count: state.countForTab(RecentOrderTab.unpaid),
-                    onTap: () => notifier.setTab(RecentOrderTab.unpaid),
-                  ),
-                  const SizedBox(width: KkfcSpace.s12),
-                  _buildTabItem(
-                    key: const Key('recent-orders-tab-paid'),
-                    tab: RecentOrderTab.paid,
-                    isSelected: state.selectedTab == RecentOrderTab.paid,
-                    count: state.countForTab(RecentOrderTab.paid),
-                    onTap: () => notifier.setTab(RecentOrderTab.paid),
+                    key: const Key('recent-orders-tab-open'),
+                    tab: RecentOrderTab.open,
+                    isSelected: state.selectedTab == RecentOrderTab.open,
+                    count: state.countForTab(RecentOrderTab.open),
+                    onTap: () => notifier.setTab(RecentOrderTab.open),
                   ),
                   const SizedBox(width: KkfcSpace.s12),
                   _buildTabItem(
@@ -156,12 +153,16 @@ class _RecentOrdersMasterPaneState
 
           // 3. Horizontal Channel Filter Chips
           Container(
+            width: double.infinity,
+            alignment: Alignment.centerLeft,
             color: Colors.transparent,
             height: 44.0,
             padding: const EdgeInsets.symmetric(horizontal: KkfcSpace.s12),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   for (var i = 0; i < _channels.length; i++) ...[
                     if (i > 0) const SizedBox(width: KkfcSpace.s8),

@@ -1,10 +1,9 @@
 import 'package:flutter/foundation.dart';
 
-/// Active tab on the Recent Orders screen: Unpaid, Paid, or Closed.
-/// The Unpaid tab is default and first.
+/// Active tab on the Recent Orders screen: Open or Closed.
+/// The Open tab is default and first.
 enum RecentOrderTab {
-  unpaid('Unpaid'),
-  paid('Paid'),
+  open('Open'),
   closed('Closed');
 
   const RecentOrderTab(this.label);
@@ -26,10 +25,10 @@ int parsePesoToCentavos(Object? raw) {
 /// Maps backend `OrderChannel` enum values to POS display labels.
 String formatOrderChannel(String? rawChannel) {
   return switch (rawChannel?.trim().toUpperCase()) {
-    'DINE_IN' => 'Dine In',
-    'TAKEAWAY' => 'Takeaway',
-    'GRABFOOD' => 'GrabFood',
-    'FOODPANDA' => 'foodpanda',
+    'DINE_IN' || 'DINE-IN' || 'DINEIN' || 'DINE IN' => 'Dine In',
+    'TAKEAWAY' || 'TAKE_AWAY' || 'TAKE AWAY' => 'Takeaway',
+    'GRABFOOD' || 'GRAB_FOOD' || 'GRAB FOOD' => 'GrabFood',
+    'FOODPANDA' || 'FOOD_PANDA' || 'FOOD PANDA' => 'foodpanda',
     _ =>
       (rawChannel != null && rawChannel.trim().isNotEmpty)
           ? rawChannel.trim()
@@ -57,7 +56,6 @@ RecentOrderTab resolveOrderTab({
 }) {
   final normalizedOrder = orderStatus.trim().toUpperCase();
   final normalizedTicket = ticketStatus?.trim().toUpperCase();
-  final normalizedPayment = paymentStatus.trim().toUpperCase();
 
   if (normalizedOrder == 'COMPLETED' ||
       normalizedOrder == 'CANCELLED' ||
@@ -66,11 +64,7 @@ RecentOrderTab resolveOrderTab({
     return RecentOrderTab.closed;
   }
 
-  if (normalizedPayment == 'PAID') {
-    return RecentOrderTab.paid;
-  }
-
-  return RecentOrderTab.unpaid;
+  return RecentOrderTab.open;
 }
 
 /// Builds a human-readable status label from backend order and kitchen ticket statuses.
@@ -265,7 +259,11 @@ class RecentOrder {
         '';
     final brandName = brandMap is Map ? brandMap['name']?.toString() : null;
 
-    final channelLabel = formatOrderChannel(json['order_channel']?.toString());
+    final rawChannel =
+        json['order_channel']?.toString() ??
+        json['channel']?.toString() ??
+        json['orderChannel']?.toString();
+    final channelLabel = formatOrderChannel(rawChannel);
     final tableOrPickup = buildTableOrPickup(
       channelLabel: channelLabel,
       tableReference: json['table_reference']?.toString(),
@@ -369,9 +367,9 @@ class RecentOrder {
   final List<RecentOrderItem> items;
   final bool hasLoadedDetails;
 
-  bool get isOpen => tab == RecentOrderTab.paid || tab == RecentOrderTab.unpaid;
-  bool get isPaid => tab == RecentOrderTab.paid;
-  bool get isUnpaid => tab == RecentOrderTab.unpaid;
+  bool get isOpen => tab == RecentOrderTab.open;
+  bool get isPaid => paymentStatus.trim().toUpperCase() == 'PAID';
+  bool get isUnpaid => paymentStatus.trim().toUpperCase() != 'PAID';
   bool get isClosed => tab == RecentOrderTab.closed;
 
   RecentOrder copyWith({
