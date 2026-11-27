@@ -4,8 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
-import { OrdersRepository } from '../../orders/orders.repository';
-import { UsersRepository } from '../../../users/users.repository';
+import { OrdersRepository } from '../../orders/orders/orders.repository';
+import { UsersRepository } from '../../users/users.repository';
 import { FindPaymentsDTO } from '../dto/find-payments.dto';
 import { CreatePaymentDTO } from '../dto/payment.dto';
 import { PaymentsRepository } from '../payments.repository';

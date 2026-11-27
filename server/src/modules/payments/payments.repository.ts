@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../shared/prisma/prisma.service';
+import { PrismaService } from '../../shared/prisma/prisma.service';
 import { CreatePaymentDTO } from './dto/payment.dto';
 import { Prisma } from '@prisma/client';
 import { FindPaymentsDTO, PaymentSortField } from './dto/find-payments.dto';
-import { SortOrder } from '../../users/dto/find-users.dto';
+import { SortOrder } from '../users/dto/find-users.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
