@@ -15,11 +15,8 @@ import 'package:mobile/features/order_entry/data/repositories/order_entry_reposi
 import 'support/order_test_driver.dart';
 import 'support/kitchen_flow_driver.dart';
 
-const _payment = {'payment_method': 'CASH', 'payment_status': 'UNPAID'};
-const _platformPayment = {
-  'payment_method': 'PLATFORM_SETTLED',
-  'payment_status': 'PAID',
-};
+const _payment = {'payment_status': 'UNPAID'};
+const _platformPayment = {'payment_status': 'PAID'};
 String get _orders => '/brands/$orderBrandId/orders';
 
 Map<String, dynamic> _payload({
@@ -135,14 +132,12 @@ void main() {
       expect(ticket['status'], 'QUEUED');
       expect(ticket['ticket_number'], matches(RegExp(r'^T-\d{3,}$')));
       final replay = await _post(api, '$_orders/$id/confirm', {
-        'payment_method': 'CARD',
         'payment_status': 'PAID',
       }, 200);
       expect(
         replay['kitchen_tickets_order']['kitchen_ticket_id'],
         ticket['kitchen_ticket_id'],
       );
-      expect(replay['payment_method'], 'CASH');
       expect(replay['payment_status'], 'UNPAID');
       expect((await _post(api, _orders, payload, 201))['status'], 'CONFIRMED');
       await orderTap(tester, find.text('New order'));
@@ -219,7 +214,6 @@ void main() {
         200,
       );
       expect(confirmed['status'], 'CONFIRMED');
-      expect(confirmed['payment_method'], 'PLATFORM_SETTLED');
       expect(confirmed['payment_status'], 'PAID');
     },
   );
