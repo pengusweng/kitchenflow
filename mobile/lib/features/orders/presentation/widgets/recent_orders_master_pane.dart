@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/app/routes.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/orders/data/models/recent_order.dart';
@@ -10,15 +12,20 @@ import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
 /// Master pane for Recent Orders.
 ///
 /// Features:
+/// - Top-left back button returning to the Menu screen
 /// - Open / Closed tab bar (no voided tab per requirements)
 /// - Search input
 /// - Channel quick-filter chips
 /// - List of recent order cards
-/// - Bottom bar with sorting dropdown, count, and QA live cancellation trigger.
 class RecentOrdersMasterPane extends ConsumerStatefulWidget {
-  const RecentOrdersMasterPane({super.key, required this.onOrderSelected});
+  const RecentOrdersMasterPane({
+    super.key,
+    required this.onOrderSelected,
+    this.onBack,
+  });
 
   final ValueChanged<RecentOrder> onOrderSelected;
+  final VoidCallback? onBack;
 
   @override
   ConsumerState<RecentOrdersMasterPane> createState() =>
@@ -54,12 +61,30 @@ class _RecentOrdersMasterPaneState
       color: Colors.transparent,
       child: Column(
         children: [
-          // 1. Tab Bar (Open vs Closed) - NO Voided tab
+          // 1. Tab Bar (Open vs Closed) - with top-left Back button
           Container(
             color: Colors.transparent,
-            padding: const EdgeInsets.symmetric(horizontal: KkfcSpace.s16),
+            padding: const EdgeInsets.only(
+              left: KkfcSpace.s8,
+              right: KkfcSpace.s16,
+            ),
             child: Row(
               children: [
+                IconButton(
+                  key: const ValueKey('recent-orders-back-button'),
+                  icon: const Icon(Icons.arrow_back, color: KkfcColors.ink),
+                  tooltip: 'Back to menu',
+                  onPressed:
+                      widget.onBack ??
+                      () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go(AppRoutes.menu);
+                        }
+                      },
+                ),
+                const SizedBox(width: KkfcSpace.s8),
                 _buildTabItem(
                   key: const Key('recent-orders-tab-open'),
                   tab: RecentOrderTab.open,
@@ -219,6 +244,7 @@ class _RecentOrdersMasterPaneState
                     ),
                   )
                 : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: KkfcSpace.s16),
                     itemCount: filteredOrders.length,
                     itemBuilder: (context, index) {
                       final order = filteredOrders[index];

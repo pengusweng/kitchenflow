@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/app/routes.dart';
 import 'package:mobile/features/orders/presentation/widgets/recent_order_detail_pane.dart';
 import 'package:mobile/features/orders/presentation/widgets/recent_orders_master_pane.dart';
 import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
@@ -25,6 +27,14 @@ class OrdersScreen extends ConsumerStatefulWidget {
 
 class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   bool _mobileShowingDetail = false;
+
+  void _handleBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.menu);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +70,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                           SizedBox(
                             width: 390.0,
                             child: RecentOrdersMasterPane(
+                              onBack: _handleBack,
                               onOrderSelected: (order) {
                                 setState(() {
                                   _mobileShowingDetail = false;
@@ -87,6 +98,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     }
 
                     return RecentOrdersMasterPane(
+                      onBack: _handleBack,
                       onOrderSelected: (order) {
                         setState(() {
                           _mobileShowingDetail = true;

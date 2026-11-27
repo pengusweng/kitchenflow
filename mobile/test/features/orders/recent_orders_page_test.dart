@@ -21,6 +21,12 @@ void main() {
         );
         await tester.pumpAndSettle();
 
+        // Back button beside tabs exists
+        expect(
+          find.byKey(const ValueKey('recent-orders-back-button')),
+          findsOneWidget,
+        );
+
         // Open and Closed tabs exist
         expect(find.byType(RecentOrdersMasterPane), findsOneWidget);
         expect(find.byKey(const Key('recent-orders-tab-open')), findsOneWidget);

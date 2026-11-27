@@ -149,4 +149,42 @@ void main() {
     );
     await tester.pumpAndSettle();
   });
+
+  testWidgets(
+    'WT-MOB-ORDERS-005 tapping back button beside tabs navigates to menu',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: AppRoutes.orders,
+        routes: [
+          GoRoute(
+            path: AppRoutes.orders,
+            builder: (context, state) => const OrdersScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.menu,
+            builder: (context, state) =>
+                const Scaffold(body: Text('Menu Screen Content')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp.router(theme: counterTheme, routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final backButton = find.byKey(
+        const ValueKey('recent-orders-back-button'),
+      );
+      expect(backButton, findsOneWidget);
+
+      await tester.tap(backButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Menu Screen Content'), findsOneWidget);
+    },
+  );
 }
