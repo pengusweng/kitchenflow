@@ -65,8 +65,10 @@ export class OrdersService {
         dto.order_channel,
         dto.lines,
       );
+
       const { created_at, order_date, number } =
         await this.repository.nextOrderNumber(brandId, tx);
+
       const order = await this.repository.create(
         dto,
         {
@@ -84,6 +86,7 @@ export class OrdersService {
         },
         tx,
       );
+
       return this.response(order);
     });
   }

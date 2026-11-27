@@ -68,7 +68,6 @@ export class OrderItemsService {
     return snapshots;
   }
 
-  // The orders service supplies its transaction so confirmation remains atomic.
   async saveSnapshots(
     ids: string[],
     snapshots: ItemSnapshot[],

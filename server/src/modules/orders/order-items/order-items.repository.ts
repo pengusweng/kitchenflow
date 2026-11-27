@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { OrderChannel, Prisma } from '@prisma/client';
 
+export type MenuSnapshot = Prisma.MenuItemGetPayload<{
+  include: {
+    recipe: true;
+    menu_item_channels_menu_item: true;
+    menu_item_modifiers_menu_item: true;
+  };
+}>;
+
 @Injectable()
 export class OrderItemsRepository {
   findMenuSnapshot(
@@ -11,14 +19,21 @@ export class OrderItemsRepository {
     return tx.menuItem.findFirst({
       where: {
         menu_item_id: menuItemId,
-        // An order can contain items from multiple active brands.
         brand: { is_active: true },
         is_active: true,
       },
       include: {
         recipe: true,
-        menu_item_channels_menu_item: { where: { order_channel: channel } },
-        menu_item_modifiers_menu_item: { include: { modifier: true } },
+        menu_item_channels_menu_item: {
+          where: {
+            order_channel: channel,
+          },
+        },
+        menu_item_modifiers_menu_item: {
+          include: {
+            modifier: true,
+          },
+        },
       },
     });
   }
