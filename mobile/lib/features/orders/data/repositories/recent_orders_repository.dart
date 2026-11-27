@@ -57,7 +57,10 @@ class RecentOrdersRepository {
       );
 
       final rawOrders = _extractOrderList(response.data);
-      final parsed = rawOrders.map(RecentOrder.fromApiJson).toList();
+      final parsed = rawOrders
+          .map(RecentOrder.fromApiJson)
+          .where((order) => !order.isDraft)
+          .toList();
 
       // Hydrate any summary rows (which omit order_items_order and kitchen_tickets_order)
       return await _hydrateOrderDetails(parsed, limit: limit);
@@ -102,7 +105,10 @@ class RecentOrdersRepository {
       );
 
       final rawOrders = _extractOrderList(response.data);
-      return rawOrders.map(RecentOrder.fromApiJson).toList();
+      return rawOrders
+          .map(RecentOrder.fromApiJson)
+          .where((order) => !order.isDraft)
+          .toList();
     } on DioException catch (error) {
       throw RecentOrdersException(
         _errorMessage(error),

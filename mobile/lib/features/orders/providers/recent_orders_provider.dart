@@ -10,15 +10,15 @@ import 'package:mobile/features/orders/data/seed/sample_recent_orders.dart';
 
 @immutable
 class RecentOrdersState {
-  const RecentOrdersState({
-    required this.orders,
+  RecentOrdersState({
+    required List<RecentOrder> orders,
     this.selectedTab = RecentOrderTab.open,
     this.searchQuery = '',
     this.channelFilter = 'All',
     this.selectedOrderId,
     this.isLoading = false,
     this.errorMessage,
-  });
+  }) : orders = orders.where((o) => !o.isDraft).toList();
 
   final List<RecentOrder> orders;
   final RecentOrderTab selectedTab;
@@ -30,7 +30,10 @@ class RecentOrdersState {
 
   List<RecentOrder> get filteredOrders {
     final result = orders.where((order) {
-      // 1. Tab filter (Unpaid, Paid, or Closed)
+      // 0. Draft orders are strictly excluded from recent orders
+      if (order.isDraft) return false;
+
+      // 1. Tab filter (Open or Closed)
       if (order.tab != selectedTab) return false;
 
       // 2. Channel filter
@@ -75,7 +78,7 @@ class RecentOrdersState {
   }
 
   int countForTab(RecentOrderTab tab) =>
-      orders.where((o) => o.tab == tab).length;
+      orders.where((o) => !o.isDraft && o.tab == tab).length;
 
   RecentOrdersState copyWith({
     List<RecentOrder>? orders,
@@ -210,6 +213,12 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
         orderId: order.id,
       );
       if (!ref.mounted) return;
+      if (detailed.isDraft) {
+        state = state.copyWith(
+          orders: state.orders.where((o) => o.id != order.id).toList(),
+        );
+        return;
+      }
       final updated = state.orders.map((existing) {
         if (existing.id == order.id) {
           return detailed.copyWith(

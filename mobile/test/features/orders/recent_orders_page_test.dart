@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app/theme/theme.dart';
+import 'package:mobile/features/orders/data/models/recent_order.dart';
+import 'package:mobile/features/orders/data/seed/sample_recent_orders.dart';
 import 'package:mobile/features/orders/presentation/widgets/recent_orders_master_pane.dart';
+import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
 import 'package:mobile/features/orders/screens/orders_screen.dart';
 
 void main() {
@@ -200,6 +203,34 @@ void main() {
       // Only #1001-16330 has Glazed wings
       expect(find.text('#1001-16330'), findsOneWidget);
       expect(find.text('#1001-16331'), findsNothing);
+    });
+
+    testWidgets('excludes DRAFT orders from state, display, and counts', (
+      tester,
+    ) async {
+      final draftOrder = RecentOrder(
+        id: 'ord-draft-001',
+        orderCode: 'GC-DRAFT-001',
+        ticketNumber: '#DRAFT-001',
+        channel: 'Dine In',
+        tableOrPickup: 'Table 9',
+        tab: RecentOrderTab.open,
+        orderStatus: 'DRAFT',
+        statusLabel: 'Draft',
+        totalCentavos: 1000,
+        createdAt: DateTime.now(),
+        items: const [],
+      );
+
+      final state = RecentOrdersState(
+        orders: [draftOrder, ...createSampleRecentOrders()],
+      );
+
+      // Draft orders are never stored in state.orders or returned in filteredOrders
+      expect(state.orders.any((o) => o.isDraft), isFalse);
+      expect(state.filteredOrders.any((o) => o.isDraft), isFalse);
+      expect(state.countForTab(RecentOrderTab.open), 4);
+      expect(state.selectedOrder?.isDraft, isNot(true));
     });
   });
 }

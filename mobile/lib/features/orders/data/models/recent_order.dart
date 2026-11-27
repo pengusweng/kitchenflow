@@ -371,6 +371,9 @@ class RecentOrder {
   bool get isPaid => paymentStatus.trim().toUpperCase() == 'PAID';
   bool get isUnpaid => paymentStatus.trim().toUpperCase() != 'PAID';
   bool get isClosed => tab == RecentOrderTab.closed;
+  bool get isDraft =>
+      orderStatus.trim().toUpperCase() == 'DRAFT' ||
+      statusLabel.trim().toUpperCase() == 'DRAFT';
 
   RecentOrder copyWith({
     String? id,

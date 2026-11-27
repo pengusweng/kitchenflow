@@ -205,6 +205,40 @@ void main() {
     expect(order.items.first.notes, ['Extra sauce on the side']);
   });
 
+  test('fetchRecentOrders strictly removes orders with DRAFT status', () async {
+    final adapter = _StubAdapter((options) {
+      return _jsonResponse(200, {
+        'data': [
+          _buildFullOrderJson(
+            orderId: _unpaidOrderId,
+            orderCode: 'GC-00101',
+            channel: 'DINE_IN',
+            status: 'CONFIRMED',
+            paymentStatus: 'UNPAID',
+            items: [],
+          ),
+          _buildFullOrderJson(
+            orderId: '99999999-9999-4999-8999-999999999999',
+            orderCode: 'GC-DRAFT-99',
+            channel: 'DINE_IN',
+            status: 'DRAFT',
+            paymentStatus: 'UNPAID',
+            items: [],
+          ),
+        ],
+      });
+    });
+
+    final dio = Dio()..httpClientAdapter = adapter;
+    final repo = RecentOrdersRepository(dio);
+    final orders = await repo.fetchRecentOrders();
+
+    expect(orders.length, 1);
+    expect(orders.first.orderCode, 'GC-00101');
+    expect(orders.any((o) => o.isDraft), isFalse);
+    expect(orders.any((o) => o.orderCode == 'GC-DRAFT-99'), isFalse);
+  });
+
   testWidgets(
     'WT-MOB-ORDERS-API-001 renders live backend orders across Unpaid, Paid, and Closed tabs without non-backend components',
     (tester) async {
@@ -280,6 +314,16 @@ void main() {
                 },
               ],
             ),
+            _buildFullOrderJson(
+              orderId: '99999999-9999-4999-8999-999999999999',
+              orderCode: 'GC-DRAFT-99',
+              channel: 'DINE_IN',
+              status: 'DRAFT',
+              paymentStatus: 'UNPAID',
+              ticketNumber: 'T-999',
+              ticketStatus: 'QUEUED',
+              items: [],
+            ),
           ],
         });
       });
@@ -314,6 +358,10 @@ void main() {
 
       // Both unpaid and paid open orders appear on the Open tab
       expect(find.text('T-102'), findsOneWidget);
+
+      // Orders with DRAFT status are strictly removed and never displayed
+      expect(find.text('GC-DRAFT-99'), findsNothing);
+      expect(find.text('T-999'), findsNothing);
 
       // 2. Switch to Closed tab -> displays GC-00103 (Ticket T-103)
       await tester.tap(find.byKey(const Key('recent-orders-tab-closed')));
