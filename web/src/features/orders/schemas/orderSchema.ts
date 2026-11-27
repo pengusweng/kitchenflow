@@ -3,7 +3,6 @@ import { z } from "zod";
 export const orderChannelSchema = z.enum(["DINE_IN", "TAKEAWAY", "GRABFOOD", "FOODPANDA"]);
 export const orderStatusSchema = z.enum(["DRAFT", "CONFIRMED", "PREPARING", "COMPLETED", "CANCELLED"]);
 export const paymentStatusSchema = z.enum(["UNPAID", "PAID", "REFUNDED"]);
-export const paymentMethodSchema = z.enum(["CASH", "E_WALLET", "CARD", "PLATFORM_SETTLED"]);
 
 // IDs are Postgres uuid columns; z.guid() accepts any UUID shape (seeded IDs aren't always v4).
 const id = z.guid();
@@ -22,8 +21,6 @@ const orderFields = {
   order_channel: orderChannelSchema,
   status: orderStatusSchema,
   payment_status: paymentStatusSchema,
-  payment_method: paymentMethodSchema.nullable(),
-  payment_reference: z.string().nullable(),
   table_reference: z.string().nullable(),
   external_order_reference: z.string().nullable(),
   notes: z.string().nullable(),
@@ -95,7 +92,6 @@ export const brandsPageSchema = z.object({
 export type OrderChannel = z.infer<typeof orderChannelSchema>;
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
-export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 export type OrderSummaryRecord = z.infer<typeof orderSummarySchema>;
 export type OrdersPage = z.infer<typeof ordersPageSchema>;
 export type OrderDetailRecord = z.infer<typeof orderDetailSchema>;

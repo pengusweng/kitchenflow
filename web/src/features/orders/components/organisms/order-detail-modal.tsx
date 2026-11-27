@@ -7,7 +7,6 @@ import DetailRow from "@/src/components/ui/molecules/detail-row";
 import {
   CHANNEL_LABEL,
   formatPlacedAt,
-  PAYMENT_METHOD_LABEL,
   type KitchenTicket,
   type OrderDetail,
   type OrderSummary,
@@ -100,15 +99,7 @@ export default function OrderDetailModal({
                 </time>
               </DetailRow>
               <DetailRow label="Payment">
-                <span className="flex flex-col gap-0.5">
-                  <span className="flex flex-wrap items-baseline gap-x-1.5">
-                    <PaymentStatus payment={shown.payment} />
-                    {shown.paymentMethod ? (
-                      <span className="text-ink-muted">· {PAYMENT_METHOD_LABEL[shown.paymentMethod]}</span>
-                    ) : null}
-                  </span>
-                  {shown.paymentReference ? <Code>{shown.paymentReference}</Code> : null}
-                </span>
+                <PaymentStatus payment={shown.payment} />
               </DetailRow>
               {shown.notes ? <DetailRow label="Order note">{shown.notes}</DetailRow> : null}
             </dl>

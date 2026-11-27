@@ -3,11 +3,10 @@ import type {
   OrderDetailRecord,
   OrderStatus,
   OrderSummaryRecord,
-  PaymentMethod,
   PaymentStatus,
 } from "../schemas/orderSchema";
 
-export type { OrderChannel, OrderStatus, PaymentMethod, PaymentStatus };
+export type { OrderChannel, OrderStatus, PaymentStatus };
 
 /** A row of the orders table. It carries every order column, so the modal can show its summary before the lines load. */
 export type OrderSummary = {
@@ -23,8 +22,6 @@ export type OrderSummary = {
   channel: OrderChannel;
   status: OrderStatus;
   payment: PaymentStatus;
-  paymentMethod: PaymentMethod | null;
-  paymentReference: string | null;
   table: string | null;
   /** The platform's own order ID for GrabFood / foodpanda orders. */
   externalReference: string | null;
@@ -119,8 +116,6 @@ export function toOrderSummary(row: OrderSummaryRecord): OrderSummary {
     channel: row.order_channel,
     status: row.status,
     payment: row.payment_status,
-    paymentMethod: row.payment_method,
-    paymentReference: row.payment_reference,
     table: row.table_reference,
     externalReference: row.external_order_reference,
     notes: row.notes,
@@ -138,8 +133,6 @@ export function toOrderDetail(summary: OrderSummary, record: OrderDetailRecord):
     ...summary,
     status: record.status,
     payment: record.payment_status,
-    paymentMethod: record.payment_method,
-    paymentReference: record.payment_reference,
     confirmedAt: record.confirmed_at,
     completedAt: record.completed_at,
     cancelledAt: record.cancelled_at,
@@ -168,13 +161,6 @@ export function toOrderDetail(summary: OrderSummary, record: OrderDetailRecord):
       : null,
   };
 }
-
-export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
-  CASH: "Cash",
-  E_WALLET: "E-wallet",
-  CARD: "Card",
-  PLATFORM_SETTLED: "Settled by platform",
-};
 
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
