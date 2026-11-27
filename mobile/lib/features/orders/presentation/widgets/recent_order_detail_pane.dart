@@ -53,7 +53,19 @@ class RecentOrderDetailPane extends StatelessWidget {
     final ord = order!;
 
     return Container(
-      color: KkfcColors.surface,
+      decoration: BoxDecoration(
+        color: KkfcColors.surface,
+        border: const Border(
+          left: BorderSide(color: KkfcColors.divider, width: 1.0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16.0,
+            offset: const Offset(-2, 0),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           // 1. Action Bar (shown when Cancel Order or mobile Back is available)

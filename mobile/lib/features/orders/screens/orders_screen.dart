@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/features/orders/presentation/widgets/recent_order_detail_pane.dart';
 import 'package:mobile/features/orders/presentation/widgets/recent_orders_master_pane.dart';
 import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
 import 'package:mobile/shared/widgets/app_header.dart';
 import 'package:mobile/shared/widgets/kkfc_scaffold.dart';
+import 'package:mobile/shared/widgets/wave_accents.dart';
+
+/// Screen breakpoint for wide tablet/desktop layout matching MenuScreen.
+const double _kWideBreakpoint = 768.0;
 
 /// The Recent Orders screen displaying an adaptive master-detail layout.
 ///
-/// Tablet / Desktop (width >= 768px):
-/// - Master pane on the left with tabs, search, filter chips, and order cards.
-/// - Detail pane on the right with actions, order summary, 2x2 metadata grid, line items, and receipt totals.
-///
-/// Mobile (width < 768px):
-/// - List view with responsive transition to detail view upon selecting an order.
+/// Features the exact same background and AppHeader setup as MenuScreen:
+/// - Signature navy shell AppHeader with decorative copper wave accents.
+/// - Fluid organic canvas waves (KkfcCanvasWaves) grounding the master list.
+/// - Docked detail surface panel on tablet/desktop.
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
 
@@ -27,59 +28,77 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final isWide = width >= _kWideBreakpoint;
     final state = ref.watch(recentOrdersProvider);
     final selectedOrder = state.selectedOrder;
 
     return KkfcScaffold(
-      appBar: const AppHeader(title: 'Recent Orders'),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 768.0;
+      body: Column(
+        children: [
+          // App header matching the MenuScreen setup
+          AppHeader(title: 'Recent Orders', compact: !isWide),
 
-          if (isWide) {
-            // Split 2-pane master-detail layout
-            return Row(
+          // Main body with canvas waves background
+          Expanded(
+            child: Stack(
               children: [
-                SizedBox(
-                  width: 390.0,
-                  child: RecentOrdersMasterPane(
-                    onOrderSelected: (order) {
-                      setState(() {
-                        _mobileShowingDetail = false;
-                      });
-                    },
-                  ),
+                // Fluid organic wave landscape & hand-crafted contours from the KKFC design system
+                const Positioned.fill(child: KkfcCanvasWaves()),
+
+                // Master / Detail layout
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isTabletWide =
+                        constraints.maxWidth >= _kWideBreakpoint;
+
+                    if (isTabletWide) {
+                      // Split 2-pane master-detail layout
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            width: 390.0,
+                            child: RecentOrdersMasterPane(
+                              onOrderSelected: (order) {
+                                setState(() {
+                                  _mobileShowingDetail = false;
+                                });
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: RecentOrderDetailPane(order: selectedOrder),
+                          ),
+                        ],
+                      );
+                    }
+
+                    // Single-pane compact layout for phones
+                    if (_mobileShowingDetail && selectedOrder != null) {
+                      return RecentOrderDetailPane(
+                        order: selectedOrder,
+                        onBack: () {
+                          setState(() {
+                            _mobileShowingDetail = false;
+                          });
+                        },
+                      );
+                    }
+
+                    return RecentOrdersMasterPane(
+                      onOrderSelected: (order) {
+                        setState(() {
+                          _mobileShowingDetail = true;
+                        });
+                      },
+                    );
+                  },
                 ),
-                const VerticalDivider(
-                  width: 1.0,
-                  thickness: KkfcBorderWidth.thin,
-                  color: KkfcColors.divider,
-                ),
-                Expanded(child: RecentOrderDetailPane(order: selectedOrder)),
               ],
-            );
-          }
-
-          // Single-pane compact layout for phones
-          if (_mobileShowingDetail && selectedOrder != null) {
-            return RecentOrderDetailPane(
-              order: selectedOrder,
-              onBack: () {
-                setState(() {
-                  _mobileShowingDetail = false;
-                });
-              },
-            );
-          }
-
-          return RecentOrdersMasterPane(
-            onOrderSelected: (order) {
-              setState(() {
-                _mobileShowingDetail = true;
-              });
-            },
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }

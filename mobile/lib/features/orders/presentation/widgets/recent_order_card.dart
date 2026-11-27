@@ -34,63 +34,99 @@ class RecentOrderCard extends StatelessWidget {
         ? '${order.channel} - Reopened'
         : order.channel;
 
-    return Material(
-      color: backgroundColor,
-      child: InkWell(
-        onTap: onTap,
-        splashColor: KkfcColors.shell.withValues(alpha: 0.08),
-        highlightColor: KkfcColors.shell.withValues(alpha: 0.04),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: const BorderSide(
-                color: KkfcColors.divider,
-                width: KkfcBorderWidth.thin,
-              ),
-              left: BorderSide(
-                color: isSelected ? KkfcColors.action : Colors.transparent,
-                width: 4.0,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: KkfcSpace.s12,
+        vertical: KkfcSpace.s4,
+      ),
+      child: Material(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(KkfcRadius.md),
+        elevation: isSelected ? 1.0 : 0.0,
+        shadowColor: Colors.black.withValues(alpha: 0.06),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(KkfcRadius.md),
+          splashColor: KkfcColors.shell.withValues(alpha: 0.08),
+          highlightColor: KkfcColors.shell.withValues(alpha: 0.04),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(KkfcRadius.md),
+              border: Border.all(
+                color: isSelected ? KkfcColors.action : KkfcColors.border,
+                width: isSelected ? 1.5 : 1.0,
               ),
             ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: KkfcSpace.s16,
-            vertical: KkfcSpace.s12,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left details: Ticket #, Channel / Reopened, Status time
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.symmetric(
+              horizontal: KkfcSpace.s16,
+              vertical: KkfcSpace.s12,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left details: Ticket #, Channel / Reopened, Status time
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        order.ticketNumber,
+                        style: const TextStyle(
+                          fontFamily: KkfcFonts.ibmPlexSans,
+                          fontSize: KkfcTextSizes.textXs,
+                          fontWeight: FontWeight.w500,
+                          color: KkfcColors.ink3,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: KkfcSpace.s2),
+                      Text(
+                        channelTitle,
+                        style: TextStyle(
+                          fontFamily: KkfcFonts.ibmPlexSans,
+                          fontSize: KkfcTextSizes.textBase,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: isSelected
+                              ? KkfcColors.action
+                              : KkfcColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: KkfcSpace.s4),
+                      Text(
+                        order.statusLabel,
+                        style: const TextStyle(
+                          fontFamily: KkfcFonts.ibmPlexSans,
+                          fontSize: KkfcTextSizes.textSm,
+                          fontWeight: FontWeight.w400,
+                          color: KkfcColors.ink3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: KkfcSpace.s12),
+
+                // Right details: Amount and Server
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      order.ticketNumber,
+                      formatPeso(order.totalCentavos),
                       style: const TextStyle(
                         fontFamily: KkfcFonts.ibmPlexSans,
-                        fontSize: KkfcTextSizes.textXs,
-                        fontWeight: FontWeight.w500,
-                        color: KkfcColors.ink3,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: KkfcSpace.s2),
-                    Text(
-                      channelTitle,
-                      style: TextStyle(
-                        fontFamily: KkfcFonts.ibmPlexSans,
                         fontSize: KkfcTextSizes.textBase,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w600,
-                        color: isSelected ? KkfcColors.action : KkfcColors.ink,
+                        fontWeight: FontWeight.w700,
+                        color: KkfcColors.ink,
                       ),
                     ),
                     const SizedBox(height: KkfcSpace.s4),
                     Text(
-                      order.statusLabel,
+                      order.serverName,
                       style: const TextStyle(
                         fontFamily: KkfcFonts.ibmPlexSans,
                         fontSize: KkfcTextSizes.textSm,
@@ -100,37 +136,8 @@ class RecentOrderCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-
-              const SizedBox(width: KkfcSpace.s12),
-
-              // Right details: Amount and Server
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    formatPeso(order.totalCentavos),
-                    style: const TextStyle(
-                      fontFamily: KkfcFonts.ibmPlexSans,
-                      fontSize: KkfcTextSizes.textBase,
-                      fontWeight: FontWeight.w700,
-                      color: KkfcColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: KkfcSpace.s4),
-                  Text(
-                    order.serverName,
-                    style: const TextStyle(
-                      fontFamily: KkfcFonts.ibmPlexSans,
-                      fontSize: KkfcTextSizes.textSm,
-                      fontWeight: FontWeight.w400,
-                      color: KkfcColors.ink3,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

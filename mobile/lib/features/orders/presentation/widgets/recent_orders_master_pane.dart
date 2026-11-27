@@ -51,12 +51,12 @@ class _RecentOrdersMasterPaneState
     final selectedOrder = state.selectedOrder;
 
     return Container(
-      color: KkfcColors.canvas,
+      color: Colors.transparent,
       child: Column(
         children: [
           // 1. Tab Bar (Open vs Closed) - NO Voided tab
           Container(
-            color: KkfcColors.surface,
+            color: Colors.transparent,
             padding: const EdgeInsets.symmetric(horizontal: KkfcSpace.s16),
             child: Row(
               children: [
@@ -87,7 +87,7 @@ class _RecentOrdersMasterPaneState
 
           // 2. Search Box
           Container(
-            color: KkfcColors.surface,
+            color: Colors.transparent,
             padding: const EdgeInsets.fromLTRB(
               KkfcSpace.s16,
               KkfcSpace.s12,
@@ -108,7 +108,7 @@ class _RecentOrdersMasterPaneState
                 fontSize: KkfcTextSizes.textMd,
                 color: KkfcColors.ink,
               ),
-              backgroundColor: KkfcColors.surfaceSubtle,
+              backgroundColor: KkfcColors.surface,
               borderRadius: BorderRadius.circular(KkfcRadius.md),
               padding: const EdgeInsets.symmetric(
                 horizontal: KkfcSpace.s12,
@@ -121,7 +121,7 @@ class _RecentOrdersMasterPaneState
 
           // 3. Horizontal Channel Filter Chips
           Container(
-            color: KkfcColors.surface,
+            color: Colors.transparent,
             height: 44.0,
             padding: const EdgeInsets.symmetric(horizontal: KkfcSpace.s12),
             child: ListView.separated(
