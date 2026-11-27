@@ -9,9 +9,17 @@ import { assertExists } from '../../shared/assertions/assert-exists';
 import { OrdersRepository } from '../orders/orders/orders.repository';
 import { CreatePaymentDTO } from './dto/payment.dto';
 import { UsersRepository } from '../users/users.repository';
-import { PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
+import {
+  Order,
+  OrderChannel,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  Prisma,
+} from '@prisma/client';
 import { FindPaymentsDTO } from './dto/find-payments.dto';
 import { assertValidPagination } from '../../shared/assertions/assert-valid-pagination';
+import { isPlatformChannel } from './payment-rules';
 
 @Injectable()
 export class PaymentsService {
@@ -23,12 +31,27 @@ export class PaymentsService {
     private readonly usersRepository: UsersRepository,
   ) {}
 
-  // hayaan mo na yung orders magbago ng paid status
+  /** Saves the payment and marks its order PAID, both or neither. */
   async create(
     dto: CreatePaymentDTO,
     orderId: string,
     receivedByID: string,
     tx?: Prisma.TransactionClient,
+  ) {
+    if (tx) {
+      return this.recordPayment(dto, orderId, receivedByID, tx);
+    }
+
+    return this.ordersRepository.transaction((tx) =>
+      this.recordPayment(dto, orderId, receivedByID, tx),
+    );
+  }
+
+  private async recordPayment(
+    dto: CreatePaymentDTO,
+    orderId: string,
+    receivedByID: string,
+    tx: Prisma.TransactionClient,
   ) {
     this.logger.debug(
       `Creating payment for ${orderId}, received by ${receivedByID}`,
@@ -40,23 +63,9 @@ export class PaymentsService {
     assertExists(order, 'Order', orderId, this.logger);
     assertExists(user, 'UserId', receivedByID, this.logger);
 
-    if (order.payment_status === PaymentStatus.PAID) {
-      this.logger.warn(`Order ${orderId} is already paid`);
-
-      throw new ConflictException({
-        code: 'ORDER_ALREADY_PAID',
-        message: 'Order already has a payment record.',
-      });
-    }
-
-    if (order.payment_status === PaymentStatus.REFUNDED) {
-      this.logger.warn(`Order ${orderId} is already refunded`);
-
-      throw new ConflictException({
-        code: 'ORDER_ALREADY_REFUNDED',
-        message: 'Order is already refunded.',
-      });
-    }
+    this.assertPayable(order);
+    this.assertMethodFitsChannel(dto.payment_method, order.order_channel);
+    this.assertAmountMatchesSubtotal(dto.amount, order.subtotal);
 
     if (dto.payment_method === PaymentMethod.CASH) {
       this.validateCashPayment(dto.amount, dto.amount_tendered);
@@ -75,6 +84,7 @@ export class PaymentsService {
       receivedByID,
       tx,
     );
+    await this.ordersRepository.markPaid(orderId, tx);
 
     this.logger.log(
       `Created payment ${payment.payment_id} for order ${orderId}, received by ${receivedByID}`,
@@ -124,6 +134,78 @@ export class PaymentsService {
         totalPages: Math.ceil(total / dto.limit),
       },
     };
+  }
+
+  // Customers pay after the order is confirmed, at any point until it is paid.
+  private assertPayable(order: Order) {
+    if (order.status === OrderStatus.DRAFT) {
+      this.logger.warn(`Order ${order.order_id} is not confirmed yet`);
+
+      throw new ConflictException({
+        code: 'ORDER_NOT_CONFIRMED',
+        message: 'Order must be confirmed before it is paid.',
+      });
+    }
+
+    if (order.status === OrderStatus.CANCELLED) {
+      this.logger.warn(`Order ${order.order_id} is cancelled`);
+
+      throw new ConflictException({
+        code: 'ORDER_CANCELLED',
+        message: 'Cancelled orders cannot be paid.',
+      });
+    }
+
+    if (order.payment_status === PaymentStatus.PAID) {
+      this.logger.warn(`Order ${order.order_id} is already paid`);
+
+      throw new ConflictException({
+        code: 'ORDER_ALREADY_PAID',
+        message: 'Order already has a payment record.',
+      });
+    }
+
+    if (order.payment_status === PaymentStatus.REFUNDED) {
+      this.logger.warn(`Order ${order.order_id} is already refunded`);
+
+      throw new ConflictException({
+        code: 'ORDER_ALREADY_REFUNDED',
+        message: 'Order is already refunded.',
+      });
+    }
+  }
+
+  private assertMethodFitsChannel(
+    paymentMethod: PaymentMethod,
+    channel: OrderChannel,
+  ) {
+    const platformSettled = paymentMethod === PaymentMethod.PLATFORM_SETTLED;
+
+    if (isPlatformChannel(channel) && !platformSettled) {
+      throw new BadRequestException({
+        code: 'PAYMENT_METHOD_NOT_ALLOWED',
+        message: `${channel} orders can only be ${PaymentMethod.PLATFORM_SETTLED}.`,
+      });
+    }
+
+    if (!isPlatformChannel(channel) && platformSettled) {
+      throw new BadRequestException({
+        code: 'PAYMENT_METHOD_NOT_ALLOWED',
+        message: `Only GrabFood and Foodpanda orders can be ${PaymentMethod.PLATFORM_SETTLED}.`,
+      });
+    }
+  }
+
+  private assertAmountMatchesSubtotal(
+    amount: number,
+    subtotal: Prisma.Decimal,
+  ) {
+    if (!subtotal.equals(amount)) {
+      throw new BadRequestException({
+        code: 'AMOUNT_DOES_NOT_MATCH_SUBTOTAL',
+        message: `Amount must equal the order subtotal of ${subtotal.toFixed(2)}.`,
+      });
+    }
   }
 
   private validateCashPayment(amount: number, amountTendered: number) {

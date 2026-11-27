@@ -289,6 +289,13 @@ export class OrdersRepository {
     });
   }
 
+  markPaid(orderId: string, tx: Prisma.TransactionClient) {
+    return tx.order.update({
+      where: { order_id: orderId },
+      data: { payment_status: PaymentStatus.PAID, modified_at: new Date() },
+    });
+  }
+
   // Serialization retries rerun the entire transaction, never a partial confirmation.
   async transaction<T>(
     work: (tx: Prisma.TransactionClient) => Promise<T>,
