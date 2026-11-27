@@ -74,11 +74,6 @@ A cashier has a unique order payload
     END
     Set Test Variable    ${ORDER_ID}    ${id}
     Set Test Variable    ${ORDER_PAYLOAD}    ${payload}
-    ${payment}=    Create Dictionary    payment_status=UNPAID
-    IF    '${channel}' == 'GRABFOOD'
-        ${payment}=    Create Dictionary
-    END
-    Set Test Variable    ${PAYMENT}    ${payment}
 
 The cashier creates the draft
     ${response}=    POST On Session    api    ${ORDER_PATH}    headers=${CASHIER_HEADERS}    json=${ORDER_PAYLOAD}    expected_status=201
@@ -87,10 +82,10 @@ The cashier creates the draft
     Should Be Equal    ${body}[status]    DRAFT
 
 The cashier verifies and confirms the draft
-    ${verify}=    POST On Session    api    ${ORDER_PATH}/${ORDER_ID}/verify    headers=${CASHIER_HEADERS}    json=${PAYMENT}    expected_status=200
+    ${verify}=    POST On Session    api    ${ORDER_PATH}/${ORDER_ID}/verify    headers=${CASHIER_HEADERS}    expected_status=200
     ${verified}=    Set Variable    ${verify.json()}
     Should Be Equal    ${verified}[valid]    ${True}
-    ${response}=    POST On Session    api    ${ORDER_PATH}/${ORDER_ID}/confirm    headers=${CASHIER_HEADERS}    json=${PAYMENT}    expected_status=200
+    ${response}=    POST On Session    api    ${ORDER_PATH}/${ORDER_ID}/confirm    headers=${CASHIER_HEADERS}    expected_status=200
     Set Test Variable    ${CONFIRMED}    ${response.json()}
 
 A confirmed order and queued ticket are returned
@@ -103,7 +98,7 @@ A confirmed order and queued ticket are returned
 
 The cashier retries the same create and confirmation
     POST On Session    api    ${ORDER_PATH}    headers=${CASHIER_HEADERS}    json=${ORDER_PAYLOAD}    expected_status=201
-    ${response}=    POST On Session    api    ${ORDER_PATH}/${ORDER_ID}/confirm    headers=${CASHIER_HEADERS}    json=${PAYMENT}    expected_status=200
+    ${response}=    POST On Session    api    ${ORDER_PATH}/${ORDER_ID}/confirm    headers=${CASHIER_HEADERS}    expected_status=200
     Dictionaries Should Be Equal    ${response.json()}    ${CONFIRMED}
 
 Reusing the order ID with a changed payload is rejected

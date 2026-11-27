@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getBrands, getOrder, getOrders, type OrderListFilters } from "../services/orders.service";
-import { ORDERS_PAGE_SIZE } from "../utils/orders";
+import { getBrands, getOrder, getOrderPayment, getOrders, type OrderListFilters } from "../services/orders.service";
+import { ORDERS_PAGE_SIZE, toOrderPayment, type OrderSummary } from "../utils/orders";
 
 // One request per page. The previous page stays in `data` (isPlaceholderData)
 // until the requested one arrives, so counts and totals don't blank out.
@@ -19,6 +19,17 @@ export function useOrder(order: { brandId: string; id: string } | null, enabled:
     queryKey: ["order", order?.brandId, order?.id],
     queryFn: () => getOrder(order!.brandId, order!.id),
     enabled: enabled && order !== null,
+    retry: false,
+  });
+}
+
+/** How a paid or refunded order was paid; fetched only while the modal is open. Unpaid orders have no payment. */
+export function useOrderPayment(order: OrderSummary | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["order-payment", order?.id],
+    queryFn: () => getOrderPayment(order!.id),
+    select: (record) => (record ? toOrderPayment(record) : null),
+    enabled: enabled && order !== null && order.payment !== "UNPAID",
     retry: false,
   });
 }

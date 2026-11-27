@@ -50,7 +50,7 @@ describe('PaymentsService', () => {
         };
   }
 
-  // A confirmed, unpaid dine-in order with a subtotal of 250 pesos.
+  // A confirmed, unpaid dine-in order with a subtotal and total of 250 pesos.
   function order(overrides: object = {}) {
     return {
       order_id: orderId,
@@ -58,6 +58,7 @@ describe('PaymentsService', () => {
       order_channel: OrderChannel.DINE_IN,
       payment_status: PaymentStatus.UNPAID,
       subtotal: new Prisma.Decimal(250),
+      total: new Prisma.Decimal(250),
       ...overrides,
     };
   }
@@ -359,10 +360,10 @@ describe('PaymentsService', () => {
   );
 
   it.each(['249.99', '250.01'])(
-    'UT-PAY-022: rejects 250 pesos for a subtotal of %s as AMOUNT_DOES_NOT_MATCH_SUBTOTAL without writing',
-    async (subtotal) => {
+    'UT-PAY-022: rejects 250 pesos for a total of %s as AMOUNT_DOES_NOT_MATCH_TOTAL without writing',
+    async (total) => {
       ordersRepository.findById.mockResolvedValue(
-        order({ subtotal: new Prisma.Decimal(subtotal) }),
+        order({ total: new Prisma.Decimal(total) }),
       );
       const result = service.create(
         payment(PaymentMethod.CASH, 300),
@@ -372,11 +373,25 @@ describe('PaymentsService', () => {
 
       await expect(result).rejects.toBeInstanceOf(BadRequestException);
       await expect(result).rejects.toMatchObject({
-        response: { code: 'AMOUNT_DOES_NOT_MATCH_SUBTOTAL' },
+        response: { code: 'AMOUNT_DOES_NOT_MATCH_TOTAL' },
       });
       expectNothingWritten();
     },
   );
+
+  it('UT-PAY-023: charges the discounted total, not the subtotal', async () => {
+    ordersRepository.findById.mockResolvedValue(
+      order({
+        subtotal: new Prisma.Decimal('350.00'),
+        total: new Prisma.Decimal('250.00'),
+      }),
+    );
+
+    await expect(
+      service.create(payment(PaymentMethod.CASH, 250), orderId, receivedById),
+    ).resolves.toMatchObject({ amount: 250 });
+    expect(ordersRepository.markPaid).toHaveBeenCalledWith(orderId, tx);
+  });
 
   describe('findOne', () => {
     const saved = {

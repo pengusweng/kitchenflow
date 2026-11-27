@@ -7,7 +7,7 @@ import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
 import OrderDetailModal from "../components/organisms/order-detail-modal";
 import OrdersFilterBar from "../components/organisms/orders-filter-bar";
 import OrdersTable from "../components/organisms/orders-table";
-import { useBrandOptions, useOrder, useOrders } from "../hooks/useOrders";
+import { useBrandOptions, useOrder, useOrderPayment, useOrders } from "../hooks/useOrders";
 import { useTodayInManila } from "../hooks/useTodayInManila";
 import {
   ORDERS_PAGE_SIZE,
@@ -57,6 +57,7 @@ export default function OrdersPage() {
   });
   const brands = useBrandOptions();
   const detail = useOrder(viewing, modalOpen);
+  const viewingPayment = useOrderPayment(viewing, modalOpen);
 
   const orders = data?.data.map(toOrderSummary) ?? [];
   const meta = data?.meta;
@@ -126,6 +127,7 @@ export default function OrdersPage() {
         order={viewing}
         detail={viewing && detail.data ? toOrderDetail(viewing, detail.data) : null}
         error={detail.error?.message ?? null}
+        payment={viewingPayment.data ?? null}
         open={modalOpen}
         onOpenChange={setModalOpen}
       />

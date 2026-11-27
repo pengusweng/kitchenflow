@@ -1000,6 +1000,156 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     },
   );
 
+  it('IT-DSC-001: Given a confirmed takeaway order When a cashier applies a senior discount and pays Then the payment must match the discounted total', async () => {
+    const order = await draft();
+    const discountPath = `/discounts/order/${order.order_id}`;
+    expect(
+      (
+        await request(
+          `${ordersPath()}/${order.order_id}/confirm`,
+          'POST',
+          undefined,
+          1,
+        )
+      ).status,
+    ).toBe(200);
+
+    const applied = await request(
+      discountPath,
+      'POST',
+      {
+        discount_type: 'SENIOR_CITIZEN',
+        id_number: '  OSCA-2026-001234 ',
+        holder_name: ' Juan Dela Cruz ',
+      },
+      1,
+    );
+    expect(applied.status).toBe(201);
+    // 2 × (100 + 25) = 250; 250 ÷ 1.12 = 223.21; 20% of that is 44.64.
+    const body = await json(applied);
+    expect(body).toMatchObject({
+      order_id: order.order_id,
+      applied_by_id: fixture.users[1].user_id,
+      discount_type: 'SENIOR_CITIZEN',
+      id_number: 'OSCA-2026-001234',
+      holder_name: 'Juan Dela Cruz',
+    });
+    expect(Number(body.vat_exempt_amount)).toBe(26.79);
+    expect(Number(body.discount_amount)).toBe(44.64);
+    expect(Number(body.total)).toBe(178.57);
+
+    const read = await json(
+      await request(`${ordersPath()}/${order.order_id}`, 'GET', undefined, 1),
+    );
+    expect(Number(read.subtotal)).toBe(250);
+    expect(Number(read.total)).toBe(178.57);
+    expect(read.discount_order).toMatchObject({
+      order_discount_id: body.order_discount_id,
+    });
+
+    const pay = (amount: number) =>
+      request(
+        `/payments/order/${order.order_id}`,
+        'POST',
+        { payment_method: 'CASH', amount, amount_tendered: 200 },
+        1,
+      );
+    const undiscounted = await pay(250);
+    expect(undiscounted.status).toBe(400);
+    expect(await json(undiscounted)).toMatchObject({
+      code: 'AMOUNT_DOES_NOT_MATCH_TOTAL',
+    });
+    expect((await pay(178.57)).status).toBe(201);
+    expect((await savedOrder(order.order_id)).payment_status).toBe('PAID');
+
+    const late = await request(
+      discountPath,
+      'POST',
+      {
+        discount_type: 'PWD',
+        id_number: 'PWD-1',
+        holder_name: 'Maria Clara',
+      },
+      1,
+    );
+    expect(late.status).toBe(409);
+    expect(await json(late)).toMatchObject({ code: 'ORDER_ALREADY_PAID' });
+    expect(
+      await prisma.orderDiscount.count({ where: { order_id: order.order_id } }),
+    ).toBe(1);
+  });
+
+  it('IT-DSC-002: Given invalid discount requests When applying a discount Then reject each one without saving a discount', async () => {
+    const valid = {
+      discount_type: 'PWD',
+      id_number: 'PWD-2026-000001',
+      holder_name: 'Maria Clara',
+    };
+    const apply = (orderId: string, body: unknown, user = 1) =>
+      request(`/discounts/order/${orderId}`, 'POST', body, user);
+
+    const unconfirmed = await draft();
+    const confirmed = await draft();
+    expect(
+      (
+        await request(
+          `${ordersPath()}/${confirmed.order_id}/confirm`,
+          'POST',
+          undefined,
+          1,
+        )
+      ).status,
+    ).toBe(200);
+    await channel('GRABFOOD');
+    const platform = await draft('GRABFOOD');
+    expect(
+      (
+        await request(
+          `${ordersPath()}/${platform.order_id}/confirm`,
+          'POST',
+          undefined,
+          1,
+        )
+      ).status,
+    ).toBe(200);
+
+    for (const body of [
+      { ...valid, discount_type: 'STUDENT' },
+      { ...valid, id_number: '   ' },
+      { ...valid, holder_name: '' },
+      { ...valid, unexpected: true },
+    ]) {
+      expect((await apply(confirmed.order_id, body)).status).toBe(400);
+    }
+    expect((await apply('not-a-uuid', valid)).status).toBe(400);
+    expect((await apply(confirmed.order_id, valid, 5)).status).toBe(403);
+
+    const draftResponse = await apply(unconfirmed.order_id, valid);
+    expect(draftResponse.status).toBe(409);
+    expect(await json(draftResponse)).toMatchObject({
+      code: 'ORDER_NOT_CONFIRMED',
+    });
+
+    const platformResponse = await apply(platform.order_id, valid);
+    expect(platformResponse.status).toBe(400);
+    expect(await json(platformResponse)).toMatchObject({
+      code: 'DISCOUNT_NOT_ALLOWED_FOR_PLATFORM',
+    });
+
+    expect(
+      await prisma.orderDiscount.count({
+        where: {
+          order_id: {
+            in: [unconfirmed.order_id, confirmed.order_id, platform.order_id],
+          },
+        },
+      }),
+    ).toBe(0);
+    expect((await savedOrder(confirmed.order_id)).total.toFixed(2)).toBe(
+      '250.00',
+    );
+  });
+
   it.each([0, 1, 2, 3, -1])(
     'IT-ORD-003 Given session %s When creating an order Then allow shared brand access and require authentication',
     async (user) => {

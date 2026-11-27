@@ -264,7 +264,8 @@ export class OrdersService {
         orderId,
         OrderStatus.CONFIRMED,
         OrderStatus.DRAFT,
-        { confirmed_at: new Date(), subtotal },
+        // Nothing is discounted yet, so the amount due is the subtotal.
+        { confirmed_at: new Date(), subtotal, total: subtotal },
         tx,
       );
       return this.response(confirmed);

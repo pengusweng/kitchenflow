@@ -185,11 +185,17 @@ Feature: Payment creation rules
       | PLATFORM_SETTLED | TAKEAWAY  |
 
   @UT-PAY-022
-  Scenario Outline: Reject an amount that differs from the order subtotal
-    Given an unpaid order with a subtotal of <subtotal> pesos
+  Scenario Outline: Reject an amount that differs from the order total
+    Given an unpaid order with a total of <total> pesos
     When a payment of 250 pesos is created for that order
-    Then the service returns AMOUNT_DOES_NOT_MATCH_SUBTOTAL without writing a payment
+    Then the service returns AMOUNT_DOES_NOT_MATCH_TOTAL without writing a payment
     Examples:
-      | subtotal |
+      | total    |
       | 249.99   |
       | 250.01   |
+
+  @UT-PAY-023
+  Scenario: Charge the discounted total
+    Given an unpaid order with a subtotal of 350 pesos and a discounted total of 250 pesos
+    When a cash payment of 250 pesos is created for that order
+    Then the payment is saved and the order is marked PAID

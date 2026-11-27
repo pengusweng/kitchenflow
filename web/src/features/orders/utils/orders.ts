@@ -1,6 +1,7 @@
 import type {
   OrderChannel,
   OrderDetailRecord,
+  OrderPaymentRecord,
   OrderStatus,
   OrderSummaryRecord,
   PaymentMethod,
@@ -23,8 +24,6 @@ export type OrderSummary = {
   channel: OrderChannel;
   status: OrderStatus;
   payment: PaymentStatus;
-  paymentMethod: PaymentMethod | null;
-  paymentReference: string | null;
   table: string | null;
   /** The platform's own order ID for GrabFood / foodpanda orders. */
   externalReference: string | null;
@@ -103,6 +102,13 @@ export type KitchenTicket = {
   handedOverAt: string | null;
 };
 
+/** How an order was paid. */
+export type OrderPayment = {
+  method: PaymentMethod;
+  /** Card, e-wallet or platform reference; cash has none. */
+  reference: string | null;
+};
+
 export type OrderDetail = OrderSummary & {
   items: OrderItem[];
   ticket: KitchenTicket | null;
@@ -119,8 +125,6 @@ export function toOrderSummary(row: OrderSummaryRecord): OrderSummary {
     channel: row.order_channel,
     status: row.status,
     payment: row.payment_status,
-    paymentMethod: row.payment_method,
-    paymentReference: row.payment_reference,
     table: row.table_reference,
     externalReference: row.external_order_reference,
     notes: row.notes,
@@ -138,8 +142,6 @@ export function toOrderDetail(summary: OrderSummary, record: OrderDetailRecord):
     ...summary,
     status: record.status,
     payment: record.payment_status,
-    paymentMethod: record.payment_method,
-    paymentReference: record.payment_reference,
     confirmedAt: record.confirmed_at,
     completedAt: record.completed_at,
     cancelledAt: record.cancelled_at,
@@ -167,6 +169,10 @@ export function toOrderDetail(summary: OrderSummary, record: OrderDetailRecord):
         }
       : null,
   };
+}
+
+export function toOrderPayment(record: OrderPaymentRecord): OrderPayment {
+  return { method: record.payment_method, reference: record.payment_reference };
 }
 
 export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
