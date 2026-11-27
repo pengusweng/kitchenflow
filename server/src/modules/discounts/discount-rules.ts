@@ -8,15 +8,26 @@ function toCentavos(amount: Prisma.Decimal) {
 }
 
 /**
- * Senior citizen / PWD discount on the whole order: VAT comes off first, then
- * 20% of what is left. The VAT exemption and the amount due are derived from
- * the rounded VAT-exclusive amount, so the three parts always add back up to
- * the subtotal.
+ * Senior citizen / PWD discount. Only the holders' share of a shared bill is
+ * discounted: subtotal ÷ diners × holders. VAT comes off that share first,
+ * then 20% of what is left. The VAT exemption is derived from the rounded
+ * VAT-exclusive amount, so total + vatExempt + discount always adds back up
+ * to the subtotal.
  */
-export function seniorDiscount(subtotal: Prisma.Decimal) {
-  const vatExclusive = toCentavos(subtotal.dividedBy(VAT_RATE));
-  const vatExempt = subtotal.minus(vatExclusive);
+export function seniorDiscount(
+  subtotal: Prisma.Decimal,
+  holders = 1,
+  diners = 1,
+) {
+  const share = toCentavos(subtotal.dividedBy(diners).times(holders));
+
+  const vatExclusive = toCentavos(share.dividedBy(VAT_RATE));
+  const vatExempt = share.minus(vatExclusive);
   const discount = toCentavos(vatExclusive.times(DISCOUNT_RATE));
 
-  return { vatExempt, discount, total: vatExclusive.minus(discount) };
+  return {
+    vatExempt,
+    discount,
+    total: subtotal.minus(vatExempt).minus(discount),
+  };
 }

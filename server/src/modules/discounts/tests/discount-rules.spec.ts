@@ -43,4 +43,51 @@ describe('seniorDiscount', () => {
       expect(total.plus(vatExempt).plus(discount).toFixed(2)).toBe(subtotal);
     },
   );
+
+  it.each([
+    {
+      holders: 1,
+      diners: 4,
+      vatExempt: '26.79',
+      discount: '44.64',
+      total: '928.57',
+    },
+    {
+      holders: 2,
+      diners: 4,
+      vatExempt: '53.57',
+      discount: '89.29',
+      total: '857.14',
+    },
+    {
+      holders: 1,
+      diners: 3,
+      vatExempt: '35.71',
+      discount: '59.52',
+      total: '904.77',
+    },
+    {
+      holders: 4,
+      diners: 4,
+      vatExempt: '107.14',
+      discount: '178.57',
+      total: '714.29',
+    },
+  ])(
+    'UT-DSC-008: discounts only $holders of $diners diners’ share of a 1000 bill, leaving $total',
+    ({ holders, diners, vatExempt, discount, total }) => {
+      const result = seniorDiscount(
+        new Prisma.Decimal('1000.00'),
+        holders,
+        diners,
+      );
+
+      expect(result.vatExempt.toFixed(2)).toBe(vatExempt);
+      expect(result.discount.toFixed(2)).toBe(discount);
+      expect(result.total.toFixed(2)).toBe(total);
+      expect(
+        result.total.plus(result.vatExempt).plus(result.discount).toFixed(2),
+      ).toBe('1000.00');
+    },
+  );
 });

@@ -74,3 +74,33 @@ Feature: Senior citizen and PWD discounts
       | channel   |
       | GRABFOOD  |
       | FOODPANDA |
+
+  @UT-DSC-008
+  Scenario Outline: Discount only the holders' share of a shared bill
+    Given a subtotal of 1000 pesos shared by <diners> diners
+    When the discount is computed for <holders> holders
+    Then the VAT exemption is <vatExempt>, the discount is <discount> and the total is <total>
+    And the parts add back up to 1000 exactly
+    Examples:
+      | holders | diners | vatExempt | discount | total  |
+      | 1       | 4      | 26.79     | 44.64    | 928.57 |
+      | 2       | 4      | 53.57     | 89.29    | 857.14 |
+      | 1       | 3      | 35.71     | 59.52    | 904.77 |
+      | 4       | 4      | 107.14    | 178.57   | 714.29 |
+
+  @UT-DSC-009
+  Scenario: Save the headcount with a shared-bill discount
+    Given a confirmed, unpaid dine-in order with a subtotal of 560 pesos
+    When one holder among four diners is discounted
+    Then the service saves the headcount with a VAT exemption of 15.00 and a discount of 25.00
+    And saves 520.00 as the order total
+
+  @UT-DSC-010
+  Scenario Outline: Reject more holders than diners
+    Given a discount request for <holders> holders among <diners> diners
+    When a discount is applied
+    Then the service returns HOLDERS_EXCEED_DINERS without reading the order or saving anything
+    Examples:
+      | holders | diners          |
+      | 3       | 2               |
+      | 2       | 1 (the default) |

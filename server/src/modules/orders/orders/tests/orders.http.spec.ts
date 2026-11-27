@@ -1079,6 +1079,42 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
     ).toBe(1);
   });
 
+  it('IT-DSC-003: Given a takeaway order shared by two diners When one senior is discounted Then only half the bill is discounted', async () => {
+    const order = await draft();
+    expect(
+      (
+        await request(
+          `${ordersPath()}/${order.order_id}/confirm`,
+          'POST',
+          undefined,
+          1,
+        )
+      ).status,
+    ).toBe(200);
+
+    const applied = await request(
+      `/discounts/order/${order.order_id}`,
+      'POST',
+      {
+        discount_type: 'SENIOR_CITIZEN',
+        id_number: 'OSCA-2026-000002',
+        holder_name: 'Lola Basyang',
+        diners: 2,
+        holders: 1,
+      },
+      1,
+    );
+
+    expect(applied.status).toBe(201);
+    // 250 ÷ 2 = 125; 125 ÷ 1.12 = 111.61; 20% of that is 22.32.
+    const body = await json(applied);
+    expect(body).toMatchObject({ diners: 2, holders: 1 });
+    expect(Number(body.vat_exempt_amount)).toBe(13.39);
+    expect(Number(body.discount_amount)).toBe(22.32);
+    expect(Number(body.total)).toBe(214.29);
+    expect((await savedOrder(order.order_id)).total.toFixed(2)).toBe('214.29');
+  });
+
   it('IT-DSC-002: Given invalid discount requests When applying a discount Then reject each one without saving a discount', async () => {
     const valid = {
       discount_type: 'PWD',
@@ -1118,6 +1154,10 @@ describe('Orders HTTP endpoints (PostgreSQL integration)', () => {
       { ...valid, id_number: '   ' },
       { ...valid, holder_name: '' },
       { ...valid, unexpected: true },
+      { ...valid, diners: 0 },
+      { ...valid, diners: 1.5 },
+      { ...valid, holders: 0 },
+      { ...valid, diners: 2, holders: 3 },
     ]) {
       expect((await apply(confirmed.order_id, body)).status).toBe(400);
     }
