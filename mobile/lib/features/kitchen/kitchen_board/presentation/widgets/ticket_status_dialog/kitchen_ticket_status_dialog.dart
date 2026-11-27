@@ -418,12 +418,19 @@ Future<void> showKitchenTicketStatusDialog(
               currentTicket.data.status == KkfcStatus.checking ||
               currentTicket.rawStatus.toUpperCase() == 'FOR_CHECKING' ||
               currentTicket.rawStatus.toUpperCase() == 'CHECKING';
+          final isHandover =
+              currentTicket.lane == KitchenBoardLane.ready ||
+              currentTicket.data.status == KkfcStatus.ready ||
+              currentTicket.rawStatus.toUpperCase() == 'READY';
           final canPass = userRole?.canPassQc ?? false;
           final canCancel = userRole == null || userRole.canCancelTicket;
           final effectiveActionEnabled =
               isActionEnabled ??
               (userRole != null
-                  ? userRole.canChangeTicketStatus(isQcCheck: isQcLane)
+                  ? userRole.canChangeTicketStatus(
+                      isQcCheck: isQcLane,
+                      isHandover: isHandover,
+                    )
                   : (!isQcLane || canPass));
 
           return KitchenTicketStatusDialog(

@@ -1405,15 +1405,30 @@ void main() {
       expect(UserRole.manager.isKitchenReadOnlyExceptQc, isFalse);
       expect(UserRole.superadmin.isKitchenReadOnlyExceptQc, isFalse);
 
-      // Supervisor can ONLY change ticket status for QC check
+      // Supervisor can change ticket status for QC check and handover
       expect(
         UserRole.supervisor.canChangeTicketStatus(isQcCheck: true),
         isTrue,
       );
       expect(
+        UserRole.supervisor.canChangeTicketStatus(
+          isQcCheck: false,
+          isHandover: true,
+        ),
+        isTrue,
+      );
+      expect(
+        UserRole.supervisor.canChangeTicketStatus(
+          isQcCheck: false,
+          isHandover: false,
+        ),
+        isFalse,
+      );
+      expect(
         UserRole.supervisor.canChangeTicketStatus(isQcCheck: false),
         isFalse,
       );
+      expect(UserRole.supervisor.canHandover, isTrue);
 
       // Kitchen Head and Manager can change status across all lanes
       expect(
@@ -1439,7 +1454,7 @@ void main() {
     });
 
     testWidgets(
-      'WT-MOB-KITCHEN-008 Supervisor is in read-only mode for Queued, Preparing, and Ready tickets, but can execute QC check',
+      'WT-MOB-KITCHEN-008 Supervisor is in read-only mode for Queued and Preparing tickets, but can execute QC check and handover Ready tickets',
       (tester) async {
         final queuedTicket = sampleKitchenBoardTickets[0]; // T-016 (Queued)
         final preparingTicket =
@@ -1522,7 +1537,7 @@ void main() {
         );
         expect(tester.widget<FilledButton>(preparingAction).onPressed, isNull);
 
-        // 3. Ready Ticket (T-014): Action button is disabled, Details button is available
+        // 3. Ready Ticket (T-014): Action button is enabled for Supervisor
         final readyCard = find.byKey(
           const ValueKey('kitchen-ticket-card-T-014'),
         );
@@ -1530,22 +1545,26 @@ void main() {
           of: readyCard,
           matching: find.byType(FilledButton),
         );
-        expect(tester.widget<FilledButton>(readyAction).onPressed, isNull);
-
-        final readyDetails = find.descendant(
-          of: readyCard,
-          matching: find.text('Details'),
+        expect(tester.widget<FilledButton>(readyAction).onPressed, isNotNull);
+        expect(
+          find.descendant(of: readyCard, matching: find.text('Hand over')),
+          findsOneWidget,
         );
-        expect(readyDetails, findsOneWidget);
-        await tester.ensureVisible(readyDetails);
-        await tester.tap(readyDetails);
+
+        await tester.ensureVisible(readyAction);
+        await tester.tap(readyAction);
         await tester.pumpAndSettle();
 
         expect(find.byType(KitchenTicketStatusDialog), findsOneWidget);
-        final handoverConfirm = find.byKey(
-          const ValueKey('kitchen-ticket-handover-confirm-button'),
+        expect(find.byType(KitchenTicketHandoverView), findsOneWidget);
+        expect(
+          tester
+              .widget<KitchenTicketHandoverView>(
+                find.byType(KitchenTicketHandoverView),
+              )
+              .isActionEnabled,
+          isTrue,
         );
-        expect(tester.widget<FilledButton>(handoverConfirm).onPressed, isNull);
 
         await tester.tap(
           find.byKey(const ValueKey('kitchen-ticket-dialog-close-button')),
@@ -1587,7 +1606,7 @@ void main() {
       },
     );
 
-    test('UT-MOB-KITCHEN-022 KitchenBoardNotifier rejects status transitions for supervisor except QC', () async {
+    test('UT-MOB-KITCHEN-022 KitchenBoardNotifier rejects status transitions for supervisor except QC and handover', () async {
       final repo = _FakeKitchenBoardRepository(
         () async => sampleKitchenBoardTickets,
       );
@@ -1604,11 +1623,14 @@ void main() {
 
       final notifier = container.read(kitchenBoardProvider.notifier);
 
-      // Non-QC actions are rejected (return false)
+      // Non-QC and non-handover actions are rejected (return false)
       expect(await notifier.acknowledgeTicket('any-id'), isFalse);
       expect(await notifier.prepareTicket('any-id'), isFalse);
       expect(await notifier.sendToQc('any-id'), isFalse);
-      expect(await notifier.handOverTicket('any-id'), isFalse);
+
+      // Handover is allowed for supervisor
+      expect(await notifier.handOverTicket('any-id'), isTrue);
+      expect(repo.handedOverTicketIds, contains('any-id'));
 
       // QC pass and reject are allowed for supervisor
       expect(
@@ -3311,6 +3333,59 @@ void main() {
           const ValueKey('kitchen-ticket-card-T-014'),
         );
         expect(readyCard, findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-KITCHEN-032 Supervisor can complete handover flow for ready takeaway ticket',
+      (tester) async {
+        final readyTakeawayTicket = sampleKitchenBoardTickets[2].copyWith(
+          kitchenTicketId: 'sup-handover-test-id',
+          data: sampleKitchenBoardTickets[2].data.copyWith(
+            ticketNumber: 'T-088',
+            channel: 'Takeaway',
+          ),
+        );
+
+        final repo = _FakeKitchenBoardRepository(
+          () async => [readyTakeawayTicket],
+        );
+
+        await pumpBoard(tester, repository: repo, role: UserRole.supervisor);
+
+        final card = find.byKey(const ValueKey('kitchen-ticket-card-T-088'));
+        expect(card, findsOneWidget);
+
+        final handOverButton = find.descendant(
+          of: card,
+          matching: find.widgetWithText(FilledButton, 'Hand over'),
+        );
+        expect(
+          tester.widget<FilledButton>(handOverButton).onPressed,
+          isNotNull,
+        );
+
+        await tester.ensureVisible(handOverButton);
+        await tester.tap(handOverButton);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(KitchenTicketStatusDialog), findsOneWidget);
+
+        await tester.tap(find.text('All 2 items match the ticket'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Cutlery, napkins and condiments included'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Packaging sealed'));
+        await tester.pumpAndSettle();
+
+        final confirmButton = find.byKey(
+          const ValueKey('kitchen-ticket-handover-confirm-button'),
+        );
+        expect(tester.widget<FilledButton>(confirmButton).onPressed, isNotNull);
+        await tester.tap(confirmButton);
+        await tester.pumpAndSettle();
+
+        expect(repo.handedOverTicketIds, contains('sup-handover-test-id'));
       },
     );
   });

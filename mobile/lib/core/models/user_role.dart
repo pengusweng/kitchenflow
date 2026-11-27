@@ -67,16 +67,27 @@ enum UserRole {
       this == UserRole.kitchenHead;
 
   /// Whether this role operates in read-only mode on the kitchen board,
-  /// with the sole exception of quality control (QC) checks.
+  /// with the exception of quality control (QC) checks and handover.
   bool get isKitchenReadOnlyExceptQc => this == UserRole.supervisor;
+
+  /// Whether this role is authorized to hand over tickets on the kitchen board.
+  bool get canHandover =>
+      this == UserRole.superadmin ||
+      this == UserRole.manager ||
+      this == UserRole.supervisor ||
+      this == UserRole.kitchenHead ||
+      this == UserRole.kitchenStaff;
 
   /// Whether this role can change or advance ticket status on the kitchen board.
   ///
-  /// Supervisors are in read-only mode across all lanes except for QC check.
+  /// Supervisors can perform QC checks and hand over tickets.
   /// Kitchen staff cannot pass QC checks.
-  bool canChangeTicketStatus({required bool isQcCheck}) {
+  bool canChangeTicketStatus({
+    required bool isQcCheck,
+    bool isHandover = false,
+  }) {
     if (this == UserRole.supervisor) {
-      return isQcCheck;
+      return isQcCheck || isHandover;
     }
     if (isQcCheck) {
       return canPassQc;

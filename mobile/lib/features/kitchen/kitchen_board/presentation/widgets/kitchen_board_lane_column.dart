@@ -133,8 +133,15 @@ class KitchenBoardLaneColumn extends StatelessWidget {
         boardTicket.data.status == KkfcStatus.checking ||
         boardTicket.rawStatus.toUpperCase() == 'FOR_CHECKING' ||
         boardTicket.rawStatus.toUpperCase() == 'CHECKING';
+    final isHandover =
+        lane == KitchenBoardLane.ready ||
+        boardTicket.data.status == KkfcStatus.ready ||
+        boardTicket.rawStatus.toUpperCase() == 'READY';
     final isActionEnabled = userRole != null
-        ? userRole!.canChangeTicketStatus(isQcCheck: isQcLane)
+        ? userRole!.canChangeTicketStatus(
+            isQcCheck: isQcLane,
+            isHandover: isHandover,
+          )
         : (!isQcLane || canPassQc);
     final isLoading = loadingTicketIds.contains(boardTicket.kitchenTicketId);
 
