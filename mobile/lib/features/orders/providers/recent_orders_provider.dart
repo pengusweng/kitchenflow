@@ -1,6 +1,11 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile/features/auth/providers/session_provider.dart';
 import 'package:mobile/features/orders/data/models/recent_order.dart';
+import 'package:mobile/features/orders/data/repositories/recent_orders_repository.dart';
 import 'package:mobile/features/orders/data/seed/sample_recent_orders.dart';
 
 @immutable
@@ -10,20 +15,22 @@ class RecentOrdersState {
     this.selectedTab = RecentOrderTab.unpaid,
     this.searchQuery = '',
     this.channelFilter = 'All',
-    this.sortOption = RecentOrderSort.mostRecent,
     this.selectedOrderId,
+    this.isLoading = false,
+    this.errorMessage,
   });
 
   final List<RecentOrder> orders;
   final RecentOrderTab selectedTab;
   final String searchQuery;
   final String channelFilter;
-  final RecentOrderSort sortOption;
   final String? selectedOrderId;
+  final bool isLoading;
+  final String? errorMessage;
 
   List<RecentOrder> get filteredOrders {
-    var result = orders.where((order) {
-      // 1. Tab filter (Open or Closed)
+    final result = orders.where((order) {
+      // 1. Tab filter (Unpaid, Paid, or Closed)
       if (order.tab != selectedTab) return false;
 
       // 2. Channel filter
@@ -38,45 +45,33 @@ class RecentOrdersState {
         final matchesCode = order.orderCode.toLowerCase().contains(query);
         final matchesTicket = order.ticketNumber.toLowerCase().contains(query);
         final matchesChannel = order.channel.toLowerCase().contains(query);
-        final matchesServer = order.serverName.toLowerCase().contains(query);
         final matchesItems = order.items.any(
           (item) => item.name.toLowerCase().contains(query),
         );
         if (!matchesCode &&
             !matchesTicket &&
             !matchesChannel &&
-            !matchesServer &&
             !matchesItems) {
           return false;
         }
       }
 
       return true;
-    }).toList();
-
-    // Sorting
-    switch (sortOption) {
-      case RecentOrderSort.mostRecent:
-        result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        break;
-      case RecentOrderSort.oldest:
-        result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        break;
-      case RecentOrderSort.highestTotal:
-        result.sort((a, b) => b.totalCentavos.compareTo(a.totalCentavos));
-        break;
-    }
+    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return result;
   }
 
   RecentOrder? get selectedOrder {
-    final list = filteredOrders;
-    if (list.isEmpty) return null;
-    if (selectedOrderId == null) return list.first;
+    final filtered = filteredOrders;
+    if (filtered.isEmpty) return null;
 
-    final found = list.where((o) => o.id == selectedOrderId).firstOrNull;
-    return found ?? list.first;
+    if (selectedOrderId != null) {
+      for (final o in filtered) {
+        if (o.id == selectedOrderId) return o;
+      }
+    }
+    return filtered.first;
   }
 
   int countForTab(RecentOrderTab tab) =>
@@ -87,26 +82,56 @@ class RecentOrdersState {
     RecentOrderTab? selectedTab,
     String? searchQuery,
     String? channelFilter,
-    RecentOrderSort? sortOption,
     String? selectedOrderId,
     bool clearSelectedOrderId = false,
+    bool? isLoading,
+    String? errorMessage,
+    bool clearErrorMessage = false,
   }) {
     return RecentOrdersState(
       orders: orders ?? this.orders,
       selectedTab: selectedTab ?? this.selectedTab,
       searchQuery: searchQuery ?? this.searchQuery,
       channelFilter: channelFilter ?? this.channelFilter,
-      sortOption: sortOption ?? this.sortOption,
       selectedOrderId: clearSelectedOrderId
           ? null
           : (selectedOrderId ?? this.selectedOrderId),
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
     );
   }
 }
 
 class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
+  static final _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  CancelToken? _cancelToken;
+
+  void _cancelPendingRequest() {
+    final token = _cancelToken;
+    _cancelToken = null;
+    if (token != null && !token.isCancelled) {
+      token.cancel('Cancelled');
+    }
+  }
+
   @override
   RecentOrdersState build() {
+    ref.onDispose(_cancelPendingRequest);
+
+    ref.listen<String?>(sessionTokenProvider, (previous, next) {
+      if (next == null) {
+        _cancelPendingRequest();
+      } else if (next != previous) {
+        unawaited(loadOrders());
+      }
+    });
+
+    Future.microtask(loadOrders);
     return RecentOrdersState(
       orders: createSampleRecentOrders(),
       selectedTab: RecentOrderTab.unpaid,
@@ -114,9 +139,44 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
     );
   }
 
+  /// Fetches recent orders from the backend Orders API (`GET /orders` and
+  /// `GET /brands/:brandId/orders`). Falls back to existing seed state when
+  /// running offline or in unmocked widget tests.
+  Future<void> loadOrders() async {
+    if (!ref.mounted) return;
+    _cancelPendingRequest();
+    final cancelToken = CancelToken();
+    _cancelToken = cancelToken;
+
+    final repo = ref.read(recentOrdersRepositoryProvider);
+    try {
+      final fetched = await repo.fetchRecentOrders(cancelToken: cancelToken);
+      if (!ref.mounted || cancelToken.isCancelled) return;
+      state = state.copyWith(
+        orders: fetched,
+        isLoading: false,
+        clearErrorMessage: true,
+        clearSelectedOrderId: true,
+      );
+      final initialSelected = state.selectedOrder;
+      if (initialSelected != null && !initialSelected.hasLoadedDetails) {
+        unawaited(_hydrateOrderDetail(initialSelected));
+      }
+    } catch (_) {
+      if (!ref.mounted || cancelToken.isCancelled) return;
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
+  Future<void> refresh() => loadOrders();
+
   void setTab(RecentOrderTab tab) {
     if (state.selectedTab == tab) return;
     state = state.copyWith(selectedTab: tab, clearSelectedOrderId: true);
+    final selected = state.selectedOrder;
+    if (selected != null && !selected.hasLoadedDetails) {
+      unawaited(_hydrateOrderDetail(selected));
+    }
   }
 
   void setSearchQuery(String query) {
@@ -127,32 +187,37 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
     state = state.copyWith(channelFilter: channel);
   }
 
-  void setSortOption(RecentOrderSort sort) {
-    state = state.copyWith(sortOption: sort);
-  }
-
   void selectOrder(String orderId) {
     state = state.copyWith(selectedOrderId: orderId);
+    final selected = state.selectedOrder;
+    if (selected != null && !selected.hasLoadedDetails) {
+      unawaited(_hydrateOrderDetail(selected));
+    }
   }
 
-  void reopenOrder(String orderId) {
-    final updated = state.orders.map((o) {
-      if (o.id == orderId) {
-        return o.copyWith(
-          tab: RecentOrderTab.paid,
-          isReopened: true,
-          statusLabel: 'Reopened • Preparing in kitchen',
-          lastModified: 'Just now',
-        );
-      }
-      return o;
-    }).toList();
-
-    state = state.copyWith(
-      orders: updated,
-      selectedTab: RecentOrderTab.paid,
-      selectedOrderId: orderId,
-    );
+  Future<void> _hydrateOrderDetail(RecentOrder order) async {
+    if (!_uuidRegex.hasMatch(order.brandId) || !_uuidRegex.hasMatch(order.id)) {
+      return;
+    }
+    try {
+      final repo = ref.read(recentOrdersRepositoryProvider);
+      final detailed = await repo.fetchOrderDetail(
+        brandId: order.brandId,
+        orderId: order.id,
+      );
+      if (!ref.mounted) return;
+      final updated = state.orders.map((existing) {
+        if (existing.id == order.id) {
+          return detailed.copyWith(
+            brandName: existing.brandName ?? detailed.brandName,
+          );
+        }
+        return existing;
+      }).toList();
+      state = state.copyWith(orders: updated);
+    } catch (_) {
+      // Keep existing summary if detail request fails
+    }
   }
 }
 

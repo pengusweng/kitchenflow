@@ -6,14 +6,12 @@ import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
 import 'package:mobile/features/orders/data/models/recent_order.dart';
 
-/// Detail pane for Recent Orders.
-///
-/// Features:
+/// Detail pane for Recent Orders, strictly aligned with the backend Orders API:
 /// - Action bar (Cancel Order on open orders)
-/// - Hero summary (Order code, grand total, table/pickup, payment status)
-/// - 2x2 metadata grid (Status/time, Last modified, Channel, Server)
+/// - Hero summary (Order code, grand total, table/pickup/platform reference)
+/// - Metadata bar (Operational status, Channel, plus optional order notes / cancellation reason)
 /// - Line item breakdown with indented modifiers and special notes
-/// - Financial totals breakdown (Subtotal, Tax, Total)
+/// - Financial total breakdown (Total)
 class RecentOrderDetailPane extends StatelessWidget {
   const RecentOrderDetailPane({super.key, required this.order, this.onBack});
 
@@ -90,7 +88,7 @@ class RecentOrderDetailPane extends StatelessWidget {
 
                   const SizedBox(height: KkfcSpace.s20),
 
-                  // 2x2 Metadata Grid
+                  // Metadata Bar (Status & Channel)
                   _buildMetadataGrid(ord),
 
                   const SizedBox(height: KkfcSpace.s24),
@@ -116,7 +114,7 @@ class RecentOrderDetailPane extends StatelessWidget {
 
                   const SizedBox(height: KkfcSpace.s20),
 
-                  // Financial Receipt Breakdown
+                  // Financial Total Breakdown
                   _buildFinancialSummary(ord),
                 ],
               ),
@@ -149,8 +147,11 @@ class RecentOrderDetailPane extends StatelessWidget {
           if (order.isOpen)
             OutlinedButton.icon(
               onPressed: () {
+                final brandParam = order.brandId.isNotEmpty
+                    ? 'brandId=${Uri.encodeQueryComponent(order.brandId)}&'
+                    : '';
                 context.go(
-                  '${AppRoutes.cancelOrder}?orderId=${order.id}&orderCode=${order.orderCode}&ticketNumber=${order.ticketNumber}',
+                  '${AppRoutes.cancelOrder}?${brandParam}orderId=${Uri.encodeQueryComponent(order.id)}&orderCode=${Uri.encodeQueryComponent(order.orderCode)}&ticketNumber=${Uri.encodeQueryComponent(order.ticketNumber)}',
                 );
               },
               icon: const Icon(
@@ -214,33 +215,16 @@ class RecentOrderDetailPane extends StatelessWidget {
           ),
         ),
 
-        // Right: Grand Total & Amount Due
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              formatPeso(order.totalCentavos),
-              style: const TextStyle(
-                fontFamily: KkfcFonts.ibmPlexSans,
-                fontSize: 26.0,
-                fontWeight: FontWeight.w700,
-                color: KkfcColors.ink,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: KkfcSpace.s4),
-            Text(
-              order.amountDueCentavos == 0
-                  ? '₱ 0.00 Due'
-                  : '${formatPeso(order.amountDueCentavos)} Due',
-              style: const TextStyle(
-                fontFamily: KkfcFonts.ibmPlexSans,
-                fontSize: KkfcTextSizes.textSm,
-                fontWeight: FontWeight.w500,
-                color: KkfcColors.ink3,
-              ),
-            ),
-          ],
+        // Right: Grand Total
+        Text(
+          formatPeso(order.totalCentavos),
+          style: const TextStyle(
+            fontFamily: KkfcFonts.ibmPlexSans,
+            fontSize: 26.0,
+            fontWeight: FontWeight.w700,
+            color: KkfcColors.ink,
+            letterSpacing: -0.5,
+          ),
         ),
       ],
     );
@@ -255,10 +239,11 @@ class RecentOrderDetailPane extends StatelessWidget {
         border: Border.all(color: KkfcColors.border),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              // Top-left: Closed/Status timestamp
+              // Left: Status
               Expanded(
                 child: Row(
                   children: [
@@ -285,48 +270,7 @@ class RecentOrderDetailPane extends StatelessWidget {
 
               const SizedBox(width: KkfcSpace.s16),
 
-              // Top-right: Last Modified
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.update_outlined,
-                      size: 16.0,
-                      color: KkfcColors.ink3,
-                    ),
-                    const SizedBox(width: KkfcSpace.s8),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontFamily: KkfcFonts.ibmPlexSans,
-                            fontSize: KkfcTextSizes.textSm,
-                            color: KkfcColors.ink,
-                          ),
-                          children: [
-                            const TextSpan(text: 'Last Modified: '),
-                            TextSpan(
-                              text: '${order.lastModified} ›',
-                              style: const TextStyle(
-                                color: Color(0xFF4A7C59),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: KkfcSpace.s12),
-
-          Row(
-            children: [
-              // Bottom-left: Channel
+              // Right: Channel
               Expanded(
                 child: Row(
                   children: [
@@ -350,35 +294,33 @@ class RecentOrderDetailPane extends StatelessWidget {
                   ],
                 ),
               ),
-
-              const SizedBox(width: KkfcSpace.s16),
-
-              // Bottom-right: Server
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.person_outline_rounded,
-                      size: 16.0,
-                      color: KkfcColors.ink3,
-                    ),
-                    const SizedBox(width: KkfcSpace.s8),
-                    Expanded(
-                      child: Text(
-                        'Server: ${order.serverName}',
-                        style: const TextStyle(
-                          fontFamily: KkfcFonts.ibmPlexSans,
-                          fontSize: KkfcTextSizes.textSm,
-                          fontWeight: FontWeight.w500,
-                          color: KkfcColors.ink,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
+          if (order.notes != null && order.notes!.isNotEmpty) ...[
+            const SizedBox(height: KkfcSpace.s12),
+            Text(
+              'Notes: ${order.notes}',
+              style: const TextStyle(
+                fontFamily: KkfcFonts.ibmPlexSans,
+                fontSize: KkfcTextSizes.textSm,
+                fontWeight: FontWeight.w500,
+                color: KkfcColors.ink2,
+              ),
+            ),
+          ],
+          if (order.cancellationReason != null &&
+              order.cancellationReason!.isNotEmpty) ...[
+            const SizedBox(height: KkfcSpace.s12),
+            Text(
+              'Cancellation Reason: ${order.cancellationReason}',
+              style: const TextStyle(
+                fontFamily: KkfcFonts.ibmPlexSans,
+                fontSize: KkfcTextSizes.textSm,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFFB3261E),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -469,22 +411,6 @@ class RecentOrderDetailPane extends StatelessWidget {
   Widget _buildFinancialSummary(RecentOrder order) {
     return Column(
       children: [
-        _buildReceiptRow(
-          label: 'Subtotal:',
-          value: formatPeso(order.subtotalCentavos),
-        ),
-        const SizedBox(height: KkfcSpace.s8),
-        _buildReceiptRow(
-          label: 'Tax (VAT / 8.5%):',
-          value: formatPeso(order.taxCentavos),
-        ),
-        const SizedBox(height: KkfcSpace.s12),
-        const Divider(
-          height: 1.0,
-          thickness: KkfcBorderWidth.thick,
-          color: KkfcColors.shell,
-        ),
-        const SizedBox(height: KkfcSpace.s12),
         _buildReceiptRow(
           label: 'Total:',
           value: formatPeso(order.totalCentavos),

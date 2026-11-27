@@ -6,11 +6,11 @@ import 'package:mobile/features/orders/data/models/recent_order.dart';
 
 /// An individual order card rendered in the Recent Orders master list.
 ///
-/// Follows the POS visual hierarchy:
+/// Follows the POS visual hierarchy and backend Orders API fields:
 /// - Order ticket number / code
-/// - Service channel or reopened state
-/// - Timestamp / operational status
-/// - Grand total and server name
+/// - Service channel
+/// - Operational status
+/// - Grand total
 /// - Clear active selection styling with KKFC theme tokens
 class RecentOrderCard extends StatelessWidget {
   const RecentOrderCard({
@@ -29,10 +29,6 @@ class RecentOrderCard extends StatelessWidget {
     final backgroundColor = isSelected
         ? KkfcColors.selectedTint
         : KkfcColors.surface;
-
-    final channelTitle = order.isReopened
-        ? '${order.channel} - Reopened'
-        : order.channel;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -75,7 +71,7 @@ class RecentOrderCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Left details: Ticket #, Channel / Reopened, Status time
+                  // Left details: Ticket #, Channel, Status
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,7 +89,7 @@ class RecentOrderCard extends StatelessWidget {
                         ),
                         const SizedBox(height: KkfcSpace.s2),
                         Text(
-                          channelTitle,
+                          order.channel,
                           style: TextStyle(
                             fontFamily: KkfcFonts.ibmPlexSans,
                             fontSize: KkfcTextSizes.textBase,
@@ -121,31 +117,15 @@ class RecentOrderCard extends StatelessWidget {
 
                   const SizedBox(width: KkfcSpace.s12),
 
-                  // Right details: Amount and Server
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        formatPeso(order.totalCentavos),
-                        style: const TextStyle(
-                          fontFamily: KkfcFonts.ibmPlexSans,
-                          fontSize: KkfcTextSizes.textBase,
-                          fontWeight: FontWeight.w700,
-                          color: KkfcColors.ink,
-                        ),
-                      ),
-                      const SizedBox(height: KkfcSpace.s4),
-                      Text(
-                        order.serverName,
-                        style: const TextStyle(
-                          fontFamily: KkfcFonts.ibmPlexSans,
-                          fontSize: KkfcTextSizes.textSm,
-                          fontWeight: FontWeight.w400,
-                          color: KkfcColors.ink3,
-                        ),
-                      ),
-                    ],
+                  // Right details: Total Amount
+                  Text(
+                    formatPeso(order.totalCentavos),
+                    style: const TextStyle(
+                      fontFamily: KkfcFonts.ibmPlexSans,
+                      fontSize: KkfcTextSizes.textBase,
+                      fontWeight: FontWeight.w700,
+                      color: KkfcColors.ink,
+                    ),
                   ),
                 ],
               ),

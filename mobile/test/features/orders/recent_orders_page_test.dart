@@ -75,7 +75,7 @@ void main() {
     );
 
     testWidgets(
-      'detail pane does not show print/email icons or payment platform',
+      'detail pane removes components not in backend API and keeps Total',
       (tester) async {
         tester.view.physicalSize = const Size(1200, 900);
         tester.view.devicePixelRatio = 1.0;
@@ -92,12 +92,15 @@ void main() {
         expect(find.byIcon(Icons.print_outlined), findsNothing);
         expect(find.byIcon(Icons.mail_outline_rounded), findsNothing);
 
-        // Payment platform container removed
+        // Non-backend components removed (Payment platform, Subtotal, Tax, Server, Last Modified, Amount Due)
         expect(find.textContaining('Payment:'), findsNothing);
+        expect(find.text('Subtotal:'), findsNothing);
+        expect(find.text('Tax (VAT / 8.5%):'), findsNothing);
+        expect(find.textContaining('Server:'), findsNothing);
+        expect(find.textContaining('Last Modified:'), findsNothing);
+        expect(find.textContaining('Due'), findsNothing);
 
-        // Financial totals still present
-        expect(find.text('Subtotal:'), findsOneWidget);
-        expect(find.text('Tax (VAT / 8.5%):'), findsOneWidget);
+        // Backend Total is present
         expect(find.text('Total:'), findsOneWidget);
       },
     );

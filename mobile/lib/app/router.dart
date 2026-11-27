@@ -212,6 +212,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Without orderId the screen runs the demo states with sample data.
           final query = state.uri.queryParameters;
           return CancelOrderScreen(
+            brandId: query['brandId'],
             orderId: query['orderId'],
             orderCode: query['orderCode'],
             ticketNumber: query['ticketNumber'],

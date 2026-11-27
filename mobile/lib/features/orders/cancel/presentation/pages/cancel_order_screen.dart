@@ -25,6 +25,7 @@ import 'package:mobile/shared/widgets/kkfc_scaffold.dart';
 class CancelOrderScreen extends ConsumerStatefulWidget {
   const CancelOrderScreen({
     super.key,
+    this.brandId,
     this.orderId,
     this.orderCode,
     this.ticketNumber,
@@ -37,6 +38,9 @@ class CancelOrderScreen extends ConsumerStatefulWidget {
     this.onBackToMenu,
     this.onRefresh,
   });
+
+  /// Real brand UUID when known from the selected order.
+  final String? brandId;
 
   /// Real order UUID. Enables live cancellation request to the server.
   final String? orderId;
@@ -198,6 +202,10 @@ class _CancelOrderScreenState extends ConsumerState<CancelOrderScreen> {
   }
 
   Future<String?> _resolveBrandId() async {
+    final explicitBrandId = widget.brandId;
+    if (explicitBrandId != null && _uuid.hasMatch(explicitBrandId)) {
+      return explicitBrandId;
+    }
     final draftBrandId = ref.read(activeOrderDraftProvider)?.brandId;
     if (draftBrandId != null && draftBrandId.isNotEmpty) {
       return draftBrandId;

@@ -131,7 +131,7 @@ class _RecentOrdersMasterPaneState
             child: CupertinoSearchTextField(
               controller: _searchController,
               onChanged: notifier.setSearchQuery,
-              placeholder: 'Search by order # or card last four',
+              placeholder: 'Search by order #',
               placeholderStyle: const TextStyle(
                 fontFamily: KkfcFonts.ibmPlexSans,
                 fontSize: KkfcTextSizes.textMd,
