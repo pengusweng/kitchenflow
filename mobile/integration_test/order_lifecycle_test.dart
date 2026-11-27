@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -14,7 +15,8 @@ import 'package:mobile/features/order_entry/data/repositories/order_entry_reposi
 import 'support/order_test_driver.dart';
 import 'support/kitchen_flow_driver.dart';
 
-const _payment = {'payment_method': 'CASH', 'payment_status': 'UNPAID'};
+const _payment = {'payment_status': 'UNPAID'};
+const _platformPayment = {'payment_status': 'PAID'};
 String get _orders => '/brands/$orderBrandId/orders';
 
 Map<String, dynamic> _payload({
@@ -130,14 +132,12 @@ void main() {
       expect(ticket['status'], 'QUEUED');
       expect(ticket['ticket_number'], matches(RegExp(r'^T-\d{3,}$')));
       final replay = await _post(api, '$_orders/$id/confirm', {
-        'payment_method': 'CARD',
         'payment_status': 'PAID',
       }, 200);
       expect(
         replay['kitchen_tickets_order']['kitchen_ticket_id'],
         ticket['kitchen_ticket_id'],
       );
-      expect(replay['payment_method'], 'CASH');
       expect(replay['payment_status'], 'UNPAID');
       expect((await _post(api, _orders, payload, 201))['status'], 'CONFIRMED');
       await orderTap(tester, find.text('New order'));
@@ -188,8 +188,8 @@ void main() {
       final (api, _) = await loginForOrderApi();
       final payload = _payload(channel: 'GRABFOOD');
       final original = await _post(api, _orders, payload, 201);
-      expect(original['payment_method'], 'PLATFORM_SETTLED');
-      expect(original['payment_status'], 'PAID');
+      expect(original['status'], 'DRAFT');
+      expect(original['kitchen_tickets_order'], isNull);
       expect(
         (await _post(api, _orders, payload, 201))['order_id'],
         original['order_id'],
@@ -203,18 +203,17 @@ void main() {
       final verified = await _post(
         api,
         '$_orders/${original['order_id']}/verify',
-        {},
+        _platformPayment,
         200,
       );
       expect(verified['valid'], true);
       final confirmed = await _post(
         api,
         '$_orders/${original['order_id']}/confirm',
-        {},
+        _platformPayment,
         200,
       );
       expect(confirmed['status'], 'CONFIRMED');
-      expect(confirmed['payment_method'], 'PLATFORM_SETTLED');
       expect(confirmed['payment_status'], 'PAID');
     },
   );
@@ -319,6 +318,13 @@ Future<Map<String, dynamic>> _confirmFromReview(
     container.read(dioProvider),
     '$_orders/$id/confirm',
   );
+  final confirmButton = find.byKey(const ValueKey('confirm-and-send-button'));
+  await waitForOrderUi(tester, () {
+    final elements = confirmButton.evaluate();
+    if (elements.isEmpty) return false;
+    final widget = elements.first.widget;
+    return widget is InkWell && widget.onTap != null;
+  }, 'confirm button cooldown to complete');
   final send = find.text('Confirm and send');
   await tester.ensureVisible(send);
   await tester.tap(send);

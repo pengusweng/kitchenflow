@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/app/routes.dart';
+import 'package:mobile/app/theme/tokens.dart';
+import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_bar.dart';
 import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_panel.dart';
 import 'package:mobile/features/new_order/presentation/widgets/catalog/menu_catalog_view.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
+import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
 import 'package:mobile/shared/widgets/app_header.dart';
 import 'package:mobile/shared/widgets/kkfc_scaffold.dart';
 import 'package:mobile/shared/widgets/wave_accents.dart';
@@ -117,10 +122,10 @@ class _ResponsiveMenuLayoutState extends ConsumerState<_ResponsiveMenuLayout>
     final cartCount = ref.watch(cartCountProvider);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
-    // Safe clearance when floating CartBar is present on phone
+    // Safe clearance when floating CartBar or floating Recent Orders button is present on phone
     final bottomPadding = (!isWide && cartCount > 0)
         ? (80.0 + bottomInset)
-        : (16.0 + bottomInset);
+        : (72.0 + bottomInset);
 
     return Column(
       children: [
@@ -153,6 +158,54 @@ class _ResponsiveMenuLayoutState extends ConsumerState<_ResponsiveMenuLayout>
                           child: MenuCatalogView(
                             isWide: isWide,
                             bottomPadding: bottomPadding,
+                          ),
+                        ),
+
+                        // Floating "Recent orders" button with slightly transparent background
+                        AnimatedPositioned(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOutCubic,
+                          bottom: (!isWide && cartCount > 0)
+                              ? (76.0 + bottomInset)
+                              : (20.0 + bottomInset),
+                          right: isWide ? 24.0 : 16.0,
+                          child: FloatingActionButton.extended(
+                            key: const ValueKey(
+                              'recent-orders-floating-button',
+                            ),
+                            heroTag: 'recent-orders-fab',
+                            elevation: 3,
+                            highlightElevation: 1,
+                            backgroundColor: KkfcColors.shell.withValues(
+                              alpha: 0.85,
+                            ),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24.0),
+                              side: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                width: 1.0,
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.receipt_long_outlined,
+                              size: 20.0,
+                            ),
+                            label: const Text(
+                              'Recent orders',
+                              style: TextStyle(
+                                fontFamily: KkfcFonts.ibmPlexSans,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            onPressed: () {
+                              ref.read(recentOrdersProvider.notifier).refresh();
+                              if (GoRouter.maybeOf(context) != null) {
+                                context.push(AppRoutes.orders);
+                              }
+                            },
                           ),
                         ),
 

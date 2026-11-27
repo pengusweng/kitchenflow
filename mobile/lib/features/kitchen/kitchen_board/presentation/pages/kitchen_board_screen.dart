@@ -166,6 +166,7 @@ class _KitchenBoardScreenState extends ConsumerState<KitchenBoardScreen>
                   updatedAt: boardState.updatedAt,
                   isRefreshing: boardState.isRefreshing || boardState.isLoading,
                   isReadOnly: userRole?.isKitchenReadOnlyExceptQc ?? false,
+                  readOnlyText: 'QC check and handover only',
                   onRefresh: () =>
                       ref.read(kitchenBoardProvider.notifier).refresh(),
                   onAvailability:

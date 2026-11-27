@@ -3,6 +3,7 @@ import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/fail_qc_send_to_rework_dialog.dart';
+import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_past_qc_attempts_card.dart';
 import 'package:mobile/features/kitchen/kitchen_board/presentation/widgets/ticket_status_dialog/kitchen_ticket_qc_item_card.dart';
 
 /// Stateless body section for the Quality Check popup, matching the design
@@ -35,60 +36,8 @@ class KitchenTicketQcDialogBody extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (ticket.data.reworkNotes != null &&
-                ticket.data.reworkNotes!.trim().isNotEmpty) ...[
-              Container(
-                key: const ValueKey('qc-dialog-rework-note-banner'),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: KkfcSpace.s12,
-                  vertical: KkfcSpace.s8,
-                ),
-                decoration: BoxDecoration(
-                  color: KkfcColors.ticketNoteBg,
-                  borderRadius: BorderRadius.circular(KkfcRadius.sm),
-                  border: Border.all(
-                    color: KkfcColors.ticketNoteBorder,
-                    width: KkfcBorderWidth.thin,
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.sync_rounded,
-                      size: 16,
-                      color: KkfcColors.reworkText,
-                    ),
-                    const SizedBox(width: KkfcSpace.s8),
-                    Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(
-                              text: 'Rework note: ',
-                              style: TextStyle(
-                                fontFamily: KkfcFonts.ibmPlexSans,
-                                fontSize: KkfcTextSizes.textSm,
-                                fontWeight: KkfcFontWeights.bold,
-                                color: KkfcColors.ticketInk,
-                              ),
-                            ),
-                            TextSpan(
-                              text: ticket.data.reworkNotes!,
-                              style: const TextStyle(
-                                fontFamily: KkfcFonts.ibmPlexSans,
-                                fontSize: KkfcTextSizes.textSm,
-                                fontWeight: KkfcFontWeights.regular,
-                                color: KkfcColors.ticketInk,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            if (ticket.pastQcAttempts.isNotEmpty) ...[
+              KitchenTicketPastQcAttemptsCard(ticket: ticket),
               const SizedBox(height: KkfcSpace.s12),
             ],
             const Text(

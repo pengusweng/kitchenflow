@@ -2,8 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/core/models/brand_models.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_lane.dart';
+import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_qc_attempt.dart';
 import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 import 'package:mobile/shared/widgets/status_badge/kkfc_status.dart';
+
+export 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_qc_attempt.dart';
 
 /// Represents an active kitchen ticket on the KDS board, wrapping
 /// [KitchenTicketData] with backend identifiers and lane routing.
@@ -21,6 +24,8 @@ class KitchenBoardTicket {
     this.preparerId,
     this.checkerId,
     this.qcAttemptId,
+    this.qcFailureCount = 0,
+    this.qcAttempts = const [],
   });
 
   final String kitchenTicketId;
@@ -34,12 +39,16 @@ class KitchenBoardTicket {
   final String? preparerId;
   final String? checkerId;
   final String? qcAttemptId;
+  final int qcFailureCount;
+  final List<KitchenQcAttempt> qcAttempts;
+
+  /// Completed past QC attempts (excluding any currently in-progress check),
+  /// ordered newest first (`attempt_number` descending).
+  List<KitchenQcAttempt> get pastQcAttempts =>
+      qcAttempts.where((a) => !a.isInProgress).toList(growable: false);
 
   /// Quality check rejection reason if this ticket was returned to rework.
   String? get qcReturnedReason => data.qcReturnedReason;
-
-  /// Notes added by the preparer when completing rework and returning to QC.
-  String? get reworkNotes => data.reworkNotes;
 
   /// Whether this ticket is a delivery channel (GrabFood or foodpanda)
   /// requiring photo evidence before handover.
@@ -59,13 +68,13 @@ class KitchenBoardTicket {
     String? qcAttemptId,
     bool clearQcAttemptId = false,
     String? qcReturnedReason,
-    String? reworkNotes,
+    int? qcFailureCount,
+    List<KitchenQcAttempt>? qcAttempts,
   }) {
     var effectiveData = data ?? this.data;
-    if (qcReturnedReason != null || reworkNotes != null) {
+    if (qcReturnedReason != null) {
       effectiveData = effectiveData.copyWith(
-        qcReturnedReason: qcReturnedReason ?? effectiveData.qcReturnedReason,
-        reworkNotes: reworkNotes ?? effectiveData.reworkNotes,
+        qcReturnedReason: qcReturnedReason,
       );
     }
     final effectiveRawStatus = rawStatus ?? this.rawStatus;
@@ -106,6 +115,70 @@ class KitchenBoardTicket {
       preparerId: preparerId ?? this.preparerId,
       checkerId: checkerId ?? this.checkerId,
       qcAttemptId: clearQcAttemptId ? null : (qcAttemptId ?? this.qcAttemptId),
+      qcFailureCount: qcFailureCount ?? this.qcFailureCount,
+      qcAttempts: qcAttempts ?? this.qcAttempts,
+    );
+  }
+
+  /// Returns a copy of this ticket enriched with QC attempt history from
+  /// `GET /api/kitchen-qc/ticket/{ticketId}`.
+  KitchenBoardTicket applyQcAttempts(List<KitchenQcAttempt> attempts) {
+    if (attempts.isEmpty) return this;
+
+    final sorted = List<KitchenQcAttempt>.from(attempts)
+      ..sort((a, b) => b.attemptNumber.compareTo(a.attemptNumber));
+    final failedAttempts = sorted.where((a) => a.isFailed).toList();
+    final latestFailed = failedAttempts.isNotEmpty
+        ? failedAttempts.first
+        : null;
+
+    var resolvedReason = qcReturnedReason;
+    var resolvedItems = data.items;
+
+    if (latestFailed != null && latestFailed.rejections.isNotEmpty) {
+      final firstRejection = latestFailed.rejections.first;
+      if (resolvedReason == null || resolvedReason.trim().isEmpty) {
+        resolvedReason = firstRejection.displayReason;
+      }
+
+      final isReworkState =
+          rawStatus.toUpperCase() == 'REWORKING' ||
+          data.status == KkfcStatus.reworking;
+      if (isReworkState) {
+        final byOrderItemId = <String, List<KitchenQcRejection>>{};
+        for (final r in latestFailed.rejections) {
+          if (r.orderItemId.isNotEmpty) {
+            byOrderItemId.putIfAbsent(r.orderItemId, () => []).add(r);
+          }
+        }
+
+        if (byOrderItemId.isNotEmpty) {
+          resolvedItems = data.items.map((item) {
+            final itemId = item.orderItemId;
+            if (itemId != null && byOrderItemId.containsKey(itemId)) {
+              final itemRejs = byOrderItemId[itemId]!;
+              final combinedReason = itemRejs
+                  .map((r) => r.formatWithPortion(itemQuantity: item.quantity))
+                  .join('; ');
+              return item.copyWith(failReason: combinedReason);
+            } else {
+              return item.copyWith(clearFailReason: true);
+            }
+          }).toList();
+        }
+      }
+    }
+
+    return copyWith(
+      qcAttempts: sorted,
+      qcFailureCount: failedAttempts.length > qcFailureCount
+          ? failedAttempts.length
+          : qcFailureCount,
+      qcReturnedReason: resolvedReason,
+      data: data.copyWith(
+        qcReturnedReason: resolvedReason,
+        items: resolvedItems,
+      ),
     );
   }
 
@@ -115,7 +188,10 @@ class KitchenBoardTicket {
     final channel = _parseChannel({}, orderMap, fallbackChannel: data.channel);
     final reference = _parseReference({}, orderMap, channel, orderCode);
     final paymentStatus = _parsePaymentStatus({}, orderMap);
-    final brand = _parseBrand({}, orderMap, orderCode);
+    final brands = _parseBrands({}, orderMap, orderCode);
+    final brand = brands.isNotEmpty
+        ? brands.first
+        : _parseBrand({}, orderMap, orderCode);
 
     return copyWith(
       data: data.copyWith(
@@ -123,7 +199,16 @@ class KitchenBoardTicket {
         reference: reference,
         paymentStatus: paymentStatus,
         brand: brand,
+        brands: brands.isNotEmpty ? brands : data.effectiveBrands,
       ),
+    );
+  }
+
+  /// Returns a copy of this ticket with updated brand information.
+  KitchenBoardTicket withBrands(List<AssignedBrand> resolvedBrands) {
+    if (resolvedBrands.isEmpty) return this;
+    return copyWith(
+      data: data.copyWith(brand: resolvedBrands.first, brands: resolvedBrands),
     );
   }
 
@@ -174,9 +259,16 @@ class KitchenBoardTicket {
                   : null)) ??
         order;
 
+    final createdAtRaw = json['created_at'] as String?;
+    final createdAt = createdAtRaw != null
+        ? DateTime.tryParse(createdAtRaw)
+        : null;
     final elapsed = _parseElapsed(json, now: now ?? DateTime.now());
     final age = _parseAge(json, elapsed);
-    final brand = _parseBrand(json, orderMap, orderCode);
+    final brands = _parseBrands(json, orderMap, orderCode);
+    final brand = brands.isNotEmpty
+        ? brands.first
+        : _parseBrand(json, orderMap, orderCode);
     final channel = _parseChannel(json, orderMap);
     final reference = _parseReference(json, orderMap, channel, orderCode);
     final paymentStatus = _parsePaymentStatus(json, orderMap);
@@ -251,10 +343,6 @@ class KitchenBoardTicket {
         _extractRejectionReason(json['qc_attempts']) ??
         _extractRejectionReason(json['rejections']);
 
-    final reworkNotes =
-        (json['rework_notes'] as String?)?.trim() ??
-        (json['rework_note'] as String?)?.trim();
-
     final isRework =
         rawStatus == 'REWORKING' || kkfcStatus == KkfcStatus.reworking;
     final items = _parseItems(
@@ -265,6 +353,15 @@ class KitchenBoardTicket {
       qcReturnedReason: qcReturnedReason,
       isRework: isRework,
     );
+
+    final parsedQcAttempts = KitchenQcAttempt.parseList(rawAttempts);
+    final rawFailureCount = (json['qc_failure_count'] as num?)?.toInt();
+    final failedCountFromAttempts = parsedQcAttempts
+        .where((a) => a.isFailed)
+        .length;
+    final qcFailureCount =
+        rawFailureCount ??
+        (failedCountFromAttempts > 0 ? failedCountFromAttempts : 0);
 
     return KitchenBoardTicket(
       kitchenTicketId: ticketId.isNotEmpty ? ticketId : ticketNumber,
@@ -277,6 +374,8 @@ class KitchenBoardTicket {
       preparerId: (json['preparer_id'] as String?)?.trim(),
       checkerId: checkerId,
       qcAttemptId: qcAttemptId,
+      qcFailureCount: qcFailureCount,
+      qcAttempts: parsedQcAttempts,
       data: KitchenTicketData(
         ticketNumber: ticketNumber,
         elapsed: elapsed,
@@ -285,11 +384,12 @@ class KitchenBoardTicket {
         channel: channel,
         reference: reference,
         brand: brand,
+        brands: brands,
         items: items,
         paymentStatus: paymentStatus,
         qcReturnedReason: qcReturnedReason,
-        reworkNotes: reworkNotes,
-      ),
+        createdAt: createdAt,
+      ).withItemsArrangedByBrand(),
     );
   }
 
@@ -367,13 +467,13 @@ class KitchenBoardTicket {
         'ontime' || 'on_time' => KitchenTicketAge.onTime,
         'duesoon' || 'due_soon' => KitchenTicketAge.dueSoon,
         'late' || 'overdue' => KitchenTicketAge.late,
-        _ => _ageFromElapsed(elapsed),
+        _ => ageFromElapsed(elapsed),
       };
     }
-    return _ageFromElapsed(elapsed);
+    return ageFromElapsed(elapsed);
   }
 
-  static KitchenTicketAge _ageFromElapsed(Duration elapsed) {
+  static KitchenTicketAge ageFromElapsed(Duration elapsed) {
     if (elapsed >= const Duration(minutes: KkfcKitchen.ageLateMin)) {
       return KitchenTicketAge.late;
     }
@@ -425,6 +525,146 @@ class KitchenBoardTicket {
             : 'Gamcheon',
       ),
     };
+  }
+
+  static AssignedBrand? _matchCatalogBrand(String? name) {
+    if (name == null || name.trim().isEmpty) return null;
+    final lower = name.trim().toLowerCase();
+    if (lower.contains('inasal') ||
+        lower.contains('paa') ||
+        lower.contains('pecho') ||
+        lower.contains('halo-halo')) {
+      return const AssignedBrand(
+        id: 'brand-ai',
+        code: 'AI',
+        name: "Aurelia's Inasal",
+      );
+    }
+    if (lower.contains('gamcheon') ||
+        lower.contains('samgyupsal') ||
+        lower.contains('bulgogi') ||
+        lower.contains('kimchi') ||
+        lower.contains('pancake')) {
+      return const AssignedBrand(id: 'brand-gc', code: 'GC', name: 'Gamcheon');
+    }
+    if (lower.contains('king kung') ||
+        lower.contains('latte') ||
+        lower.contains('matcha') ||
+        lower.contains('coffee') ||
+        lower.contains('espresso') ||
+        lower.contains('sea salt cream')) {
+      return const AssignedBrand(
+        id: 'brand-kk',
+        code: 'KK',
+        name: 'King Kungs Kafé',
+      );
+    }
+    return null;
+  }
+
+  static List<AssignedBrand> _parseBrands(
+    Map<String, dynamic> json,
+    Map<String, dynamic>? orderMap,
+    String orderCode,
+  ) {
+    final collected = <String, AssignedBrand>{};
+
+    void addBrandObj(dynamic obj) {
+      if (obj is Map<String, dynamic>) {
+        final code =
+            (obj['code'] as String?)?.trim() ??
+            (obj['brand_code'] as String?)?.trim();
+        final name =
+            (obj['name'] as String?)?.trim() ??
+            (obj['brand_name'] as String?)?.trim();
+        final id =
+            (obj['brand_id'] as String?) ??
+            (obj['id'] as String?) ??
+            (code != null ? 'brand-${code.toLowerCase()}' : null);
+        if (code != null &&
+            code.isNotEmpty &&
+            name != null &&
+            name.isNotEmpty) {
+          collected[code.toUpperCase()] = AssignedBrand(
+            id: id ?? 'brand-$code',
+            code: code.toUpperCase(),
+            name: name,
+          );
+        }
+      } else if (obj is Map) {
+        final code =
+            (obj['code'] as String?)?.trim() ??
+            (obj['brand_code'] as String?)?.trim();
+        final name =
+            (obj['name'] as String?)?.trim() ??
+            (obj['brand_name'] as String?)?.trim();
+        final id =
+            (obj['brand_id'] as String?) ??
+            (obj['id'] as String?) ??
+            (code != null ? 'brand-${code.toLowerCase()}' : null);
+        if (code != null &&
+            code.isNotEmpty &&
+            name != null &&
+            name.isNotEmpty) {
+          collected[code.toUpperCase()] = AssignedBrand(
+            id: id ?? 'brand-$code',
+            code: code.toUpperCase(),
+            name: name,
+          );
+        }
+      } else if (obj is AssignedBrand) {
+        collected[obj.code.toUpperCase()] = obj;
+      }
+    }
+
+    // 1. Direct brands list on ticket or order
+    final rawBrands = json['brands'] ?? orderMap?['brands'];
+    if (rawBrands is List) {
+      for (final b in rawBrands) {
+        addBrandObj(b);
+      }
+    }
+
+    // 2. Brands attached to individual items
+    final rawItems =
+        json['items'] ??
+        json['order_items'] ??
+        json['order_items_order'] ??
+        orderMap?['order_items_order'] ??
+        orderMap?['items'];
+    if (rawItems is List) {
+      for (final item in rawItems) {
+        if (item is Map) {
+          if (item['brand'] != null) {
+            addBrandObj(item['brand']);
+          } else if (item['brand_name'] != null || item['brand_code'] != null) {
+            addBrandObj(item);
+          }
+        }
+      }
+    }
+
+    // 3. Fallback to matching item names against catalog if no explicit brands
+    if (collected.isEmpty && rawItems is List) {
+      for (final item in rawItems) {
+        if (item is Map) {
+          final itemName =
+              (item['name'] as String?) ?? (item['item_name'] as String?);
+          final matched = _matchCatalogBrand(itemName);
+          if (matched != null) {
+            addBrandObj(matched);
+          }
+        }
+      }
+    }
+
+    // 4. Fallback to primary brand if none collected
+    if (collected.isEmpty) {
+      final primary = _parseBrand(json, orderMap, orderCode);
+      collected[primary.code.toUpperCase()] = primary;
+    }
+
+    return collected.values.toList(growable: false);
   }
 
   static String _parseChannel(
@@ -564,11 +804,75 @@ class KitchenBoardTicket {
             );
           }
 
+          final menuItemId =
+              (entry['menu_item_id'] as String?) ??
+              (entry['menuItemId'] as String?);
           final orderItemId =
               (entry['order_item_id'] as String?) ?? (entry['id'] as String?);
           final failReason = orderItemId != null
               ? itemRejectionsMap[orderItemId]
               : null;
+
+          final rawBrand = entry['brand'];
+          AssignedBrand? itemBrand;
+          if (rawBrand is Map<String, dynamic>) {
+            final code =
+                (rawBrand['code'] as String?)?.trim() ??
+                (rawBrand['brand_code'] as String?)?.trim();
+            final name =
+                (rawBrand['name'] as String?)?.trim() ??
+                (rawBrand['brand_name'] as String?)?.trim();
+            final id =
+                (rawBrand['brand_id'] as String?) ??
+                (rawBrand['id'] as String?) ??
+                (code != null ? 'brand-${code.toLowerCase()}' : null);
+            if (code != null &&
+                code.isNotEmpty &&
+                name != null &&
+                name.isNotEmpty) {
+              itemBrand = AssignedBrand(
+                id: id ?? 'brand-$code',
+                code: code.toUpperCase(),
+                name: name,
+              );
+            }
+          } else if (rawBrand is Map) {
+            final code =
+                (rawBrand['code'] as String?)?.trim() ??
+                (rawBrand['brand_code'] as String?)?.trim();
+            final name =
+                (rawBrand['name'] as String?)?.trim() ??
+                (rawBrand['brand_name'] as String?)?.trim();
+            final id =
+                (rawBrand['brand_id'] as String?) ??
+                (rawBrand['id'] as String?) ??
+                (code != null ? 'brand-${code.toLowerCase()}' : null);
+            if (code != null &&
+                code.isNotEmpty &&
+                name != null &&
+                name.isNotEmpty) {
+              itemBrand = AssignedBrand(
+                id: id ?? 'brand-$code',
+                code: code.toUpperCase(),
+                name: name,
+              );
+            }
+          } else if (entry['brand_code'] != null ||
+              entry['brand_name'] != null) {
+            final code = (entry['brand_code'] as String?)?.trim() ?? '';
+            final name = (entry['brand_name'] as String?)?.trim() ?? '';
+            final id =
+                (entry['brand_id'] as String?) ??
+                (code.isNotEmpty ? 'brand-${code.toLowerCase()}' : null);
+            if (code.isNotEmpty && name.isNotEmpty) {
+              itemBrand = AssignedBrand(
+                id: id ?? 'brand-$code',
+                code: code.toUpperCase(),
+                name: name,
+              );
+            }
+          }
+          itemBrand ??= _matchCatalogBrand(name);
 
           parsed.add(
             KitchenTicketItem(
@@ -577,6 +881,8 @@ class KitchenBoardTicket {
               modifiers: mods,
               orderItemId: orderItemId,
               failReason: failReason,
+              menuItemId: menuItemId,
+              brand: itemBrand,
             ),
           );
         }

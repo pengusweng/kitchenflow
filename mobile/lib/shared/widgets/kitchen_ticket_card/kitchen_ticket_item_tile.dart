@@ -3,9 +3,14 @@ import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 
 class KitchenTicketItemTile extends StatelessWidget {
-  const KitchenTicketItemTile({super.key, required this.item});
+  const KitchenTicketItemTile({
+    super.key,
+    required this.item,
+    this.showBrandBadge = false,
+  });
 
   final KitchenTicketItem item;
+  final bool showBrandBadge;
 
   static String _formatFailReason(String reason) {
     final trimmed = reason.trim();
@@ -59,14 +64,43 @@ class KitchenTicketItemTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                item.name,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: KkfcColors.ticketInk,
-                  height: 1.2,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: KkfcColors.ticketInk,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  if (showBrandBadge && item.brand != null) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: KkfcColors.canvasSunken,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: KkfcColors.border, width: 1),
+                      ),
+                      child: Text(
+                        item.brand!.code.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: KkfcColors.ticketBrandName,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               if (regularMods.isNotEmpty)
                 Padding(

@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:mobile/app/routes.dart';
 import 'package:mobile/app/theme/theme.dart';
 import 'package:mobile/core/auth/token_store.dart';
 import 'package:mobile/features/auth/data/repository/auth_repository.dart';
 import 'package:mobile/features/auth/providers/session_provider.dart';
 import 'package:mobile/features/orders/screens/orders_screen.dart';
+import 'package:mobile/shared/widgets/logout_button.dart';
 
 class _FakeAuthRepository extends AuthRepository {
   _FakeAuthRepository() : super(Dio(), TokenStore());
@@ -62,6 +62,8 @@ void main() {
         expired: true,
       );
 
+      await tester.tap(find.byType(LogoutButton));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Logout'));
       await tester.pump();
 
@@ -78,6 +80,8 @@ void main() {
     final repo = _FakeAuthRepository();
     final container = await _pumpOrders(tester, repo);
 
+    await tester.tap(find.byType(LogoutButton));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Logout'));
     await tester.pump();
 
@@ -86,21 +90,14 @@ void main() {
   });
 
   testWidgets(
-    'WT-MOB-ORDERS-003 opens the live cancel screen with the entered order UUID',
+    'WT-MOB-ORDERS-003 does not show Cancel Order button in recent orders detail pane',
     (tester) async {
-      const orderId = '11111111-1111-4111-8111-111111111111';
       final router = GoRouter(
         initialLocation: AppRoutes.orders,
         routes: [
           GoRoute(
             path: AppRoutes.orders,
             builder: (context, state) => const OrdersScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.cancelOrder,
-            builder: (context, state) => Scaffold(
-              body: Text('order=${state.uri.queryParameters['orderId']}'),
-            ),
           ),
         ],
       );
@@ -113,13 +110,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Cancel a real order (live API, QA)'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), orderId);
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('order=$orderId'), findsOneWidget);
+      expect(find.text('Cancel Order'), findsNothing);
     },
   );
 
@@ -144,4 +135,42 @@ void main() {
     );
     await tester.pumpAndSettle();
   });
+
+  testWidgets(
+    'WT-MOB-ORDERS-005 tapping back button beside tabs navigates to menu',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: AppRoutes.orders,
+        routes: [
+          GoRoute(
+            path: AppRoutes.orders,
+            builder: (context, state) => const OrdersScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.menu,
+            builder: (context, state) =>
+                const Scaffold(body: Text('Menu Screen Content')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp.router(theme: counterTheme, routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final backButton = find.byKey(
+        const ValueKey('recent-orders-back-button'),
+      );
+      expect(backButton, findsOneWidget);
+
+      await tester.tap(backButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Menu Screen Content'), findsOneWidget);
+    },
+  );
 }

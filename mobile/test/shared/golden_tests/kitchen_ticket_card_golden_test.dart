@@ -121,7 +121,6 @@ void main() {
                     ).copyWith(
                       qcReturnedReason:
                           'Portion incomplete; prepare the missing rice.',
-                      reworkNotes: 'Replated and ready for another check.',
                       items: const [
                         KitchenTicketItem(
                           quantity: 2,

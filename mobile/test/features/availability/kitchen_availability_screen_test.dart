@@ -141,9 +141,8 @@ void main() {
         await tester.pumpWidget(buildAvailabilityTestWidget());
         await tester.pumpAndSettle();
 
-        // 1. Mirrors menu_screen.dart brand picker (CurrentMenuCard)
+        // 1. Mirrors menu_screen.dart brand picker (CurrentMenuCard in compact mode)
         expect(find.byType(CurrentMenuCard), findsOneWidget);
-        expect(find.text('Current menu'), findsOneWidget);
         expect(find.text('Gamcheon · Dine-in'), findsOneWidget);
 
         // 2. Mirrors menu_screen.dart's search bar (CatalogSearchBar)

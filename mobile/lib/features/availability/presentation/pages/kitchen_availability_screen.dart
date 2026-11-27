@@ -70,6 +70,9 @@ class _KitchenAvailabilityScreenState
     final userRole = ref.watch(userRoleProvider);
     final roleLabel = KitchenAvailabilityScreen._roleLabelFor(userRole);
 
+    final width = MediaQuery.sizeOf(context).width;
+    final isWide = width >= 850.0;
+
     return KkfcScaffold(
       body: ColoredBox(
         color: KkfcColors.canvas,
@@ -91,204 +94,284 @@ class _KitchenAvailabilityScreenState
                   const Positioned.fill(child: KkfcCanvasWaves()),
 
                   Positioned.fill(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(
-                        KkfcSpace.s16,
-                        KkfcSpace.s16,
-                        KkfcSpace.s16,
-                        KkfcSpace.s24,
-                      ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 820.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // 1. Current Menu Selector mirroring menu_screen.dart
-                              CurrentMenuCard(
-                                brand: activeBrand,
-                                channel: selectedChannel,
-                                onTap: () async {
-                                  final result = await showChooseMenuModal(
-                                    context,
-                                    brands: assignedBrands,
-                                    currentBrand: activeBrand,
-                                    currentChannel: selectedChannel,
-                                  );
-                                  if (result != null) {
-                                    if (!context.mounted) return;
-                                    ref
-                                        .read(activeBrandProvider.notifier)
-                                        .select(result.brand);
-                                    ref
-                                        .read(menuChannelProvider.notifier)
-                                        .select(result.channel);
-                                  }
-                                },
-                              ),
-                              const SizedBox(height: KkfcSpace.s12),
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        try {
+                          ref.invalidate(menuItemsProvider);
+                          await ref.read(menuItemsProvider.future);
+                        } catch (_) {}
+                      },
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          isWide ? KkfcSpace.s20 : KkfcSpace.s16,
+                          KkfcSpace.s16,
+                          isWide ? KkfcSpace.s20 : KkfcSpace.s16,
+                          KkfcSpace.s32,
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1040.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // 1. Toolbar mirroring menu_screen.dart layout (Menu Selector, Search, & Back Navigation)
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final isSingleRow =
+                                        constraints.maxWidth >= 720.0;
 
-                              // 2. Search Bar mirroring menu_screen.dart's search bar
-                              const CatalogSearchBar(),
-                              const SizedBox(height: KkfcSpace.s16),
-
-                              // 3. Menu Item Cards List
-                              visibleItemsAsync.when(
-                                loading: () => const AvailabilityListSkeleton(),
-                                error: (error, _) => Container(
-                                  padding: const EdgeInsets.all(KkfcSpace.s20),
-                                  decoration: BoxDecoration(
-                                    color: KkfcColors.surface,
-                                    borderRadius: BorderRadius.circular(
-                                      KkfcRadius.md,
-                                    ),
-                                    border: Border.all(
-                                      color: KkfcColors.border,
-                                      width: KkfcBorderWidth.thin,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      const Icon(
-                                        Icons.wifi_off_rounded,
-                                        size: 36.0,
-                                        color: KkfcColors.borderStrong,
+                                    final menuSelector = ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        minWidth: 140.0,
+                                        maxWidth: 240.0,
                                       ),
-                                      const SizedBox(height: KkfcSpace.s8),
-                                      const Text(
-                                        "Couldn't load menu items",
-                                        style: TextStyle(
-                                          fontFamily: KkfcFonts.ibmPlexSans,
-                                          fontSize: 15.0,
-                                          fontWeight: FontWeight.w600,
-                                          color: KkfcColors.ink,
-                                        ),
+                                      child: CurrentMenuCard(
+                                        brand: activeBrand,
+                                        channel: selectedChannel,
+                                        compact: true,
+                                        onTap: () async {
+                                          final result =
+                                              await showChooseMenuModal(
+                                                context,
+                                                brands: assignedBrands,
+                                                currentBrand: activeBrand,
+                                                currentChannel: selectedChannel,
+                                              );
+                                          if (result != null) {
+                                            if (!context.mounted) return;
+                                            ref
+                                                .read(
+                                                  activeBrandProvider.notifier,
+                                                )
+                                                .select(result.brand);
+                                            ref
+                                                .read(
+                                                  menuChannelProvider.notifier,
+                                                )
+                                                .select(result.channel);
+                                          }
+                                        },
                                       ),
-                                      const SizedBox(height: KkfcSpace.s8),
-                                      TextButton(
-                                        onPressed: () =>
-                                            ref.invalidate(menuItemsProvider),
-                                        child: const Text('Try again'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                data: (items) {
-                                  if (items.isEmpty) {
-                                    final isSearching = ref
-                                        .watch(menuSearchProvider)
-                                        .trim()
-                                        .isNotEmpty;
-                                    final isHidingUnavailable = ref.watch(
-                                      hideUnavailableProvider,
                                     );
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: KkfcSpace.s48,
-                                        horizontal: KkfcSpace.s16,
+
+                                    final backButton = OutlinedButton(
+                                      key: const ValueKey(
+                                        'availability-back-to-kitchen-board-button',
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: KkfcColors.surface,
-                                        borderRadius: BorderRadius.circular(
-                                          KkfcRadius.md,
-                                        ),
-                                        border: Border.all(
-                                          color: KkfcColors.border,
+                                      onPressed: () {
+                                        final navigator = Navigator.maybeOf(
+                                          context,
+                                        );
+                                        if (navigator != null &&
+                                            navigator.canPop()) {
+                                          navigator.pop();
+                                          return;
+                                        }
+                                        final goRouter = GoRouter.maybeOf(
+                                          context,
+                                        );
+                                        if (goRouter != null) {
+                                          if (goRouter.canPop()) {
+                                            goRouter.pop();
+                                          } else {
+                                            goRouter.go(
+                                              AppRoutes.kitchenTickets,
+                                            );
+                                          }
+                                        }
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        backgroundColor: KkfcColors.surface,
+                                        side: const BorderSide(
+                                          color: KkfcColors.ink3,
                                           width: KkfcBorderWidth.thin,
                                         ),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          const Icon(
-                                            Icons.search_off_rounded,
-                                            size: 36.0,
-                                            color: KkfcColors.borderStrong,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            KkfcRadius.sm,
                                           ),
-                                          const SizedBox(height: KkfcSpace.s8),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16.0,
+                                          vertical: 10.0,
+                                        ),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.arrow_back_rounded,
+                                            size: 18.0,
+                                            color: KkfcColors.ink,
+                                          ),
+                                          SizedBox(width: 6.0),
                                           Text(
-                                            isSearching || isHidingUnavailable
-                                                ? 'No items matching search'
-                                                : 'No menu items available for this brand',
-                                            style: const TextStyle(
+                                            'Kitchen Board',
+                                            style: TextStyle(
                                               fontFamily: KkfcFonts.ibmPlexSans,
-                                              fontSize: 14.5,
-                                              fontWeight: FontWeight.w500,
-                                              color: KkfcColors.ink3,
+                                              fontSize: 14.0,
+                                              fontWeight: FontWeight.w700,
+                                              color: KkfcColors.ink,
                                             ),
-                                            textAlign: TextAlign.center,
                                           ),
                                         ],
                                       ),
                                     );
-                                  }
 
-                                  return Column(
-                                    children: [
-                                      for (final item in items)
-                                        AvailabilityItemCard(
-                                          item: item,
-                                          brandName: activeBrand.name,
-                                          channel: selectedChannel,
-                                          onUpdateAvailability:
-                                              widget.onUpdateAvailability,
+                                    if (isSingleRow) {
+                                      return Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          menuSelector,
+                                          const SizedBox(width: 8.0),
+                                          const Expanded(
+                                            child: CatalogSearchBar(),
+                                          ),
+                                          const SizedBox(width: 12.0),
+                                          backButton,
+                                        ],
+                                      );
+                                    }
+
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: menuSelector,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8.0),
+                                            backButton,
+                                          ],
                                         ),
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: KkfcSpace.s24),
-
-                              // 4. Kitchen Board Navigation Button
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: OutlinedButton(
-                                  key: const ValueKey(
-                                    'availability-back-to-kitchen-board-button',
-                                  ),
-                                  onPressed: () {
-                                    final navigator = Navigator.maybeOf(
-                                      context,
+                                        const SizedBox(height: 8.0),
+                                        const CatalogSearchBar(),
+                                      ],
                                     );
-                                    if (navigator != null &&
-                                        navigator.canPop()) {
-                                      navigator.pop();
-                                      return;
-                                    }
-                                    final goRouter = GoRouter.maybeOf(context);
-                                    if (goRouter != null) {
-                                      if (goRouter.canPop()) {
-                                        goRouter.pop();
-                                      } else {
-                                        goRouter.go(AppRoutes.kitchenTickets);
-                                      }
-                                    }
                                   },
-                                  style: OutlinedButton.styleFrom(
-                                    backgroundColor: KkfcColors.surface,
-                                    side: const BorderSide(
-                                      color: KkfcColors.ink3,
-                                      width: KkfcBorderWidth.thin,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8.0),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24.0,
-                                      vertical: 12.0,
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Kitchen Board',
-                                    style: TextStyle(
-                                      fontFamily: KkfcFonts.ibmPlexSans,
-                                      fontSize: 15.0,
-                                      fontWeight: FontWeight.w700,
-                                      color: KkfcColors.ink,
-                                    ),
-                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: KkfcSpace.s16),
+
+                                // 2. Menu Item Cards List (staying as vertical lists)
+                                visibleItemsAsync.when(
+                                  loading: () =>
+                                      const AvailabilityListSkeleton(),
+                                  error: (error, _) => Container(
+                                    padding: const EdgeInsets.all(
+                                      KkfcSpace.s20,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: KkfcColors.surface,
+                                      borderRadius: BorderRadius.circular(
+                                        KkfcRadius.md,
+                                      ),
+                                      border: Border.all(
+                                        color: KkfcColors.border,
+                                        width: KkfcBorderWidth.thin,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        const Icon(
+                                          Icons.wifi_off_rounded,
+                                          size: 36.0,
+                                          color: KkfcColors.borderStrong,
+                                        ),
+                                        const SizedBox(height: KkfcSpace.s8),
+                                        const Text(
+                                          "Couldn't load menu items",
+                                          style: TextStyle(
+                                            fontFamily: KkfcFonts.ibmPlexSans,
+                                            fontSize: 15.0,
+                                            fontWeight: FontWeight.w600,
+                                            color: KkfcColors.ink,
+                                          ),
+                                        ),
+                                        const SizedBox(height: KkfcSpace.s8),
+                                        TextButton(
+                                          onPressed: () =>
+                                              ref.invalidate(menuItemsProvider),
+                                          child: const Text('Try again'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  data: (items) {
+                                    if (items.isEmpty) {
+                                      final isSearching = ref
+                                          .watch(menuSearchProvider)
+                                          .trim()
+                                          .isNotEmpty;
+                                      final isHidingUnavailable = ref.watch(
+                                        hideUnavailableProvider,
+                                      );
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: KkfcSpace.s48,
+                                          horizontal: KkfcSpace.s16,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: KkfcColors.surface,
+                                          borderRadius: BorderRadius.circular(
+                                            KkfcRadius.md,
+                                          ),
+                                          border: Border.all(
+                                            color: KkfcColors.border,
+                                            width: KkfcBorderWidth.thin,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            const Icon(
+                                              Icons.search_off_rounded,
+                                              size: 36.0,
+                                              color: KkfcColors.borderStrong,
+                                            ),
+                                            const SizedBox(
+                                              height: KkfcSpace.s8,
+                                            ),
+                                            Text(
+                                              isSearching || isHidingUnavailable
+                                                  ? 'No items matching search'
+                                                  : 'No menu items available for this brand',
+                                              style: const TextStyle(
+                                                fontFamily:
+                                                    KkfcFonts.ibmPlexSans,
+                                                fontSize: 14.5,
+                                                fontWeight: FontWeight.w500,
+                                                color: KkfcColors.ink3,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+
+                                    return Column(
+                                      children: [
+                                        for (final item in items)
+                                          AvailabilityItemCard(
+                                            item: item,
+                                            brandName: activeBrand.name,
+                                            channel: selectedChannel,
+                                            onUpdateAvailability:
+                                                widget.onUpdateAvailability,
+                                          ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: KkfcSpace.s16),
+                              ],
+                            ),
                           ),
                         ),
                       ),

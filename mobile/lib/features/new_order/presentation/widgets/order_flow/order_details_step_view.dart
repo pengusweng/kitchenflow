@@ -192,6 +192,12 @@ class _OrderDetailsStepViewState extends ConsumerState<OrderDetailsStepView> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String>(orderReferenceProvider, (previous, next) {
+      if (_referenceController.text != next) {
+        _referenceController.text = next;
+      }
+    });
+
     final channel = ref.watch(menuChannelProvider);
     final total = ref.watch(cartTotalProvider);
     final hasError =

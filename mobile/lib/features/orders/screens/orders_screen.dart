@@ -1,151 +1,149 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:mobile/app/routes.dart';
-import 'package:mobile/features/auth/data/repository/auth_repository.dart';
-import 'package:mobile/features/auth/providers/session_provider.dart';
-import 'package:mobile/shared/shared_layout.dart';
+import 'package:mobile/app/theme/tokens.dart';
+import 'package:mobile/features/orders/presentation/widgets/recent_order_detail_pane.dart';
+import 'package:mobile/features/orders/presentation/widgets/recent_orders_master_pane.dart';
+import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
+import 'package:mobile/shared/widgets/app_header.dart';
 import 'package:mobile/shared/widgets/kkfc_scaffold.dart';
+import 'package:mobile/shared/widgets/wave_accents.dart';
 
-class OrdersScreen extends ConsumerWidget {
+/// Screen breakpoint for wide tablet/desktop layout matching MenuScreen.
+const double _kWideBreakpoint = 768.0;
+
+/// The Recent Orders screen displaying an adaptive master-detail layout.
+///
+/// Features the exact same background and AppHeader setup as MenuScreen:
+/// - Signature navy shell AppHeader with decorative copper wave accents.
+/// - Fluid organic canvas waves (KkfcCanvasWaves) grounding the master list.
+/// - Docked detail surface panel on tablet/desktop.
+class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
+}
+
+class _OrdersScreenState extends ConsumerState<OrdersScreen> {
+  bool _mobileShowingDetail = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(recentOrdersProvider.notifier).refresh();
+      }
+    });
+  }
+
+  void _handleBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.menu);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final isWide = width >= _kWideBreakpoint;
+    final state = ref.watch(recentOrdersProvider);
+    final selectedOrder = state.selectedOrder;
+
     return KkfcScaffold(
-      appBar: AppBar(
-        title: const Text('Orders'),
-        actions: [
-          TextButton.icon(
-            onPressed: () => _signOut(ref),
-            icon: const Icon(Icons.logout, size: 18),
-            label: const Text('Logout'),
+      body: Column(
+        children: [
+          // App header matching the MenuScreen setup
+          AppHeader(title: 'Recent Orders', compact: !isWide),
+
+          // Main body with canvas waves background
+          Expanded(
+            child: Stack(
+              children: [
+                // Fluid organic wave landscape & hand-crafted contours from the KKFC design system
+                const Positioned.fill(child: KkfcCanvasWaves()),
+
+                // Master / Detail layout
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isTabletWide =
+                        constraints.maxWidth >= _kWideBreakpoint;
+
+                    if (isTabletWide) {
+                      // Split 2-pane master-detail layout
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            width: 390.0,
+                            child: RecentOrdersMasterPane(
+                              onBack: _handleBack,
+                              onOrderSelected: (order) {
+                                setState(() {
+                                  _mobileShowingDetail = false;
+                                });
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: AnimatedSwitcher(
+                              duration: KkfcMotion.durScreen,
+                              switchInCurve: KkfcMotion.easeOut,
+                              switchOutCurve: KkfcMotion.easeIn,
+                              transitionBuilder: (child, animation) {
+                                if (MediaQuery.disableAnimationsOf(context)) {
+                                  return child;
+                                }
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                              child: KeyedSubtree(
+                                key: ValueKey(
+                                  selectedOrder?.id ?? 'empty-detail',
+                                ),
+                                child: RecentOrderDetailPane(
+                                  order: selectedOrder,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    // Single-pane compact layout for phones
+                    if (_mobileShowingDetail && selectedOrder != null) {
+                      return RecentOrderDetailPane(
+                        order: selectedOrder,
+                        onBack: () {
+                          setState(() {
+                            _mobileShowingDetail = false;
+                          });
+                        },
+                      );
+                    }
+
+                    return RecentOrdersMasterPane(
+                      onBack: _handleBack,
+                      onOrderSelected: (order) {
+                        setState(() {
+                          _mobileShowingDetail = true;
+                        });
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(MenuSpace.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Orders'),
-              const SizedBox(height: MenuSpace.sm),
-              const _OrdersUnavailableNote(),
-              const SizedBox(height: MenuSpace.md),
-              const _CancelOrderEntry(),
-              const SizedBox(height: MenuSpace.sm),
-              const _CancelLiveOrderEntry(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Ends the server session in the background, then clears the local session.
-  /// The router watches [sessionProvider] and redirects to the login screen.
-  void _signOut(WidgetRef ref) {
-    final token = ref.read(sessionTokenProvider);
-    if (token == null) return;
-
-    unawaited(ref.read(authRepositoryProvider).logout(token));
-    ref.read(sessionExpiredProvider.notifier).set(false);
-    ref.read(sessionTokenProvider.notifier).setToken(null);
-  }
-}
-
-/// The order list endpoint does not exist yet, so the screen says so instead of
-/// showing rows that cannot be loaded.
-class _OrdersUnavailableNote extends StatelessWidget {
-  const _OrdersUnavailableNote();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Text(
-      'There is no order list API yet, so the demo uses sample data. A live '
-      'cancellation needs the order UUID.',
-      textAlign: TextAlign.center,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-    );
-  }
-}
-
-/// Prototype entry point into the cancel-order workflow. The order list is not
-/// implemented yet, so QA opens the demo screens from here.
-class _CancelOrderEntry extends StatelessWidget {
-  const _CancelOrderEntry();
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: () => context.go(AppRoutes.cancelOrder),
-      icon: const Icon(Icons.cancel_outlined),
-      label: const Text('Open cancel order (demo)'),
-    );
-  }
-}
-
-/// QA bridge to the live cancellation endpoint while the order list is missing.
-/// The UUID is supplied by hand; there is no list to pick it from yet.
-class _CancelLiveOrderEntry extends StatefulWidget {
-  const _CancelLiveOrderEntry();
-
-  @override
-  State<_CancelLiveOrderEntry> createState() => _CancelLiveOrderEntryState();
-}
-
-class _CancelLiveOrderEntryState extends State<_CancelLiveOrderEntry> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _open() async {
-    final orderId = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cancel a real order'),
-        content: TextField(
-          controller: _controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Order UUID',
-            hintText: '11111111-1111-4111-8111-111111111111',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(_controller.text.trim()),
-            child: const Text('Open'),
-          ),
-        ],
-      ),
-    );
-
-    if (!mounted || orderId == null || orderId.isEmpty) return;
-    context.go('${AppRoutes.cancelOrder}?orderId=$orderId');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: _open,
-      child: const Text('Cancel a real order (live API, QA)'),
     );
   }
 }

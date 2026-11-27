@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app/theme/theme.dart';
 import 'package:mobile/app/theme/tokens.dart';
+import 'package:mobile/core/api/api_client.dart';
 import 'package:mobile/core/auth/token_store.dart';
 import 'package:mobile/core/config/app_config.dart';
 import 'package:mobile/core/models/user_role.dart';
@@ -550,6 +551,7 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          dioProvider.overrideWithValue(dio),
           kitchenBoardRepositoryProvider.overrideWithValue(repo),
           initialRoleProvider.overrideWithValue(UserRole.kitchenHead),
           authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
@@ -559,6 +561,18 @@ void main() {
         unawaited(streamController.close());
         container.dispose();
       });
+
+      // Helper to wait for asynchronous SSE stream processing without fragile timing
+      Future<KitchenBoardState> waitForState(
+        bool Function(KitchenBoardState) predicate,
+      ) async {
+        for (var i = 0; i < 50; i++) {
+          final state = container.read(kitchenBoardProvider);
+          if (predicate(state)) return state;
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        return container.read(kitchenBoardProvider);
+      }
 
       // Trigger initial build & stream subscription
       container.read(kitchenBoardProvider);
@@ -574,9 +588,10 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      var boardState = container.read(kitchenBoardProvider);
+      var boardState = await waitForState(
+        (s) => !s.isLoading && s.tickets.isNotEmpty,
+      );
       expect(boardState.isLoading, isFalse);
       expect(boardState.tickets, hasLength(1));
       expect(boardState.tickets.first.data.ticketNumber, 'T-016');
@@ -593,9 +608,12 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      boardState = container.read(kitchenBoardProvider);
+      boardState = await waitForState(
+        (s) =>
+            s.tickets.length == 2 &&
+            s.tickets.first.lane == KitchenBoardLane.preparing,
+      );
       expect(boardState.tickets, hasLength(2));
       expect(boardState.tickets[0].lane, KitchenBoardLane.preparing);
       expect(boardState.tickets[1].data.ticketNumber, 'T-017');
@@ -1387,15 +1405,30 @@ void main() {
       expect(UserRole.manager.isKitchenReadOnlyExceptQc, isFalse);
       expect(UserRole.superadmin.isKitchenReadOnlyExceptQc, isFalse);
 
-      // Supervisor can ONLY change ticket status for QC check
+      // Supervisor can change ticket status for QC check and handover
       expect(
         UserRole.supervisor.canChangeTicketStatus(isQcCheck: true),
         isTrue,
       );
       expect(
+        UserRole.supervisor.canChangeTicketStatus(
+          isQcCheck: false,
+          isHandover: true,
+        ),
+        isTrue,
+      );
+      expect(
+        UserRole.supervisor.canChangeTicketStatus(
+          isQcCheck: false,
+          isHandover: false,
+        ),
+        isFalse,
+      );
+      expect(
         UserRole.supervisor.canChangeTicketStatus(isQcCheck: false),
         isFalse,
       );
+      expect(UserRole.supervisor.canHandover, isTrue);
 
       // Kitchen Head and Manager can change status across all lanes
       expect(
@@ -1421,7 +1454,7 @@ void main() {
     });
 
     testWidgets(
-      'WT-MOB-KITCHEN-008 Supervisor is in read-only mode for Queued, Preparing, and Ready tickets, but can execute QC check',
+      'WT-MOB-KITCHEN-008 Supervisor is in read-only mode for Queued and Preparing tickets, but can execute QC check and handover Ready tickets',
       (tester) async {
         final queuedTicket = sampleKitchenBoardTickets[0]; // T-016 (Queued)
         final preparingTicket =
@@ -1452,7 +1485,7 @@ void main() {
           find.byKey(const ValueKey('kitchen-board-readonly-badge')),
           findsOneWidget,
         );
-        expect(find.text('Read-only (QC Check only)'), findsOneWidget);
+        expect(find.text('QC check and handover only'), findsOneWidget);
 
         // 1. Queued Ticket (T-016): Action button is disabled
         final queuedCard = find.byKey(
@@ -1504,7 +1537,7 @@ void main() {
         );
         expect(tester.widget<FilledButton>(preparingAction).onPressed, isNull);
 
-        // 3. Ready Ticket (T-014): Action button is disabled, Details button is available
+        // 3. Ready Ticket (T-014): Action button is enabled for Supervisor
         final readyCard = find.byKey(
           const ValueKey('kitchen-ticket-card-T-014'),
         );
@@ -1512,22 +1545,26 @@ void main() {
           of: readyCard,
           matching: find.byType(FilledButton),
         );
-        expect(tester.widget<FilledButton>(readyAction).onPressed, isNull);
-
-        final readyDetails = find.descendant(
-          of: readyCard,
-          matching: find.text('Details'),
+        expect(tester.widget<FilledButton>(readyAction).onPressed, isNotNull);
+        expect(
+          find.descendant(of: readyCard, matching: find.text('Hand over')),
+          findsOneWidget,
         );
-        expect(readyDetails, findsOneWidget);
-        await tester.ensureVisible(readyDetails);
-        await tester.tap(readyDetails);
+
+        await tester.ensureVisible(readyAction);
+        await tester.tap(readyAction);
         await tester.pumpAndSettle();
 
         expect(find.byType(KitchenTicketStatusDialog), findsOneWidget);
-        final handoverConfirm = find.byKey(
-          const ValueKey('kitchen-ticket-handover-confirm-button'),
+        expect(find.byType(KitchenTicketHandoverView), findsOneWidget);
+        expect(
+          tester
+              .widget<KitchenTicketHandoverView>(
+                find.byType(KitchenTicketHandoverView),
+              )
+              .isActionEnabled,
+          isTrue,
         );
-        expect(tester.widget<FilledButton>(handoverConfirm).onPressed, isNull);
 
         await tester.tap(
           find.byKey(const ValueKey('kitchen-ticket-dialog-close-button')),
@@ -1569,7 +1606,7 @@ void main() {
       },
     );
 
-    test('UT-MOB-KITCHEN-022 KitchenBoardNotifier rejects status transitions for supervisor except QC', () async {
+    test('UT-MOB-KITCHEN-022 KitchenBoardNotifier rejects status transitions for supervisor except QC and handover', () async {
       final repo = _FakeKitchenBoardRepository(
         () async => sampleKitchenBoardTickets,
       );
@@ -1586,11 +1623,14 @@ void main() {
 
       final notifier = container.read(kitchenBoardProvider.notifier);
 
-      // Non-QC actions are rejected (return false)
+      // Non-QC and non-handover actions are rejected (return false)
       expect(await notifier.acknowledgeTicket('any-id'), isFalse);
       expect(await notifier.prepareTicket('any-id'), isFalse);
       expect(await notifier.sendToQc('any-id'), isFalse);
-      expect(await notifier.handOverTicket('any-id'), isFalse);
+
+      // Handover is allowed for supervisor
+      expect(await notifier.handOverTicket('any-id'), isTrue);
+      expect(repo.handedOverTicketIds, contains('any-id'));
 
       // QC pass and reject are allowed for supervisor
       expect(
@@ -2975,7 +3015,7 @@ void main() {
     );
 
     testWidgets(
-      'WT-MOB-KITCHEN-023 Rework UI flow: card layout, Preparing lane priority, rework dialog with 200 char placeholder, and returning to QC displays rework note',
+      'WT-MOB-KITCHEN-023 Rework UI flow: card layout, Preparing lane priority, rework dialog without rework notes, and returning to QC',
       (tester) async {
         final reworkTicket = sampleKitchenBoardTickets[1].copyWith(
           rawStatus: 'REWORKING',
@@ -3070,22 +3110,14 @@ void main() {
         expect(find.text('REWORK'), findsOneWidget);
         expect(find.text('T-015'), findsAtLeast(1));
 
-        // Card 1: Rework info and notes
+        // Card 1: Rework info
         expect(find.text(' · returned from QC'), findsOneWidget);
         expect(find.text('Reason'), findsOneWidget);
         expect(find.text('Rice portion short; plate again'), findsAtLeast(1));
-        expect(find.text('Rework notes (optional)'), findsOneWidget);
-
-        // TextField has placeholder: "e.g. Replated with a full portion." and 200 char limit
-        final notesFieldFinder = find.byKey(
-          const ValueKey('rework-notes-input-field'),
-        );
-        expect(notesFieldFinder, findsOneWidget);
-        final textFieldWidget = tester.widget<TextField>(notesFieldFinder);
-        expect(textFieldWidget.maxLength, 200);
+        expect(find.text('Rework notes (optional)'), findsNothing);
         expect(
-          textFieldWidget.decoration?.hintText,
-          'e.g. Replated with a full portion.',
+          find.byKey(const ValueKey('rework-notes-input-field')),
+          findsNothing,
         );
 
         // Card 2: Items on this ticket
@@ -3105,22 +3137,12 @@ void main() {
         expect(reworkDoneButton, findsOneWidget);
         expect(find.text('Rework done · return to QC'), findsOneWidget);
 
-        // 4. Fill rework note and click "Rework done · return to QC"
-        await tester.enterText(
-          notesFieldFinder,
-          'Replated with a full portion.',
-        );
-        await tester.pumpAndSettle();
-
+        // 4. Click "Rework done · return to QC"
         currentTickets = [
           reworkTicket.copyWith(
             rawStatus: 'FOR_CHECKING',
             lane: KitchenBoardLane.qcCheck,
-            reworkNotes: 'Replated with a full portion.',
-            data: reworkTicket.data.copyWith(
-              status: KkfcStatus.checking,
-              reworkNotes: 'Replated with a full portion.',
-            ),
+            data: reworkTicket.data.copyWith(status: KkfcStatus.checking),
           ),
         ];
 
@@ -3130,7 +3152,7 @@ void main() {
         // Popup closed
         expect(find.byType(KitchenTicketStatusDialog), findsNothing);
 
-        // 5. Ticket is now in QC check lane and displays rework note on the card
+        // 5. Ticket is now in QC check lane and does NOT display rework note box
         final qcLaneCard = find.byKey(
           const ValueKey('kitchen-ticket-card-T-015'),
         );
@@ -3142,19 +3164,10 @@ void main() {
               const ValueKey('kitchen-ticket-rework-note-box'),
             ),
           ),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(
-            of: qcLaneCard,
-            matching: find.textContaining(
-              'Rework note: Replated with a full portion.',
-            ),
-          ),
-          findsOneWidget,
+          findsNothing,
         );
 
-        // 6. Opening the QC modal displays the rework note banner
+        // 6. Opening the QC modal does NOT display rework note banner
         final qcCardButton = find.descendant(
           of: qcLaneCard,
           matching: find.widgetWithText(FilledButton, 'QC check'),
@@ -3166,16 +3179,7 @@ void main() {
         expect(find.byType(KitchenTicketStatusDialog), findsOneWidget);
         expect(
           find.byKey(const ValueKey('qc-dialog-rework-note-banner')),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(
-            of: find.byKey(const ValueKey('qc-dialog-rework-note-banner')),
-            matching: find.textContaining(
-              'Rework note: Replated with a full portion.',
-            ),
-          ),
-          findsOneWidget,
+          findsNothing,
         );
       },
     );
@@ -3329,6 +3333,59 @@ void main() {
           const ValueKey('kitchen-ticket-card-T-014'),
         );
         expect(readyCard, findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WT-MOB-KITCHEN-032 Supervisor can complete handover flow for ready takeaway ticket',
+      (tester) async {
+        final readyTakeawayTicket = sampleKitchenBoardTickets[2].copyWith(
+          kitchenTicketId: 'sup-handover-test-id',
+          data: sampleKitchenBoardTickets[2].data.copyWith(
+            ticketNumber: 'T-088',
+            channel: 'Takeaway',
+          ),
+        );
+
+        final repo = _FakeKitchenBoardRepository(
+          () async => [readyTakeawayTicket],
+        );
+
+        await pumpBoard(tester, repository: repo, role: UserRole.supervisor);
+
+        final card = find.byKey(const ValueKey('kitchen-ticket-card-T-088'));
+        expect(card, findsOneWidget);
+
+        final handOverButton = find.descendant(
+          of: card,
+          matching: find.widgetWithText(FilledButton, 'Hand over'),
+        );
+        expect(
+          tester.widget<FilledButton>(handOverButton).onPressed,
+          isNotNull,
+        );
+
+        await tester.ensureVisible(handOverButton);
+        await tester.tap(handOverButton);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(KitchenTicketStatusDialog), findsOneWidget);
+
+        await tester.tap(find.text('All 2 items match the ticket'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Cutlery, napkins and condiments included'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Packaging sealed'));
+        await tester.pumpAndSettle();
+
+        final confirmButton = find.byKey(
+          const ValueKey('kitchen-ticket-handover-confirm-button'),
+        );
+        expect(tester.widget<FilledButton>(confirmButton).onPressed, isNotNull);
+        await tester.tap(confirmButton);
+        await tester.pumpAndSettle();
+
+        expect(repo.handedOverTicketIds, contains('sup-handover-test-id'));
       },
     );
   });

@@ -24,6 +24,7 @@ class KitchenTicketCard extends StatefulWidget {
     this.actionLabel,
     this.isActionEnabled = true,
     this.onDetails,
+    this.isLive,
   });
 
   const KitchenTicketCard.board({
@@ -34,6 +35,7 @@ class KitchenTicketCard extends StatefulWidget {
     this.actionLabel,
     this.isActionEnabled = true,
     this.onDetails,
+    this.isLive,
   }) : variant = KitchenTicketVariant.board;
 
   final KitchenTicketData ticket;
@@ -45,6 +47,7 @@ class KitchenTicketCard extends StatefulWidget {
   final String? actionLabel;
   final bool isActionEnabled;
   final VoidCallback? onDetails;
+  final bool? isLive;
 
   @override
   State<KitchenTicketCard> createState() => _KitchenTicketCardState();
@@ -145,12 +148,19 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                   ticketNumber: widget.ticket.ticketNumber,
                   elapsed: widget.ticket.elapsed,
                   age: widget.ticket.age,
+                  createdAt: widget.ticket.createdAt,
+                  isLive: widget.isLive,
                 ),
                 const SizedBox(height: 14),
 
-                // 2. Brand badge and name
-                KitchenTicketBrandRow(brand: widget.ticket.brand),
-                const SizedBox(height: 8),
+                // 2. Brand badge and name (hidden on multi-brand tickets because items are arranged and labeled by brand)
+                if (!widget.ticket.isMultiBrand) ...[
+                  KitchenTicketBrandRow(
+                    brand: widget.ticket.brand,
+                    brands: widget.ticket.effectiveBrands,
+                  ),
+                  const SizedBox(height: 8),
+                ],
 
                 // 3. Channel and reference line (🛍 Takeaway · Call: Ana)
                 KitchenTicketChannelLine(
@@ -242,57 +252,33 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                     ),
                   ),
                 ],
-                if (widget.ticket.status == KkfcStatus.checking &&
-                    widget.ticket.reworkNotes != null &&
-                    widget.ticket.reworkNotes!.trim().isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    key: const ValueKey('kitchen-ticket-rework-note-box'),
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: KkfcColors.ticketNoteBg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: KkfcColors.ticketNoteBorder,
-                        width: 1,
-                      ),
-                    ),
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: 'Rework note: ',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: KkfcColors.ticketInk,
-                            ),
-                          ),
-                          TextSpan(
-                            text: widget.ticket.reworkNotes!,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              color: KkfcColors.ticketInk,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 16),
 
-                // 4. Ticket items list
-                for (var i = 0; i < widget.ticket.items.length; i++) ...[
-                  if (i > 0) const SizedBox(height: 14),
-                  KitchenTicketItemTile(
-                    item: _resolveItemWithFailReason(widget.ticket.items[i], i),
-                  ),
+                // 4. Ticket items list (arranged and labeled by brands when multi-brand)
+                if (widget.ticket.isMultiBrand) ...[
+                  for (final group in widget.ticket.brandItemGroups) ...[
+                    KitchenTicketBrandGroupHeader(
+                      brand: group.brand,
+                      itemCount: group.items.length,
+                    ),
+                    for (var i = 0; i < group.items.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 12),
+                      KitchenTicketItemTile(
+                        item: _resolveItemWithFailReason(group.items[i], i),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                  ],
+                ] else ...[
+                  for (var i = 0; i < widget.ticket.items.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 14),
+                    KitchenTicketItemTile(
+                      item: _resolveItemWithFailReason(
+                        widget.ticket.items[i],
+                        i,
+                      ),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 16),
 
@@ -308,26 +294,37 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                         onPressed: widget.onDetails,
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
+                            horizontal: 6,
                             vertical: 4,
                           ),
                           minimumSize: const Size(48, 44),
                           tapTargetSize: MaterialTapTargetSize.padded,
                           foregroundColor: KkfcColors.ticketSubtleInk,
                         ),
-                        child: const Text(
-                          'Details',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: KkfcColors.ticketSubtleInk,
+                        child: Container(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: KkfcColors.ticketSubtleInk,
+                                width: 1.2,
+                              ),
+                            ),
+                          ),
+                          child: const Text(
+                            'Details',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: KkfcColors.ticketSubtleInk,
+                            ),
                           ),
                         ),
                       ),
                       if (showAction) ...[
                         const SizedBox(width: 8),
-                        // Flexible so long labels wrap instead of overflowing at
-                        // large text scales.
+                        // Flexible so long labels scale down cleanly instead of
+                        // wrapping into multiple lines or overflowing.
                         Flexible(
                           child: _buildPrimaryActionButton(resolvedLabel),
                         ),
@@ -375,7 +372,7 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
         disabledForegroundColor: KkfcColors.ticketMuted,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         minimumSize: const Size(100, 42),
       ),
       child: widget.isActionLoading
@@ -387,15 +384,20 @@ class _KitchenTicketCardState extends State<KitchenTicketCard> {
                 color: KkfcColors.onSolid,
               ),
             )
-          : Text(
-              resolvedLabel,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: widget.isActionEnabled
-                    ? KkfcColors.onSolid
-                    : KkfcColors.ticketMuted,
+          : FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                resolvedLabel,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: widget.isActionEnabled
+                      ? KkfcColors.onSolid
+                      : KkfcColors.ticketMuted,
+                ),
               ),
             ),
     );

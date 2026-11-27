@@ -1,32 +1,131 @@
+import 'dart:async';
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_lane.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
+import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 import 'package:mobile/shared/widgets/kitchen_ticket_card/kitchen_ticket_header.dart';
 import 'package:mobile/shared/widgets/kitchen_ticket_card/kitchen_ticket_meta.dart';
 import 'package:mobile/shared/widgets/status_badge/kkfc_status.dart';
 
-/// Stateless top header section for [KitchenTicketStatusDialog].
-class KitchenTicketDialogHeader extends StatelessWidget {
+/// Top header section for [KitchenTicketStatusDialog] with live timer.
+class KitchenTicketDialogHeader extends StatefulWidget {
   const KitchenTicketDialogHeader({
     super.key,
     required this.ticket,
     required this.statusLabel,
     this.statusIcon,
     this.onClose,
+    this.isLive,
   });
 
   final KitchenBoardTicket ticket;
   final String statusLabel;
   final IconData? statusIcon;
   final VoidCallback? onClose;
+  final bool? isLive;
+
+  @override
+  State<KitchenTicketDialogHeader> createState() =>
+      _KitchenTicketDialogHeaderState();
+}
+
+class _KitchenTicketDialogHeaderState extends State<KitchenTicketDialogHeader> {
+  late Duration _currentElapsed;
+  late KitchenTicketAge _currentAge;
+  late DateTime _baseStartTime;
+  Timer? _ticker;
+
+  bool get _shouldRunLive {
+    if (widget.isLive != null) return widget.isLive!;
+    try {
+      return !Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return true;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initTiming();
+    if (_shouldRunLive) {
+      _startTicker();
+    }
+  }
+
+  void _initTiming() {
+    _baseStartTime =
+        widget.ticket.data.createdAt?.toLocal() ??
+        DateTime.now().subtract(widget.ticket.data.elapsed);
+    if (_shouldRunLive && widget.ticket.data.createdAt != null) {
+      final diff = DateTime.now().difference(_baseStartTime);
+      final safeElapsed = diff.isNegative ? Duration.zero : diff;
+      _currentElapsed = safeElapsed;
+      _currentAge = KitchenBoardTicket.ageFromElapsed(safeElapsed);
+    } else {
+      _currentElapsed = widget.ticket.data.elapsed;
+      _currentAge = _shouldRunLive
+          ? KitchenBoardTicket.ageFromElapsed(widget.ticket.data.elapsed)
+          : widget.ticket.data.age;
+    }
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final wallElapsed = DateTime.now().difference(_baseStartTime);
+      final safeWallElapsed = wallElapsed.isNegative
+          ? Duration.zero
+          : wallElapsed;
+
+      final newElapsed = safeWallElapsed.inSeconds > _currentElapsed.inSeconds
+          ? safeWallElapsed
+          : _currentElapsed + const Duration(seconds: 1);
+
+      final newAge = KitchenBoardTicket.ageFromElapsed(newElapsed);
+      if (newElapsed.inSeconds != _currentElapsed.inSeconds ||
+          newAge != _currentAge) {
+        setState(() {
+          _currentElapsed = newElapsed;
+          _currentAge = newAge;
+        });
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant KitchenTicketDialogHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.ticket != widget.ticket ||
+        oldWidget.isLive != widget.isLive) {
+      _initTiming();
+      if (_shouldRunLive && (_ticker == null || !_ticker!.isActive)) {
+        _startTicker();
+      } else if (!_shouldRunLive && _ticker != null) {
+        _ticker?.cancel();
+        _ticker = null;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _ticker = null;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final ticket = widget.ticket;
     final lane = ticket.lane;
     final data = ticket.data;
-    final elapsedText = KitchenTicketHeader.formatElapsed(data.elapsed);
+    final elapsedText = KitchenTicketHeader.formatElapsed(_currentElapsed);
 
     final isAcknowledged =
         data.status == KkfcStatus.acknowledged ||
@@ -56,7 +155,7 @@ class KitchenTicketDialogHeader extends StatelessWidget {
         : (isQc ? 'QUALITY CHECK' : (isRework ? 'REWORK' : 'TICKET DETAILS'));
 
     final badgeIcon =
-        statusIcon ??
+        widget.statusIcon ??
         (isRework
             ? Icons.sync_rounded
             : (isAcknowledged
@@ -81,9 +180,10 @@ class KitchenTicketDialogHeader extends StatelessWidget {
 
     final effectiveStatusLabel =
         isRework &&
-            (statusLabel == 'Preparing' || statusLabel == 'TICKET DETAILS')
+            (widget.statusLabel == 'Preparing' ||
+                widget.statusLabel == 'TICKET DETAILS')
         ? 'Rework'
-        : statusLabel;
+        : widget.statusLabel;
 
     return Container(
       width: double.infinity,
@@ -112,7 +212,8 @@ class KitchenTicketDialogHeader extends StatelessWidget {
             children: [
               OutlinedButton.icon(
                 key: const ValueKey('kitchen-ticket-dialog-close-button'),
-                onPressed: onClose ?? () => Navigator.of(context).maybePop(),
+                onPressed:
+                    widget.onClose ?? () => Navigator.of(context).maybePop(),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: KkfcColors.surface,
                   foregroundColor: KkfcColors.ink,
@@ -215,7 +316,13 @@ class KitchenTicketDialogHeader extends StatelessWidget {
             runSpacing: KkfcSpace.s4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              IntrinsicWidth(child: KitchenTicketBrandRow(brand: data.brand)),
+              if (!data.isMultiBrand)
+                IntrinsicWidth(
+                  child: KitchenTicketBrandRow(
+                    brand: data.brand,
+                    brands: data.effectiveBrands,
+                  ),
+                ),
               IntrinsicWidth(
                 child: KitchenTicketChannelLine(
                   channel: data.channel,
@@ -238,7 +345,7 @@ class KitchenTicketDialogHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          KitchenTicketProgressBar(elapsed: data.elapsed, age: data.age),
+          KitchenTicketProgressBar(elapsed: _currentElapsed, age: _currentAge),
         ],
       ),
     );

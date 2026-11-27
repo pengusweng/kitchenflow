@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/app/routes.dart';
-import 'package:mobile/features/new_order/presentation/widgets/order_flow/cart_step_view.dart';
 import 'package:mobile/features/new_order/presentation/widgets/order_flow/confirmation_step_view.dart';
 import 'package:mobile/features/new_order/presentation/widgets/order_flow/order_details_step_view.dart';
 import 'package:mobile/features/new_order/presentation/widgets/order_flow/order_flow_header.dart';
@@ -15,9 +14,9 @@ import 'package:mobile/shared/widgets/kkfc_scaffold.dart';
 import 'package:mobile/shared/widgets/wave_accents.dart';
 
 /// The mobile multi-step order flow screen.
-/// Ready for multiple steps (Order, Details, Payment, Confirm) without rerouting.
+/// Starts at Order Details (Step 3), Review (Step 4), Confirm (Step 5).
 class MobileOrderFlowScreen extends ConsumerStatefulWidget {
-  const MobileOrderFlowScreen({super.key, this.initialStep = 2});
+  const MobileOrderFlowScreen({super.key, this.initialStep = 3});
 
   final int initialStep;
 
@@ -27,11 +26,11 @@ class MobileOrderFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _MobileOrderFlowScreenState extends ConsumerState<MobileOrderFlowScreen> {
-  late int _currentStep = widget.initialStep;
+  late int _currentStep = (widget.initialStep <= 2) ? 3 : widget.initialStep;
   int _slideDirection = 1;
 
   void _onBack() {
-    if (_currentStep > 2) {
+    if (_currentStep > 3) {
       setState(() {
         _slideDirection = -1;
         _currentStep--;
@@ -97,8 +96,6 @@ class _MobileOrderFlowScreenState extends ConsumerState<MobileOrderFlowScreen> {
 
   String get _stepTitle {
     switch (_currentStep) {
-      case 2:
-        return 'Current order';
       case 3:
         return 'Order details';
       case 4:
@@ -106,7 +103,7 @@ class _MobileOrderFlowScreenState extends ConsumerState<MobileOrderFlowScreen> {
       case 5:
         return 'Confirmation';
       default:
-        return 'Current order';
+        return 'Order details';
     }
   }
 
@@ -120,22 +117,22 @@ class _MobileOrderFlowScreenState extends ConsumerState<MobileOrderFlowScreen> {
           // Navy App Header: "Orders" with Cashier Staff dropdown
           AppHeader(title: 'Orders', compact: !isWide),
 
-          // Sub-header: [< Back] Current order [Clear] (hidden on final Sent step)
+          // Sub-header: [< Back] Order details (hidden on final Sent step)
           if (_currentStep < 5) ...[
             OrderFlowHeader(
               title: _stepTitle,
               onBack: _onBack,
               onClear: _onClearOrder,
-              showClear: _currentStep == 2,
+              showClear: false,
             ),
             const Divider(height: 1, thickness: 1, color: Color(0xFFEDE8DF)),
           ],
 
-          // Stepper: (✓) —— (2) Order —— (3) —— (4) —— (5)
+          // Stepper: (✓) —— (2) Details —— (3) Review —— (4) Sent
           OrderFlowStepper(
             currentStep: _currentStep,
             onStepTapped: (step) {
-              if (step >= 2 && step <= 5) {
+              if (step >= 3 && step <= 5) {
                 _goToStep(step);
               } else if (step == 1) {
                 _closeFlow();
@@ -194,14 +191,6 @@ class _MobileOrderFlowScreenState extends ConsumerState<MobileOrderFlowScreen> {
 
   Widget _buildCurrentStepView() {
     switch (_currentStep) {
-      case 2:
-        return KeyedSubtree(
-          key: const ValueKey('step-2-cart'),
-          child: CartStepView(
-            onContinue: () => _goToStep(3),
-            onReturnToMenu: _closeFlow,
-          ),
-        );
       case 3:
         return KeyedSubtree(
           key: const ValueKey('step-3-details'),
@@ -227,20 +216,21 @@ class _MobileOrderFlowScreenState extends ConsumerState<MobileOrderFlowScreen> {
           child: ConfirmationStepView(
             onDone: () {
               ref.read(cartProvider.notifier).clear();
+              ref.read(orderReferenceProvider.notifier).clear();
+              ref.read(activeOrderDraftProvider.notifier).clear();
               _closeFlow();
             },
             onCancelOrder: () {
               ref.read(cartProvider.notifier).clear();
+              ref.read(orderReferenceProvider.notifier).clear();
+              ref.read(activeOrderDraftProvider.notifier).clear();
             },
           ),
         );
       default:
         return KeyedSubtree(
-          key: const ValueKey('step-default'),
-          child: CartStepView(
-            onContinue: () => _goToStep(3),
-            onReturnToMenu: _closeFlow,
-          ),
+          key: const ValueKey('step-3-details'),
+          child: OrderDetailsStepView(onContinue: () => _goToStep(4)),
         );
     }
   }

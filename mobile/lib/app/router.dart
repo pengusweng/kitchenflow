@@ -22,6 +22,7 @@ import '../features/order_entry/presentation/pages/platform_reference_screen.dar
 import '../features/orders/cancel/presentation/pages/cancel_order_screen.dart';
 import '../features/kitchen/kitchen_board/presentation/pages/kitchen_board_screen.dart';
 import 'routes.dart';
+import 'theme/tokens.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -95,22 +96,48 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => CustomTransitionPage<void>(
           key: state.pageKey,
           child: const MenuScreen(),
-          transitionDuration: const Duration(milliseconds: 450),
-          reverseTransitionDuration: const Duration(milliseconds: 300),
+          transitionDuration: KkfcMotion.durLayout,
+          reverseTransitionDuration: KkfcMotion.durScreen,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final curved = CurvedAnimation(
+            if (MediaQuery.disableAnimationsOf(context)) {
+              return child;
+            }
+            final inCurve = CurvedAnimation(
               parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
+              curve: KkfcMotion.easeOut,
+              reverseCurve: KkfcMotion.easeIn,
             );
-            return FadeTransition(
-              opacity: curved,
+            final secondaryCurved = CurvedAnimation(
+              parent: secondaryAnimation,
+              curve: KkfcMotion.easeOut,
+              reverseCurve: KkfcMotion.easeIn,
+            );
+
+            // Primary entrance: smooth subtle vertical lift & fade
+            Widget content = FadeTransition(
+              opacity: inCurve,
               child: SlideTransition(
                 position: Tween<Offset>(
                   begin: const Offset(0.0, 0.025),
                   end: Offset.zero,
-                ).animate(curved),
+                ).animate(inCurve),
                 child: child,
+              ),
+            );
+
+            // Coordinated parallax exit when pushing deeper (e.g. to Recent Orders):
+            // Menu subtly steps back 4% to the left and softly dims to 0.88 opacity
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: Offset.zero,
+                end: const Offset(-0.04, 0.0),
+              ).animate(secondaryCurved),
+              child: FadeTransition(
+                opacity: Tween<double>(
+                  begin: 1.0,
+                  end: 0.88,
+                ).animate(secondaryCurved),
+                child: content,
               ),
             );
           },
@@ -123,13 +150,60 @@ final routerProvider = Provider<GoRouter>((ref) {
           final initialStep =
               extra is Map<String, dynamic> && extra['initialStep'] is int
               ? extra['initialStep'] as int
-              : 2;
+              : 3;
           return MobileOrderFlowScreen(initialStep: initialStep);
         },
       ),
       GoRoute(
         path: AppRoutes.orders,
-        builder: (context, state) => const OrdersScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const OrdersScreen(),
+          transitionDuration: KkfcMotion.durLayout,
+          reverseTransitionDuration: KkfcMotion.durScreen,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            if (MediaQuery.disableAnimationsOf(context)) {
+              return child;
+            }
+            final inCurve = CurvedAnimation(
+              parent: animation,
+              curve: KkfcMotion.easeOut,
+              reverseCurve: KkfcMotion.easeIn,
+            );
+            final secondaryCurved = CurvedAnimation(
+              parent: secondaryAnimation,
+              curve: KkfcMotion.easeOut,
+              reverseCurve: KkfcMotion.easeIn,
+            );
+
+            // Primary entrance from Menu: lateral slide from right (+6%) with fade in
+            Widget content = FadeTransition(
+              opacity: inCurve,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.06, 0.0),
+                  end: Offset.zero,
+                ).animate(inCurve),
+                child: child,
+              ),
+            );
+
+            // Secondary exit if pushing deeper (e.g. Cancel Order screen):
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: Offset.zero,
+                end: const Offset(-0.04, 0.0),
+              ).animate(secondaryCurved),
+              child: FadeTransition(
+                opacity: Tween<double>(
+                  begin: 1.0,
+                  end: 0.88,
+                ).animate(secondaryCurved),
+                child: content,
+              ),
+            );
+          },
+        ),
       ),
       GoRoute(
         path: AppRoutes.cancelOrder,
@@ -138,6 +212,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Without orderId the screen runs the demo states with sample data.
           final query = state.uri.queryParameters;
           return CancelOrderScreen(
+            brandId: query['brandId'],
             orderId: query['orderId'],
             orderCode: query['orderCode'],
             ticketNumber: query['ticketNumber'],

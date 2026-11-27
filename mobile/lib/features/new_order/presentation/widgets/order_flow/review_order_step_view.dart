@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/app/routes.dart';
 import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
+import 'package:mobile/core/models/brand_models.dart';
 import 'package:mobile/features/new_order/data/models/menu_models.dart';
 import 'package:mobile/features/new_order/data/models/order_draft_models.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
@@ -61,7 +62,7 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
       widget.cooldownDuration > Duration.zero &&
       !_cooldownController.isCompleted;
 
-  String _formatModifiers(CartLine line, String brandName) {
+  String _formatModifiers(CartLine line, [String? brandName]) {
     final parts = <String>[];
     for (final g in line.item.modifierGroups) {
       final selId = line.selections[g.id] ?? g.defaultOptionId;
@@ -81,7 +82,7 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
     }
 
     final mods = parts.join(', ');
-    if (brandName.isNotEmpty) {
+    if (brandName != null && brandName.isNotEmpty) {
       return mods.isNotEmpty ? '$brandName · $mods' : brandName;
     }
     return mods;
@@ -182,6 +183,7 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
       final paymentMethod = channel.isPlatform ? 'PLATFORM_SETTLED' : 'CASH';
       final paymentStatus = channel.isPlatform ? 'PAID' : 'UNPAID';
 
+      final currentRef = ref.read(orderReferenceProvider);
       final confirmed = await ref
           .read(orderEntryRepositoryProvider)
           .confirmOrder(
@@ -191,9 +193,15 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
             paymentStatus: paymentStatus,
           );
 
-      final updatedDraft = OrderDraft.fromJson(confirmed);
-      ref.read(activeOrderDraftProvider.notifier).set(updatedDraft);
-      ref.read(clientOrderIdProvider.notifier).regenerate();
+      final confirmedDraft = OrderDraft.fromJson(confirmed).copyWith(
+        tableReference:
+            (confirmed['table_reference'] as String?) ??
+            draft?.tableReference ??
+            (currentRef.isNotEmpty ? currentRef : null),
+      );
+      ref.read(cartProvider.notifier).clear();
+      ref.read(orderReferenceProvider.notifier).clear();
+      ref.read(activeOrderDraftProvider.notifier).set(confirmedDraft);
 
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -224,12 +232,16 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
     final total = ref.watch(cartTotalProvider);
     final itemCount = ref.watch(cartCountProvider);
     final draft = ref.watch(activeOrderDraftProvider);
+    final assignedBrands = ref.watch(assignedBrandsProvider);
+    final activeBrand = ref.watch(activeBrandProvider);
 
     final lineCount = cart.length;
     final effectiveReference = reference.isNotEmpty
         ? reference
         : (draft?.tableReference ??
               (channel == MenuChannel.dineIn ? 'Table 7' : 'Pickup'));
+
+    final brandGroups = _groupCartLines(cart, assignedBrands, activeBrand);
 
     return Column(
       children: [
@@ -428,87 +440,194 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
                     ),
                     const SizedBox(height: 14),
 
-                    // Order Lines
-                    for (int i = 0; i < cart.length; i++) ...[
-                      if (i > 0)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12.0),
-                          child: Divider(
-                            height: 1,
-                            thickness: 1,
-                            color: Color(0xFFF2ECE1),
+                    // Order Lines Grouped by Brand
+                    for (final (gIdx, group) in brandGroups.indexed) ...[
+                      if (gIdx > 0) ...[
+                        const SizedBox(height: 16),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: Color(0xFFEDE8DF),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      // Brand Section Header Label
+                      Container(
+                        key: ValueKey(
+                          'review-brand-group-${group.brand.code.toLowerCase()}',
+                        ),
+                        margin: const EdgeInsets.only(bottom: 12.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10.0,
+                          vertical: 7.0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F6F2),
+                          borderRadius: BorderRadius.circular(8.0),
+                          border: Border.all(
+                            color: const Color(0xFFE2DDD5),
+                            width: 1.0,
                           ),
                         ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Quantity: "2×"
-                          Text(
-                            '${cart[i].quantity}×',
-                            style: const TextStyle(
-                              fontFamily: KkfcFonts.ibmPlexSans,
-                              fontSize: 15.0,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF19293E),
+                        child: Row(
+                          children: [
+                            // Brand Code Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6.0,
+                                vertical: 2.0,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4.0),
+                                border: Border.all(
+                                  color: const Color(0xFFC7BFAF),
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: Text(
+                                group.brand.code.toUpperCase(),
+                                style: const TextStyle(
+                                  fontFamily: KkfcFonts.ibmPlexSans,
+                                  fontSize: 11.0,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF19293E),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
+                            const SizedBox(width: 8.0),
 
-                          // Name & Modifiers
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  cart[i].item.name,
-                                  style: const TextStyle(
-                                    fontFamily: KkfcFonts.ibmPlexSans,
-                                    fontSize: 15.0,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF19293E),
-                                    height: 1.25,
+                            // Brand Name & Item Count
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      group.brand.name,
+                                      style: const TextStyle(
+                                        fontFamily: KkfcFonts.ibmPlexSans,
+                                        fontSize: 14.0,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF19293E),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _formatModifiers(cart[i], cart[i].brandName),
-                                  style: const TextStyle(
-                                    fontFamily: KkfcFonts.text,
-                                    fontSize: 13.0,
-                                    color: Color(0xFF586579),
-                                    height: 1.35,
-                                  ),
-                                ),
-                                if (cart[i].kitchenNote != null &&
-                                    cart[i].kitchenNote!.trim().isNotEmpty) ...[
-                                  const SizedBox(height: 4),
+                                  const SizedBox(width: 6.0),
                                   Text(
-                                    'Note: ${cart[i].kitchenNote}',
+                                    '(${group.totalQuantity} item${group.totalQuantity == 1 ? '' : 's'})',
                                     style: const TextStyle(
                                       fontFamily: KkfcFonts.text,
                                       fontSize: 12.5,
-                                      fontStyle: FontStyle.italic,
-                                      color: Color(0xFF76849A),
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF586579),
                                     ),
                                   ),
                                 ],
-                              ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
 
-                          // Line Total
-                          Text(
-                            formatPeso(cart[i].totalCentavos(channel)),
-                            style: const TextStyle(
-                              fontFamily: KkfcFonts.ibmPlexSans,
-                              fontSize: 15.0,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF19293E),
+                            // Brand Subtotal
+                            Text(
+                              formatPeso(group.totalCentavos(channel)),
+                              style: const TextStyle(
+                                fontFamily: KkfcFonts.ibmPlexSans,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF19293E),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Items under this brand
+                      for (final (i, line) in group.lines.indexed) ...[
+                        if (i > 0)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12.0),
+                            child: Divider(
+                              height: 1,
+                              thickness: 1,
+                              color: Color(0xFFF2ECE1),
                             ),
                           ),
-                        ],
-                      ),
+                        Row(
+                          key: ValueKey('review-order-line-${line.id}'),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Quantity: "2×"
+                            Text(
+                              '${line.quantity}×',
+                              style: const TextStyle(
+                                fontFamily: KkfcFonts.ibmPlexSans,
+                                fontSize: 15.0,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF19293E),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+
+                            // Name & Modifiers
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    line.item.name,
+                                    style: const TextStyle(
+                                      fontFamily: KkfcFonts.ibmPlexSans,
+                                      fontSize: 15.0,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF19293E),
+                                      height: 1.25,
+                                    ),
+                                  ),
+                                  if (_formatModifiers(line).isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _formatModifiers(line),
+                                      style: const TextStyle(
+                                        fontFamily: KkfcFonts.text,
+                                        fontSize: 13.0,
+                                        color: Color(0xFF586579),
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                  if (line.kitchenNote != null &&
+                                      line.kitchenNote!.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Note: ${line.kitchenNote}',
+                                      style: const TextStyle(
+                                        fontFamily: KkfcFonts.text,
+                                        fontSize: 12.5,
+                                        fontStyle: FontStyle.italic,
+                                        color: Color(0xFF76849A),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Line Total
+                            Text(
+                              formatPeso(line.totalCentavos(channel)),
+                              style: const TextStyle(
+                                fontFamily: KkfcFonts.ibmPlexSans,
+                                fontSize: 15.0,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF19293E),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
 
                     const SizedBox(height: 18),
@@ -694,4 +813,123 @@ class _ReviewOrderStepViewState extends ConsumerState<ReviewOrderStepView>
       ],
     );
   }
+}
+
+class _ReviewBrandGroup {
+  const _ReviewBrandGroup({required this.brand, required this.lines});
+
+  final AssignedBrand brand;
+  final List<CartLine> lines;
+
+  int totalCentavos(MenuChannel channel) =>
+      lines.fold(0, (sum, line) => sum + line.totalCentavos(channel));
+
+  int get totalQuantity => lines.fold(0, (sum, line) => sum + line.quantity);
+}
+
+AssignedBrand _resolveBrandForLine(
+  CartLine line,
+  List<AssignedBrand> assignedBrands,
+  AssignedBrand activeBrand,
+) {
+  // 1. Direct match by brandId
+  if (line.brandId.isNotEmpty) {
+    final match = assignedBrands.where((b) => b.id == line.brandId).firstOrNull;
+    if (match != null) return match;
+  }
+
+  // 2. Direct match by brandName
+  if (line.brandName.trim().isNotEmpty) {
+    final match = assignedBrands
+        .where(
+          (b) =>
+              b.name.trim().toLowerCase() ==
+                  line.brandName.trim().toLowerCase() ||
+              b.code.trim().toLowerCase() ==
+                  line.brandName.trim().toLowerCase(),
+        )
+        .firstOrNull;
+    if (match != null) return match;
+  }
+
+  // 3. Match by item name or category
+  final lower = '${line.item.name} ${line.item.category ?? ''}'.toLowerCase();
+  for (final b in assignedBrands) {
+    if (b.name.isNotEmpty && lower.contains(b.name.toLowerCase())) return b;
+    if (b.code.isNotEmpty && lower.contains(b.code.toLowerCase())) return b;
+  }
+
+  // 4. Keyword heuristic
+  if (lower.contains('gamcheon') ||
+      lower.contains('samgyup') ||
+      lower.contains('gc')) {
+    final gc = assignedBrands
+        .where((b) => b.code.toUpperCase() == 'GC')
+        .firstOrNull;
+    if (gc != null) return gc;
+    return const AssignedBrand(id: 'brand-gc', code: 'GC', name: 'Gamcheon');
+  }
+  if (lower.contains('inasal') ||
+      lower.contains('aurelia') ||
+      lower.contains('ai')) {
+    final ai = assignedBrands
+        .where((b) => b.code.toUpperCase() == 'AI')
+        .firstOrNull;
+    if (ai != null) return ai;
+    return const AssignedBrand(
+      id: 'brand-ai',
+      code: 'AI',
+      name: "Aurelia's Inasal",
+    );
+  }
+  if (lower.contains('king') ||
+      lower.contains('kafe') ||
+      lower.contains('cafe') ||
+      lower.contains('kk')) {
+    final kk = assignedBrands
+        .where((b) => b.code.toUpperCase() == 'KK')
+        .firstOrNull;
+    if (kk != null) return kk;
+    return const AssignedBrand(id: 'brand-kk', code: 'KK', name: 'King Kafe');
+  }
+
+  // 5. Fallback to activeBrand or first assignedBrand or synthetic brand
+  if (activeBrand.name.trim().isNotEmpty) {
+    return activeBrand;
+  }
+  if (assignedBrands.isNotEmpty) {
+    return assignedBrands.first;
+  }
+  return AssignedBrand(
+    id: line.brandId.isNotEmpty ? line.brandId : 'brand-default',
+    code: line.brandName.isNotEmpty
+        ? (line.brandName.length >= 2
+              ? line.brandName.substring(0, 2).toUpperCase()
+              : line.brandName.toUpperCase())
+        : 'KK',
+    name: line.brandName.isNotEmpty ? line.brandName : 'Main Brand',
+  );
+}
+
+List<_ReviewBrandGroup> _groupCartLines(
+  List<CartLine> lines,
+  List<AssignedBrand> assignedBrands,
+  AssignedBrand activeBrand,
+) {
+  final groups = <String, _ReviewBrandGroup>{};
+  final orderedKeys = <String>[];
+
+  for (final line in lines) {
+    final brand = _resolveBrandForLine(line, assignedBrands, activeBrand);
+    final key = brand.id.isNotEmpty ? brand.id : brand.code;
+
+    if (!groups.containsKey(key)) {
+      orderedKeys.add(key);
+      groups[key] = _ReviewBrandGroup(brand: brand, lines: [line]);
+    } else {
+      groups[key]!.lines.add(line);
+    }
+  }
+
+  return [for (final key in orderedKeys) groups[key]!];
 }

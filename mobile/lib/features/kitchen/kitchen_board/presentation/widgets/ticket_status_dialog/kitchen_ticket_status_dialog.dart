@@ -55,7 +55,7 @@ class KitchenTicketStatusDialog extends StatelessWidget {
   final Future<void> Function(List<HandoverPhotoEvidence> photos)? onHandover;
   final VoidCallback? onFail;
   final Future<void> Function(List<QcItemRejection> rejections)? onReject;
-  final Future<void> Function(String? reworkNotes)? onReworkDone;
+  final Future<void> Function()? onReworkDone;
   final VoidCallback? onCancelTicket;
   final bool? showCancelTicketButton;
   final VoidCallback? onClose;
@@ -195,7 +195,7 @@ class KitchenTicketStatusDialog extends StatelessWidget {
                     isActionEnabled: isActionEnabled,
                     onReworkDone:
                         onReworkDone ??
-                        (reworkNotes) async {
+                        () async {
                           onAction?.call();
                         },
                   ),
@@ -418,12 +418,19 @@ Future<void> showKitchenTicketStatusDialog(
               currentTicket.data.status == KkfcStatus.checking ||
               currentTicket.rawStatus.toUpperCase() == 'FOR_CHECKING' ||
               currentTicket.rawStatus.toUpperCase() == 'CHECKING';
+          final isHandover =
+              currentTicket.lane == KitchenBoardLane.ready ||
+              currentTicket.data.status == KkfcStatus.ready ||
+              currentTicket.rawStatus.toUpperCase() == 'READY';
           final canPass = userRole?.canPassQc ?? false;
           final canCancel = userRole == null || userRole.canCancelTicket;
           final effectiveActionEnabled =
               isActionEnabled ??
               (userRole != null
-                  ? userRole.canChangeTicketStatus(isQcCheck: isQcLane)
+                  ? userRole.canChangeTicketStatus(
+                      isQcCheck: isQcLane,
+                      isHandover: isHandover,
+                    )
                   : (!isQcLane || canPass));
 
           return KitchenTicketStatusDialog(
@@ -472,13 +479,10 @@ Future<void> showKitchenTicketStatusDialog(
                   }
                 : null,
             onReworkDone: effectiveActionEnabled
-                ? (reworkNotes) async {
+                ? () async {
                     final success = await ref
                         .read(kitchenBoardProvider.notifier)
-                        .sendToQc(
-                          currentTicket.kitchenTicketId,
-                          reworkNotes: reworkNotes,
-                        );
+                        .sendToQc(currentTicket.kitchenTicketId);
                     if (success && dialogContext.mounted) {
                       Navigator.of(dialogContext).maybePop();
                     }

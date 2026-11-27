@@ -12,6 +12,7 @@ import 'package:mobile/features/kitchen/kitchen_board/providers/kitchen_board_pr
 import 'package:mobile/features/kitchen/kitchen_board/providers/kitchen_board_qc_actions.dart';
 import 'package:mobile/features/kitchen/kitchen_board/providers/kitchen_board_state.dart';
 import 'package:mobile/features/new_order/data/repositories/brand_repository.dart';
+import 'package:mobile/features/new_order/data/repositories/menu_repository.dart';
 import 'package:mobile/shared/data/models/kitchen_ticket_data.dart';
 
 export 'kitchen_board_state.dart';
@@ -206,6 +207,8 @@ class KitchenBoardNotifier extends Notifier<KitchenBoardState>
       prevMap: prevMap,
       isMounted: () => ref.mounted,
       getBrands: () => ref.read(brandRepositoryProvider).getAll(),
+      getMenuItems: (brandId) =>
+          ref.read(menuRepositoryProvider).getByBrand(brandId),
     );
     if (!ref.mounted) return;
 
@@ -213,7 +216,6 @@ class KitchenBoardNotifier extends Notifier<KitchenBoardState>
       final prev = prevMap[t.kitchenTicketId];
       if (prev != null) {
         final returnedReason = t.qcReturnedReason ?? prev.qcReturnedReason;
-        final notes = t.reworkNotes ?? prev.reworkNotes;
         final mergedItems = t.data.items.map((item) {
           final prevItem = prev.data.items
               .cast<KitchenTicketItem?>()
@@ -225,23 +227,22 @@ class KitchenBoardNotifier extends Notifier<KitchenBoardState>
                         p.name == item.name),
                 orElse: () => null,
               );
-          if (item.failReason == null && prevItem?.failReason != null) {
-            return item.copyWith(failReason: prevItem!.failReason);
+          var updated = item;
+          if (updated.brand == null && prevItem?.brand != null) {
+            updated = updated.copyWith(brand: prevItem!.brand);
           }
-          return item;
+          if (updated.failReason == null && prevItem?.failReason != null) {
+            updated = updated.copyWith(failReason: prevItem!.failReason);
+          }
+          return updated;
         }).toList();
 
-        if (returnedReason != null ||
-            notes != null ||
-            mergedItems != t.data.items) {
+        if (returnedReason != null || mergedItems != t.data.items) {
           return t.copyWith(
             qcReturnedReason: returnedReason,
-            reworkNotes: notes,
-            data: t.data.copyWith(
-              qcReturnedReason: returnedReason,
-              reworkNotes: notes,
-              items: mergedItems,
-            ),
+            data: t.data
+                .copyWith(qcReturnedReason: returnedReason, items: mergedItems)
+                .withItemsArrangedByBrand(),
           );
         }
       }

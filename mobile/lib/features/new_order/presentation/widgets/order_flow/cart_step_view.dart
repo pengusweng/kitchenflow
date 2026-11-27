@@ -27,7 +27,7 @@ class CartStepView extends ConsumerWidget {
 
     final lineText = '${lines.length} line${lines.length == 1 ? '' : 's'}';
     final itemText = '$count item${count == 1 ? '' : 's'}';
-    final subtitle = '$lineText · $itemText · ${channel.label}';
+    final subtitle = '$lineText · $itemText';
 
     return Column(
       children: [

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile/core/models/user_role.dart';
 import 'package:mobile/features/auth/providers/session_provider.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_lane.dart';
 import 'package:mobile/features/kitchen/kitchen_board/data/models/kitchen_board_ticket.dart';
@@ -15,7 +14,7 @@ mixin KitchenBoardLifecycleActions on Notifier<KitchenBoardState> {
 
   Future<bool> acknowledgeTicket(String kitchenTicketId);
   Future<bool> prepareTicket(String kitchenTicketId);
-  Future<bool> sendToQc(String kitchenTicketId, {String? reworkNotes});
+  Future<bool> sendToQc(String kitchenTicketId);
   Future<bool> passQc({required String kitchenTicketId, String? attemptId});
 
   Future<bool> handOverTicket(
@@ -24,7 +23,10 @@ mixin KitchenBoardLifecycleActions on Notifier<KitchenBoardState> {
     List<String>? imgKeys,
   }) async {
     final userRole = ref.read(userRoleProvider);
-    if (userRole == UserRole.supervisor) return false;
+    if (userRole != null &&
+        !userRole.canChangeTicketStatus(isQcCheck: false, isHandover: true)) {
+      return false;
+    }
 
     if (state.loadingTicketIds.contains(kitchenTicketId)) return false;
 
@@ -82,10 +84,17 @@ mixin KitchenBoardLifecycleActions on Notifier<KitchenBoardState> {
         raw == 'CHECKING' ||
         ticket.data.status == KkfcStatus.checking ||
         ticket.lane == KitchenBoardLane.qcCheck;
+    final isHandover =
+        raw == 'READY' ||
+        ticket.data.status == KkfcStatus.ready ||
+        ticket.lane == KitchenBoardLane.ready;
 
     final userRole = ref.read(userRoleProvider);
     if (userRole != null &&
-        !userRole.canChangeTicketStatus(isQcCheck: isQcLane)) {
+        !userRole.canChangeTicketStatus(
+          isQcCheck: isQcLane,
+          isHandover: isHandover,
+        )) {
       return false;
     }
 
@@ -109,7 +118,7 @@ mixin KitchenBoardLifecycleActions on Notifier<KitchenBoardState> {
         ticket.data.status == KkfcStatus.preparing ||
         ticket.data.status == KkfcStatus.reworking;
     if (isPreparingOrReworking) {
-      return sendToQc(ticket.kitchenTicketId, reworkNotes: ticket.reworkNotes);
+      return sendToQc(ticket.kitchenTicketId);
     }
 
     if (isQcLane) {
