@@ -7,7 +7,7 @@ import 'package:mobile/features/orders/data/seed/sample_recent_orders.dart';
 class RecentOrdersState {
   const RecentOrdersState({
     required this.orders,
-    this.selectedTab = RecentOrderTab.closed,
+    this.selectedTab = RecentOrderTab.unpaid,
     this.searchQuery = '',
     this.channelFilter = 'All',
     this.sortOption = RecentOrderSort.mostRecent,
@@ -109,8 +109,8 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
   RecentOrdersState build() {
     return RecentOrdersState(
       orders: createSampleRecentOrders(),
-      selectedTab: RecentOrderTab.closed,
-      selectedOrderId: 'ord-1001-16329',
+      selectedTab: RecentOrderTab.unpaid,
+      selectedOrderId: 'ord-1001-16330',
     );
   }
 
@@ -139,7 +139,7 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
     final updated = state.orders.map((o) {
       if (o.id == orderId) {
         return o.copyWith(
-          tab: RecentOrderTab.open,
+          tab: RecentOrderTab.paid,
           isReopened: true,
           statusLabel: 'Reopened • Preparing in kitchen',
           lastModified: 'Just now',
@@ -150,7 +150,7 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
 
     state = state.copyWith(
       orders: updated,
-      selectedTab: RecentOrderTab.open,
+      selectedTab: RecentOrderTab.paid,
       selectedOrderId: orderId,
     );
   }

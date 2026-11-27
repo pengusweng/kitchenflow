@@ -13,7 +13,7 @@ import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
 ///
 /// Features:
 /// - Top-left back button returning to the Menu screen
-/// - Open / Closed tab bar (no voided tab per requirements)
+/// - Paid / Unpaid / Closed tab bar (open tab split into paid & unpaid; no voided tab)
 /// - Search input
 /// - Channel quick-filter chips
 /// - List of recent order cards
@@ -61,46 +61,55 @@ class _RecentOrdersMasterPaneState
       color: Colors.transparent,
       child: Column(
         children: [
-          // 1. Tab Bar (Open vs Closed) - with top-left Back button
+          // 1. Tab Bar (Unpaid vs Paid vs Closed) - with top-left Back button
           Container(
             color: Colors.transparent,
-            padding: const EdgeInsets.only(
-              left: KkfcSpace.s8,
-              right: KkfcSpace.s16,
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  key: const ValueKey('recent-orders-back-button'),
-                  icon: const Icon(Icons.arrow_back, color: KkfcColors.ink),
-                  tooltip: 'Back to menu',
-                  onPressed:
-                      widget.onBack ??
-                      () {
-                        if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.go(AppRoutes.menu);
-                        }
-                      },
-                ),
-                const SizedBox(width: KkfcSpace.s8),
-                _buildTabItem(
-                  key: const Key('recent-orders-tab-open'),
-                  tab: RecentOrderTab.open,
-                  isSelected: state.selectedTab == RecentOrderTab.open,
-                  count: state.countForTab(RecentOrderTab.open),
-                  onTap: () => notifier.setTab(RecentOrderTab.open),
-                ),
-                const SizedBox(width: KkfcSpace.s24),
-                _buildTabItem(
-                  key: const Key('recent-orders-tab-closed'),
-                  tab: RecentOrderTab.closed,
-                  isSelected: state.selectedTab == RecentOrderTab.closed,
-                  count: state.countForTab(RecentOrderTab.closed),
-                  onTap: () => notifier.setTab(RecentOrderTab.closed),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: KkfcSpace.s8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  IconButton(
+                    key: const ValueKey('recent-orders-back-button'),
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.arrow_back, color: KkfcColors.ink),
+                    tooltip: 'Back to menu',
+                    onPressed:
+                        widget.onBack ??
+                        () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go(AppRoutes.menu);
+                          }
+                        },
+                  ),
+                  const SizedBox(width: KkfcSpace.s8),
+                  _buildTabItem(
+                    key: const Key('recent-orders-tab-unpaid'),
+                    tab: RecentOrderTab.unpaid,
+                    isSelected: state.selectedTab == RecentOrderTab.unpaid,
+                    count: state.countForTab(RecentOrderTab.unpaid),
+                    onTap: () => notifier.setTab(RecentOrderTab.unpaid),
+                  ),
+                  const SizedBox(width: KkfcSpace.s12),
+                  _buildTabItem(
+                    key: const Key('recent-orders-tab-paid'),
+                    tab: RecentOrderTab.paid,
+                    isSelected: state.selectedTab == RecentOrderTab.paid,
+                    count: state.countForTab(RecentOrderTab.paid),
+                    onTap: () => notifier.setTab(RecentOrderTab.paid),
+                  ),
+                  const SizedBox(width: KkfcSpace.s12),
+                  _buildTabItem(
+                    key: const Key('recent-orders-tab-closed'),
+                    tab: RecentOrderTab.closed,
+                    isSelected: state.selectedTab == RecentOrderTab.closed,
+                    count: state.countForTab(RecentOrderTab.closed),
+                    onTap: () => notifier.setTab(RecentOrderTab.closed),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -149,50 +158,60 @@ class _RecentOrdersMasterPaneState
             color: Colors.transparent,
             height: 44.0,
             padding: const EdgeInsets.symmetric(horizontal: KkfcSpace.s12),
-            child: ListView.separated(
+            child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              itemCount: _channels.length,
-              separatorBuilder: (_, _) => const SizedBox(width: KkfcSpace.s8),
-              itemBuilder: (context, index) {
-                final channel = _channels[index];
-                final isSelected =
-                    state.channelFilter.toLowerCase() == channel.toLowerCase();
-
-                return Center(
-                  child: FilterChip(
-                    label: Text(
-                      channel,
-                      style: TextStyle(
-                        fontFamily: KkfcFonts.ibmPlexSans,
-                        fontSize: KkfcTextSizes.textXs,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: isSelected ? Colors.white : KkfcColors.ink2,
+              child: Row(
+                children: [
+                  for (var i = 0; i < _channels.length; i++) ...[
+                    if (i > 0) const SizedBox(width: KkfcSpace.s8),
+                    Center(
+                      child: FilterChip(
+                        label: Text(
+                          _channels[i],
+                          style: TextStyle(
+                            fontFamily: KkfcFonts.ibmPlexSans,
+                            fontSize: KkfcTextSizes.textXs,
+                            fontWeight:
+                                state.channelFilter.toLowerCase() ==
+                                    _channels[i].toLowerCase()
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color:
+                                state.channelFilter.toLowerCase() ==
+                                    _channels[i].toLowerCase()
+                                ? Colors.white
+                                : KkfcColors.ink2,
+                          ),
+                        ),
+                        selected:
+                            state.channelFilter.toLowerCase() ==
+                            _channels[i].toLowerCase(),
+                        showCheckmark: false,
+                        backgroundColor: KkfcColors.surfaceSubtle,
+                        selectedColor: KkfcColors.shell,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(KkfcRadius.pill),
+                          side: BorderSide(
+                            color:
+                                state.channelFilter.toLowerCase() ==
+                                    _channels[i].toLowerCase()
+                                ? KkfcColors.shell
+                                : KkfcColors.border,
+                            width: 1.0,
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: KkfcSpace.s8,
+                          vertical: KkfcSpace.s2,
+                        ),
+                        visualDensity: VisualDensity.compact,
+                        onSelected: (_) =>
+                            notifier.setChannelFilter(_channels[i]),
                       ),
                     ),
-                    selected: isSelected,
-                    showCheckmark: false,
-                    backgroundColor: KkfcColors.surfaceSubtle,
-                    selectedColor: KkfcColors.shell,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(KkfcRadius.pill),
-                      side: BorderSide(
-                        color: isSelected
-                            ? KkfcColors.shell
-                            : KkfcColors.border,
-                        width: 1.0,
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: KkfcSpace.s8,
-                      vertical: KkfcSpace.s2,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    onSelected: (_) => notifier.setChannelFilter(channel),
-                  ),
-                );
-              },
+                  ],
+                ],
+              ),
             ),
           ),
 
@@ -297,7 +316,7 @@ class _RecentOrdersMasterPaneState
                 text: tab.label,
                 style: TextStyle(
                   fontFamily: KkfcFonts.ibmPlexSans,
-                  fontSize: KkfcTextSizes.textLg,
+                  fontSize: 15.0,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected ? KkfcColors.ink : KkfcColors.ink3,
                 ),

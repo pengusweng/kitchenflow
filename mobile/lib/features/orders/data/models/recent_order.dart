@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 
-/// Active tab on the Recent Orders screen: Open or Closed.
+/// Active tab on the Recent Orders screen: Unpaid, Paid, or Closed.
+/// The Unpaid tab is default and first.
 /// The Voided tab has been removed per specifications.
 enum RecentOrderTab {
-  open('Open'),
+  unpaid('Unpaid'),
+  paid('Paid'),
   closed('Closed');
 
   const RecentOrderTab(this.label);
@@ -99,7 +101,9 @@ class RecentOrder {
   final DateTime createdAt;
   final List<RecentOrderItem> items;
 
-  bool get isOpen => tab == RecentOrderTab.open;
+  bool get isOpen => tab == RecentOrderTab.paid || tab == RecentOrderTab.unpaid;
+  bool get isPaid => tab == RecentOrderTab.paid;
+  bool get isUnpaid => tab == RecentOrderTab.unpaid;
   bool get isClosed => tab == RecentOrderTab.closed;
 
   RecentOrder copyWith({

@@ -116,15 +116,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Switch to open orders tab
-      await tester.tap(find.byKey(const Key('recent-orders-tab-open')));
-      await tester.pumpAndSettle();
-
-      // Tap Cancel Order button in detail pane
+      // Tap Cancel Order button in detail pane for default unpaid order
       await tester.tap(find.text('Cancel Order'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('order=ord-1001-1633'), findsOneWidget);
+      expect(find.textContaining('order=ord-1001-16330'), findsOneWidget);
     },
   );
 
