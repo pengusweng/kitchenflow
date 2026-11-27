@@ -1485,7 +1485,7 @@ void main() {
           find.byKey(const ValueKey('kitchen-board-readonly-badge')),
           findsOneWidget,
         );
-        expect(find.text('Read-only (QC Check only)'), findsOneWidget);
+        expect(find.text('QC check and handover only'), findsOneWidget);
 
         // 1. Queued Ticket (T-016): Action button is disabled
         final queuedCard = find.byKey(

@@ -14,6 +14,7 @@ class KitchenBoardToolbar extends StatefulWidget {
     this.onAvailability,
     this.isRefreshing = false,
     this.isReadOnly = false,
+    this.readOnlyText = 'QC check and handover only',
   });
 
   final int activeCount;
@@ -22,6 +23,7 @@ class KitchenBoardToolbar extends StatefulWidget {
   final VoidCallback? onAvailability;
   final bool isRefreshing;
   final bool isReadOnly;
+  final String readOnlyText;
 
   @override
   State<KitchenBoardToolbar> createState() => _KitchenBoardToolbarState();
@@ -132,9 +134,9 @@ class _KitchenBoardToolbarState extends State<KitchenBoardToolbar> {
                             ),
                             if (!isCompact) ...[
                               const SizedBox(width: 4),
-                              const Text(
-                                'Read-only (QC Check only)',
-                                style: TextStyle(
+                              Text(
+                                widget.readOnlyText,
+                                style: const TextStyle(
                                   fontFamily: KkfcFonts.ibmPlexSans,
                                   fontSize: KkfcTextSizes.textXs,
                                   fontWeight: KkfcFontWeights.medium,
