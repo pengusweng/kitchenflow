@@ -2,13 +2,13 @@ import { Module } from '@nestjs/common';
 import { UsersModule } from '../users/users.module';
 import { OrdersModule } from '../orders/orders/orders.module';
 import { PaymentsController } from './payments.controller';
-import { PaymentsRepository } from './payments.repository';
+import { PaymentsDataModule } from './payments-data.module';
 import { PaymentsService } from './payments.service';
 
 @Module({
-  imports: [OrdersModule, UsersModule],
+  imports: [PaymentsDataModule, OrdersModule, UsersModule],
   controllers: [PaymentsController],
-  providers: [PaymentsService, PaymentsRepository],
-  exports: [PaymentsService, PaymentsRepository],
+  providers: [PaymentsService],
+  exports: [PaymentsService],
 })
 export class PaymentsModule {}
