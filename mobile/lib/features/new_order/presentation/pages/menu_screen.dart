@@ -9,6 +9,7 @@ import 'package:mobile/features/new_order/presentation/widgets/cart_panel/cart_p
 import 'package:mobile/features/new_order/presentation/widgets/catalog/menu_catalog_view.dart';
 import 'package:mobile/features/new_order/providers/brand_providers.dart';
 import 'package:mobile/features/new_order/providers/menu_providers.dart';
+import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
 import 'package:mobile/shared/widgets/app_header.dart';
 import 'package:mobile/shared/widgets/kkfc_scaffold.dart';
 import 'package:mobile/shared/widgets/wave_accents.dart';
@@ -200,6 +201,7 @@ class _ResponsiveMenuLayoutState extends ConsumerState<_ResponsiveMenuLayout>
                               ),
                             ),
                             onPressed: () {
+                              ref.read(recentOrdersProvider.notifier).refresh();
                               if (GoRouter.maybeOf(context) != null) {
                                 context.push(AppRoutes.orders);
                               }

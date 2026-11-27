@@ -7,6 +7,7 @@ import 'package:mobile/app/theme/tokens.dart';
 import 'package:mobile/app/theme/typography.dart';
 import 'package:mobile/features/orders/data/models/recent_order.dart';
 import 'package:mobile/features/orders/presentation/widgets/recent_order_card.dart';
+import 'package:mobile/features/orders/presentation/widgets/recent_orders_skeleton.dart';
 import 'package:mobile/features/orders/providers/recent_orders_provider.dart';
 
 /// Master pane for Recent Orders.
@@ -268,66 +269,75 @@ class _RecentOrdersMasterPaneState
               },
               child: KeyedSubtree(
                 key: ValueKey(
-                  'orders-list-${state.selectedTab.name}-${state.channelFilter}',
+                  state.isLoading
+                      ? 'orders-list-loading'
+                      : 'orders-list-${state.selectedTab.name}-${state.channelFilter}',
                 ),
-                child: filteredOrders.isEmpty
-                    ? Center(
-                        key: const ValueKey('orders-empty-state'),
-                        child: Padding(
-                          padding: const EdgeInsets.all(KkfcSpace.s24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.receipt_long_outlined,
-                                size: 48.0,
-                                color: KkfcColors.ink3.withValues(alpha: 0.5),
-                              ),
-                              const SizedBox(height: KkfcSpace.s12),
-                              Text(
-                                state.searchQuery.isEmpty
-                                    ? 'No ${state.selectedTab.label.toLowerCase()} orders'
-                                    : 'No orders matching "${state.searchQuery}"',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontFamily: KkfcFonts.ibmPlexSans,
-                                  fontSize: KkfcTextSizes.textBase,
-                                  fontWeight: FontWeight.w600,
-                                  color: KkfcColors.ink2,
+                child: state.isLoading
+                    ? const RecentOrdersListSkeleton()
+                    : (filteredOrders.isEmpty
+                          ? Center(
+                              key: const ValueKey('orders-empty-state'),
+                              child: Padding(
+                                padding: const EdgeInsets.all(KkfcSpace.s24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.receipt_long_outlined,
+                                      size: 48.0,
+                                      color: KkfcColors.ink3.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: KkfcSpace.s12),
+                                    Text(
+                                      state.searchQuery.isEmpty
+                                          ? 'No ${state.selectedTab.label.toLowerCase()} orders'
+                                          : 'No orders matching "${state.searchQuery}"',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontFamily: KkfcFonts.ibmPlexSans,
+                                        fontSize: KkfcTextSizes.textBase,
+                                        fontWeight: FontWeight.w600,
+                                        color: KkfcColors.ink2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: KkfcSpace.s4),
+                                    const Text(
+                                      'Try selecting a different tab or resetting filters.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontFamily: KkfcFonts.ibmPlexSans,
+                                        fontSize: KkfcTextSizes.textSm,
+                                        color: KkfcColors.ink3,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: KkfcSpace.s4),
-                              const Text(
-                                'Try selecting a different tab or resetting filters.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: KkfcFonts.ibmPlexSans,
-                                  fontSize: KkfcTextSizes.textSm,
-                                  color: KkfcColors.ink3,
-                                ),
+                            )
+                          : ListView.builder(
+                              key: const ValueKey('orders-list-view'),
+                              padding: const EdgeInsets.only(
+                                bottom: KkfcSpace.s16,
                               ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        key: const ValueKey('orders-list-view'),
-                        padding: const EdgeInsets.only(bottom: KkfcSpace.s16),
-                        itemCount: filteredOrders.length,
-                        itemBuilder: (context, index) {
-                          final order = filteredOrders[index];
-                          final isSelected = selectedOrder?.id == order.id;
+                              itemCount: filteredOrders.length,
+                              itemBuilder: (context, index) {
+                                final order = filteredOrders[index];
+                                final isSelected =
+                                    selectedOrder?.id == order.id;
 
-                          return RecentOrderCard(
-                            order: order,
-                            isSelected: isSelected,
-                            onTap: () {
-                              notifier.selectOrder(order.id);
-                              widget.onOrderSelected(order);
-                            },
-                          );
-                        },
-                      ),
+                                return RecentOrderCard(
+                                  order: order,
+                                  isSelected: isSelected,
+                                  onTap: () {
+                                    notifier.selectOrder(order.id);
+                                    widget.onOrderSelected(order);
+                                  },
+                                );
+                              },
+                            )),
               ),
             ),
           ),

@@ -142,11 +142,16 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
   /// Fetches recent orders from the backend Orders API (`GET /orders` and
   /// `GET /brands/:brandId/orders`). Falls back to existing seed state when
   /// running offline or in unmocked widget tests.
-  Future<void> loadOrders() async {
+  Future<void> loadOrders({bool force = false}) async {
     if (!ref.mounted) return;
+    if (state.isLoading && !force && _cancelToken != null) {
+      return;
+    }
     _cancelPendingRequest();
     final cancelToken = CancelToken();
     _cancelToken = cancelToken;
+
+    state = state.copyWith(isLoading: true);
 
     final repo = ref.read(recentOrdersRepositoryProvider);
     try {
@@ -156,7 +161,6 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
         orders: fetched,
         isLoading: false,
         clearErrorMessage: true,
-        clearSelectedOrderId: true,
       );
       final initialSelected = state.selectedOrder;
       if (initialSelected != null && !initialSelected.hasLoadedDetails) {
@@ -168,7 +172,7 @@ class RecentOrdersNotifier extends Notifier<RecentOrdersState> {
     }
   }
 
-  Future<void> refresh() => loadOrders();
+  Future<void> refresh() => loadOrders(force: true);
 
   void setTab(RecentOrderTab tab) {
     if (state.selectedTab == tab) return;

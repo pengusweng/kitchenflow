@@ -29,6 +29,16 @@ class OrdersScreen extends ConsumerStatefulWidget {
 class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   bool _mobileShowingDetail = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(recentOrdersProvider.notifier).refresh();
+      }
+    });
+  }
+
   void _handleBack() {
     if (context.canPop()) {
       context.pop();
