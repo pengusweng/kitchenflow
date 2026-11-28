@@ -5,10 +5,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PaymentsRepository, PaymentUniqueKey } from './payments.repository';
-import { assertExists } from '../../shared/assertions/assert-exists';
-import { OrdersRepository } from '../orders/orders/orders.repository';
+import { assertExists } from '../../../shared/assertions/assert-exists';
+import { OrdersRepository } from '../../orders/orders/orders.repository';
 import { CreatePaymentDTO } from './dto/payment.dto';
-import { UsersRepository } from '../users/users.repository';
+import { UsersRepository } from '../../users/users.repository';
 import {
   Order,
   OrderChannel,
@@ -18,7 +18,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { FindPaymentsDTO } from './dto/find-payments.dto';
-import { assertValidPagination } from '../../shared/assertions/assert-valid-pagination';
+import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
 import { isPlatformChannel } from './payment-rules';
 
 @Injectable()

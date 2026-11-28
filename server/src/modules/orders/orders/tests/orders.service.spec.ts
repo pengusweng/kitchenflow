@@ -9,7 +9,7 @@ import { OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import { OrdersRepository } from '../orders.repository';
 import { OrdersService } from '../orders.service';
-import { PaymentsRepository } from '../../../payments/payments.repository';
+import { PaymentsRepository } from '../../../billing/payments/payments.repository';
 import { CreateOrderDTO } from '../dto/order.dto';
 
 function adapterError(originalCode: string, kind = 'TransactionWriteConflict') {

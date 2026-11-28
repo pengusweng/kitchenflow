@@ -23,8 +23,8 @@ import { FindOrdersDTO } from './dto/find-orders.dto';
 import { FindUnpaidTodayOrdersDTO } from './dto/find-unpaid-today-orders.dto';
 import { OrdersRepository, type SavedOrder } from './orders.repository';
 import { CreateOrderDTO, CancelOrderDTO } from './dto/order.dto';
-import { PaymentsRepository } from '../../payments/payments.repository';
-import { isPlatformChannel } from '../../payments/payment-rules';
+import { PaymentsRepository } from '../../billing/payments/payments.repository';
+import { isPlatformChannel } from '../../billing/payments/payment-rules';
 
 @Injectable()
 export class OrdersService {

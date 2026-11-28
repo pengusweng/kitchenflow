@@ -5,11 +5,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
-import { assertExists } from '../../shared/assertions/assert-exists';
+import { assertExists } from '../../../shared/assertions/assert-exists';
 import {
   OrdersRepository,
   type SavedOrder,
-} from '../orders/orders/orders.repository';
+} from '../../orders/orders/orders.repository';
 import { isPlatformChannel } from '../payments/payment-rules';
 import { seniorDiscount } from './discount-rules';
 import { DiscountsRepository } from './discounts.repository';

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { UserRole } from '@prisma/client';
-import { Authenticated } from '../../auth/auth.guard';
+import { Authenticated } from '../../../auth/auth.guard';
 import { PaymentsController } from '../payments.controller';
 import { PaymentsService } from '../payments.service';
 

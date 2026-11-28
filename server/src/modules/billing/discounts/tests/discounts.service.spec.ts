@@ -10,7 +10,7 @@ import {
   PaymentStatus,
   Prisma,
 } from '@prisma/client';
-import { OrdersRepository } from '../../orders/orders/orders.repository';
+import { OrdersRepository } from '../../../orders/orders/orders.repository';
 import { DiscountsService } from '../discounts.service';
 import { ApplyDiscountDTO } from '../dto/apply-discount.dto';
 

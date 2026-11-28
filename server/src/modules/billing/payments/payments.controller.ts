@@ -10,9 +10,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { Authenticated, type AuthenticatedRequest } from '../auth/auth.guard';
-import { RolesGuard } from '../../shared/guards/roles.guard';
-import { Roles } from '../../shared/decorators/roles.decorator';
+import {
+  Authenticated,
+  type AuthenticatedRequest,
+} from '../../auth/auth.guard';
+import { RolesGuard } from '../../../shared/guards/roles.guard';
+import { Roles } from '../../../shared/decorators/roles.decorator';
 import {
   CreatePaymentDocs,
   FindAllPaymentsDocs,
@@ -21,7 +24,7 @@ import {
   PaymentsDocs,
 } from './docs/payments.docs';
 import { PaymentsService } from './payments.service';
-import { Audit, fromResult } from '../../shared/audit/audit.decorator';
+import { Audit, fromResult } from '../../../shared/audit/audit.decorator';
 import { CreatePaymentDTO } from './dto/payment.dto';
 import { FindPaymentsDTO } from './dto/find-payments.dto';
 

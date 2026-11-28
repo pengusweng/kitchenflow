@@ -8,10 +8,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { Authenticated, type AuthenticatedRequest } from '../auth/auth.guard';
-import { RolesGuard } from '../../shared/guards/roles.guard';
-import { Roles } from '../../shared/decorators/roles.decorator';
-import { Audit, fromResult } from '../../shared/audit/audit.decorator';
+import {
+  Authenticated,
+  type AuthenticatedRequest,
+} from '../../auth/auth.guard';
+import { RolesGuard } from '../../../shared/guards/roles.guard';
+import { Roles } from '../../../shared/decorators/roles.decorator';
+import { Audit, fromResult } from '../../../shared/audit/audit.decorator';
 import { ApplyDiscountDocs, DiscountsDocs } from './docs/discounts.docs';
 import { DiscountsService } from './discounts.service';
 import { ApplyDiscountDTO } from './dto/apply-discount.dto';

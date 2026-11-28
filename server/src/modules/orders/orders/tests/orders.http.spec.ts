@@ -19,7 +19,7 @@ import {
 } from '../../../../shared/testing/catalog.fixture';
 import { OrdersRepository } from '../orders.repository';
 import { OrdersService } from '../orders.service';
-import { PaymentsRepository } from '../../../payments/payments.repository';
+import { PaymentsRepository } from '../../../billing/payments/payments.repository';
 import { AuthService } from '../../../auth/auth.service';
 import { AllOrdersController } from '../all-orders.controller';
 import { OrdersController } from '../orders.controller';
