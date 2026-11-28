@@ -113,6 +113,39 @@ enum UnitDimension {
   @@map("unit_dimension")
 }
 
+enum IdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("idempotency_status")
+}
+
+model IdempotencyKey {
+  idempotency_key_id String            @id @default(uuid()) @db.Uuid
+  user_id            String            @db.Uuid
+  key                String            @db.VarChar(255)
+  endpoint           String            @db.VarChar(255)
+
+  /// SHA-256 of the request body; a retry with a different body is rejected
+  request_hash       String            @db.VarChar(64)
+  status             IdempotencyStatus @default(PROCESSING)
+
+  /// The saved reply, sent again when the same request is retried
+  response_status    Int?
+
+  response           Json?
+  created_at         DateTime          @default(now()) @db.Timestamp(6)
+  modified_at        DateTime          @default(now()) @db.Timestamp(6)
+  expires_at         DateTime          @db.Timestamp(6)
+
+  user User @relation("IdempotencyKeyUser", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([user_id, key])
+  @@index([expires_at])
+  @@map("idempotency_keys")
+}
+
 model User {
   user_id       String   @id @default(uuid()) @db.Uuid
   username      String   @unique @db.VarChar(16)
@@ -136,6 +169,7 @@ model User {
   kitchen_ticket_qc_attempts_checker KitchenTicketQcAttempt[] @relation("KitchenTicketQcAttemptChecker")
   handoffs_actor                     Handoff[]                @relation("HandoffActor")
   audit_logs_actor                   AuditLog[]               @relation("AuditLogActor")
+  idempotency_keys_user              IdempotencyKey[]         @relation("IdempotencyKeyUser")
 
   @@map("users")
 }

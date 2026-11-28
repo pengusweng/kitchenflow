@@ -9,6 +9,7 @@ import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { PrismaExceptionFilter } from './shared/filters/prisma-exception.filter';
 import { PrismaModule } from './shared/prisma/prisma.module';
 import { StorageModule } from './shared/storage/storage.module';
+import { IdempotencyModule } from './shared/idempotency/idempotency.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PinModule } from './modules/pin/pin.module';
@@ -48,6 +49,7 @@ import { OrderFlowModule } from './modules/orders/order-flow/order-flow.module';
     PrismaModule,
     AuditLogModule,
     StorageModule,
+    IdempotencyModule,
     UsersModule,
     AuthModule,
     PinModule,
