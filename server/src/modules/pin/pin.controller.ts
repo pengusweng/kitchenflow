@@ -52,6 +52,8 @@ export class PinController {
     return this.pinService.findOne(request.session.user.user_id);
   }
 
+  // A superadmin changes their own PIN here with their password. Another
+  // superadmin can also reset it through PUT /users/:id/pin.
   @Patch()
   @Audit({
     action: 'PIN_UPDATED',

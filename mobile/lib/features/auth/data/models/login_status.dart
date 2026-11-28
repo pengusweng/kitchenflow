@@ -4,6 +4,9 @@ enum LoginStatus {
   missingFields,
   invalidCredentials,
   networkError,
+
+  /// A superadmin with no PIN yet; setup happens on the web dashboard.
+  pinSetupRequired,
 }
 
 extension LoginStatusX on LoginStatus {
@@ -12,7 +15,8 @@ extension LoginStatusX on LoginStatus {
   bool get hasNotice =>
       this == LoginStatus.missingFields ||
       this == LoginStatus.invalidCredentials ||
-      this == LoginStatus.networkError;
+      this == LoginStatus.networkError ||
+      this == LoginStatus.pinSetupRequired;
 
   /// Network problems shouldn't turn the inputs red.
   bool get fieldsInError =>
@@ -23,6 +27,7 @@ extension LoginStatusX on LoginStatus {
     LoginStatus.missingFields => 'Required fields',
     LoginStatus.invalidCredentials => 'Not signed in',
     LoginStatus.networkError => 'Unable to connect',
+    LoginStatus.pinSetupRequired => 'PIN setup needed',
     _ => '',
   };
 
@@ -32,6 +37,8 @@ extension LoginStatusX on LoginStatus {
       'Username or password is wrong. Check both and try again.',
     LoginStatus.networkError =>
       'Connection problem. Check your network and retry.',
+    LoginStatus.pinSetupRequired =>
+      'Set up your superadmin PIN on the web dashboard, then sign in here.',
     _ => '',
   };
 }

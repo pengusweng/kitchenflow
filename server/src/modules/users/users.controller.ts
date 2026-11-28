@@ -1,4 +1,6 @@
 import { PinGuard } from '../pin/pin.guard';
+import { PinService } from '../pin/pin.service';
+import { CreatePinDTO } from '../pin/dto/create-pin.dto';
 import {
   UsersDocs,
   CreateUserDocs,
@@ -6,6 +8,7 @@ import {
   FindAllUsersDocs,
   FindOneUserDocs,
   DeleteUserDocs,
+  ResetUserPinDocs,
 } from './docs/users.docs';
 import {
   Body,
@@ -13,11 +16,13 @@ import {
   DefaultValuePipe,
   Delete,
   Get,
+  Header,
   Param,
   ParseBoolPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -45,7 +50,10 @@ const viewedUser: AuditResolver = (request, result) =>
 @UsersDocs()
 @UseGuards(Authenticated, RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly pinService: PinService,
+  ) {}
 
   @Post()
   @Audit({
@@ -105,7 +113,27 @@ export class UsersController {
       id,
       dto,
       request.session.user.role === UserRole.SUPERADMIN,
+      request.session.session_id,
     );
+  }
+
+  // Only superadmins reset PINs. Sets a new PIN for the user whether or not
+  // they had one, and clears any lockout.
+  @Put(':id/pin')
+  @Audit({
+    action: 'PIN_RESET',
+    entity: 'user_pin_credentials',
+    id: fromParam('id'),
+  })
+  @Header('Cache-Control', 'no-store')
+  @ResetUserPinDocs()
+  @Roles(UserRole.SUPERADMIN)
+  @UseGuards(PinGuard)
+  async resetPin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreatePinDTO,
+  ) {
+    return this.pinService.resetPin(id, dto.pin);
   }
 
   @Delete(':id')

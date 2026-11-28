@@ -54,7 +54,10 @@ export function PinDocs() {
     ApiBearerAuth(),
     ApiResponse({ status: 400, description: 'Invalid request.' }),
     ApiResponse({ status: 401, description: 'A valid session is required.' }),
-    ApiResponse({ status: 403, description: 'Your role cannot manage a PIN.' }),
+    ApiResponse({
+      status: 403,
+      description: 'Only superadmins have a PIN; other roles are denied.',
+    }),
   );
 }
 
@@ -106,9 +109,10 @@ export function FindOnePinDocs() {
 export function UpdatePinDocs() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Reset the current user’s PIN using their account password.',
+      summary:
+        'Reset the current superadmin’s PIN using their account password.',
       description:
-        'The current password is required. Resets may be repeated and do not require X-Action-Pin.',
+        'Superadmins only; other roles have no PIN and get 403 ACCESS_DENIED. The current password is required. Resets may be repeated and do not require X-Action-Pin. Another superadmin can also reset it through PUT /api/users/{id}/pin.',
     }),
     ApiResponse({
       status: 200,

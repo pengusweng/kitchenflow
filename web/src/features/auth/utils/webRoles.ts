@@ -1,5 +1,11 @@
 export const WEB_ROLES: ReadonlySet<string> = new Set(["SUPERADMIN", "RECIPE_MANAGER", "SUPERVISOR", "KITCHEN_HEAD"]);
 
+export type WebRole = "SUPERADMIN" | "RECIPE_MANAGER" | "SUPERVISOR" | "KITCHEN_HEAD";
+
+export function isWebRole(role: string): role is WebRole {
+  return WEB_ROLES.has(role);
+}
+
 /** Roles allowed into Staff Accounts (user management). */
 export const STAFF_ACCOUNT_ROLES: ReadonlySet<string> = new Set(["SUPERADMIN"]);
 

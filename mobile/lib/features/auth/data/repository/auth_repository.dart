@@ -13,6 +13,9 @@ enum AuthFailure {
   unexpected,
   pinRequired,
   invalidPin,
+
+  /// A superadmin with no PIN yet; they set one up on the web dashboard.
+  pinSetupRequired,
 }
 
 class AuthException implements Exception {
@@ -38,7 +41,8 @@ class AuthRepository {
   /// 200 `{token, expires_at, user}` |
   /// 401 `{code: 'INVALID_CREDENTIALS', message}` |
   /// 401 `{code: 'PIN_REQUIRED'}` |
-  /// 401 `{code: 'INVALID_PIN'}`.
+  /// 401 `{code: 'INVALID_PIN'}` |
+  /// 403 `{code: 'PIN_SETUP_REQUIRED'}`.
   ///
   /// Superadmins must provide their four-digit [pin] (sent via `X-Action-Pin`).
   /// Returns the session token on success. Throws [AuthException] otherwise.
@@ -173,7 +177,19 @@ class AuthRepository {
   }
 
   AuthException _mapDioException(DioException e) {
-    if (e.response?.statusCode == 401) {
+    final status = e.response?.statusCode;
+    final body = e.response?.data;
+    if (status == 403 && body is Map && body['code'] == 'PIN_SETUP_REQUIRED') {
+      // The superadmin's password was right but they have no PIN yet. PIN
+      // setup happens on the web dashboard, where it is confirmed again with
+      // their password.
+      return const AuthException(
+        'Set up your superadmin PIN on the web dashboard, then sign in here.',
+        kind: AuthFailure.pinSetupRequired,
+      );
+    }
+
+    if (status == 401) {
       final data = e.response?.data;
       final code = data is Map ? data['code'] as String? : null;
       final message = data is Map ? (data['message'] as String?)?.trim() : null;

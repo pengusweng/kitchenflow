@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import PageTitle from "@/src/features/dashboard/components/atoms/page-title";
 import CreateStaffModal from "../components/organisms/create-staff-modal";
 import EditStaffModal from "../components/organisms/edit-staff-modal";
+import ResetPinModal from "../components/organisms/reset-pin-modal";
 import StaffDetailModal from "../components/organisms/staff-detail-modal";
 import StaffFilterBar from "../components/organisms/staff-filter-bar";
 import Pagination from "@/src/components/ui/molecules/pagination";
@@ -30,6 +31,9 @@ export default function StaffAccounts() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
+  const [resetPinOpen, setResetPinOpen] = useState(false);
+  // Confirms the last PIN reset on the profile it was made from.
+  const [notice, setNotice] = useState<string | null>(null);
 
   const { deactivate, error: deactivateError, resetError } = useDeactivateStaff((member) => {
     setViewing(member); // the modal now shows "Inactive" and hides the Deactivate button
@@ -77,6 +81,7 @@ export default function StaffAccounts() {
         onSort={(by) => setSort((current) => nextSort(current, by))}
         onView={(member) => {
           setViewing(member);
+          setNotice(null);
           setModalOpen(true);
         }}
         loading={isPending}
@@ -101,15 +106,43 @@ export default function StaffAccounts() {
         open={modalOpen}
         onOpenChange={(open) => {
           setModalOpen(open);
-          if (!open) resetError();
+          if (!open) {
+            resetError();
+            setNotice(null);
+          }
         }}
-        onDeactivate={(member) => deactivate(member)}
+        onDeactivate={(member) => {
+          setNotice(null);
+          deactivate(member);
+        }}
         onEdit={() => {
           resetError();
+          setNotice(null);
           setModalOpen(false);
           setEditOpen(true);
         }}
+        onResetPin={() => {
+          resetError();
+          setNotice(null);
+          setModalOpen(false);
+          setResetPinOpen(true);
+        }}
         error={deactivateError}
+        notice={notice}
+      />
+
+      <ResetPinModal
+        member={viewing}
+        open={resetPinOpen}
+        onOpenChange={(open) => {
+          setResetPinOpen(open);
+          if (!open) setModalOpen(true); // cancel goes back to the profile
+        }}
+        onReset={(member) => {
+          setNotice(`${member.firstName}'s PIN has been reset. Share the new PIN with them in person.`);
+          setResetPinOpen(false);
+          setModalOpen(true);
+        }}
       />
 
       <EditStaffModal

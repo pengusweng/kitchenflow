@@ -144,3 +144,22 @@ Feature: Additional users unit coverage
     Given a sort column and direction, or none
     When UsersRepository lists users
     Then users are ordered by that column, newest first by default, and ties end in user_id order
+
+  # Jest: server/src/modules/users/tests/users.service.spec.ts
+  # Context: UsersService
+  @UT-USER-032
+  Scenario: Revoke other sessions on a password reset but not on plain edits
+    Test Case ID: UT-USER-032
+    Given a superadmin caller with or without a session to keep
+    When a user's password is reset, and then only their name is edited
+    Then the reset goes through the session-revoking update with the caller session to keep
+    And the name edit uses the plain update without revoking sessions
+
+  # Jest: server/src/modules/users/tests/users.repository.spec.ts
+  # Context: UsersRepository
+  @UT-USER-033
+  Scenario: Reset a password and revoke sessions in one transaction
+    Test Case ID: UT-USER-033
+    Given a user whose password is being reset, with or without a caller session to keep
+    When UsersRepository applies the reset
+    Then the new Argon2 hash is written and that user's sessions, except the kept one, are deleted in the same transaction

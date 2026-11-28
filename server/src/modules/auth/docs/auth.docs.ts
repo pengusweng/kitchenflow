@@ -30,7 +30,7 @@ export function LoginDocs() {
     ApiOperation({
       summary: 'Log in and create a 24-hour session.',
       description:
-        'Available to active users of any role. Superadmins must also send their four-digit X-Action-Pin header; other roles do not need it. Returns token, expires_at, and user. Use the token as Authorization: Bearer <token>. The user profile excludes password_hash and has no brand assignment. The response uses Cache-Control: no-store.',
+        'Available to active users of any role. Superadmins must also send their four-digit X-Action-Pin header; other roles do not need it. A superadmin who has no PIN yet gets 403 PIN_SETUP_REQUIRED after a correct password, and sets one up through POST /api/auth/pin-setup. Returns token, expires_at, and user. Use the token as Authorization: Bearer <token>. The user profile excludes password_hash and has no brand assignment. The response uses Cache-Control: no-store.',
     }),
     ApiResponse({
       status: 200,
@@ -59,12 +59,52 @@ export function LoginDocs() {
     }),
     ApiResponse({
       status: 403,
-      description: 'The superadmin has no PIN set up (PIN_NOT_CONFIGURED).',
+      description:
+        'The superadmin has no PIN set up (PIN_SETUP_REQUIRED). No session is created; set one up through POST /api/auth/pin-setup.',
     }),
     ApiResponse({
       status: 429,
       description:
         'The superadmin PIN is locked after too many wrong attempts (PIN_LOCKED, with locked_until).',
+    }),
+  );
+}
+
+export function PinSetupDocs() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Set up a superadmin’s first PIN and sign in.',
+      description:
+        'For a superadmin whose login returned 403 PIN_SETUP_REQUIRED. Send the username, the account password to confirm the change, and the new four-digit PIN. The PIN is saved and a 24-hour session is created, with the same response as login. Only creates a first PIN: it never replaces an existing one. The response uses Cache-Control: no-store.',
+    }),
+    ApiResponse({
+      status: 200,
+      description:
+        'PIN saved. Bearer token, expiration timestamp, and current user profile, as for login.',
+      content: {
+        'application/json': {
+          example: {
+            token: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+            expires_at: '2026-11-01T08:00:00.000Z',
+            user: { ...userProfileExample, role: 'SUPERADMIN' },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description:
+        'Invalid username or password, or inactive account (INVALID_CREDENTIALS). No PIN is saved.',
+    }),
+    ApiResponse({
+      status: 403,
+      description:
+        'The account is not a superadmin (PIN_SETUP_NOT_ALLOWED). Other roles set up their PIN after signing in, through POST /api/pin.',
+    }),
+    ApiResponse({
+      status: 409,
+      description:
+        'The account already has a PIN (EXISTING_PIN_FOUND). Sign in with it, or ask a superadmin to reset it.',
     }),
   );
 }

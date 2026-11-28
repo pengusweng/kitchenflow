@@ -163,4 +163,49 @@ describe('UsersRepository', () => {
       );
     },
   );
+
+  it.each([
+    ['another user', 'caller-session', { not: 'caller-session' }],
+    ['a caller without a session ID', undefined, undefined],
+  ])(
+    'UT-USER-033: resets the password and revokes the sessions of %s in one transaction',
+    async (_case, keepSessionId, sessionFilter) => {
+      const userId = '00000000-0000-4000-8000-000000000010';
+      const tx = {
+        user: {
+          update: jest.fn().mockResolvedValue({ user_id: userId }),
+        },
+        userSession: {
+          deleteMany: jest.fn().mockResolvedValue({ count: 2 }),
+        },
+      };
+      prisma.$transaction.mockImplementation(
+        (run: (client: typeof tx) => Promise<unknown>) => run(tx),
+      );
+
+      await expect(
+        repository.updateRevokingSessions(
+          userId,
+          { password: 'Password123!' },
+          keepSessionId,
+        ),
+      ).resolves.toEqual({ user_id: userId });
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      const data = (
+        tx.user.update.mock.calls[0] as [{ data: { password_hash: string } }]
+      )[0].data;
+      expect(data.password_hash).toMatch(/^\$argon2/);
+      expect(data.password_hash).not.toContain('Password123!');
+      expect(tx.userSession.deleteMany).toHaveBeenCalledWith({
+        where: {
+          user_id: userId,
+          ...(sessionFilter ? { session_id: sessionFilter } : {}),
+        },
+      });
+      expect(tx.user.update.mock.invocationCallOrder[0]).toBeLessThan(
+        tx.userSession.deleteMany.mock.invocationCallOrder[0],
+      );
+    },
+  );
 });

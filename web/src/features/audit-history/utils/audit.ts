@@ -53,8 +53,10 @@ const ACTION_LABEL: Record<string, string> = {
   AUTH_LOGIN: "Signed in",
   AUTH_LOGOUT: "Signed out",
   AUTH_LOGOUT_ALL: "Signed out everywhere",
+  AUTH_PIN_SETUP: "Set up PIN while signing in",
   PIN_CREATED: "Set up action PIN",
   PIN_UPDATED: "Changed action PIN",
+  PIN_RESET: "Reset staff PIN",
   USER_CREATED: "Created staff account",
   USER_UPDATED: "Updated staff account",
   USER_DEACTIVATED: "Deactivated staff account",
@@ -149,6 +151,9 @@ const REASON_TEXT: Record<string, string> = {
   INVALID_PIN: "Wrong action PIN.",
   PIN_LOCKED: "PIN entry was locked after too many wrong attempts.",
   PIN_NOT_CONFIGURED: "They haven't set up an action PIN yet.",
+  PIN_SETUP_REQUIRED: "They had to set up a PIN before signing in.",
+  PIN_SETUP_NOT_ALLOWED: "Only superadmins set up a PIN while signing in.",
+  PIN_NOT_SUPPORTED_FOR_ROLE: "Only superadmin accounts have a PIN.",
   EXISTING_PIN_FOUND: "An action PIN is already set up.",
   USERNAME_ALREADY_EXISTS: "That username is already taken.",
   KITCHEN_TICKET_INVALID_STATUS: "The ticket wasn't at a step that allows this.",
@@ -282,6 +287,6 @@ const DATE_VALUE_FORMAT = new Intl.DateTimeFormat("en-CA", {
 });
 
 /** Today's Asia/Manila date as YYYY-MM-DD, the latest date worth filtering to. */
-export function todayInManila() {
-  return DATE_VALUE_FORMAT.format(new Date());
+export function todayInManila(date = new Date()) {
+  return DATE_VALUE_FORMAT.format(date);
 }

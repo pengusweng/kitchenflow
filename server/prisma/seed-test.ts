@@ -7,11 +7,9 @@ import { getDatabaseUrl } from '../src/database/database.config';
 config({ path: ['.env', '../.env'], quiet: true });
 
 export const TEST_PIN = '1234';
+// Only superadmins have a PIN.
 export const TEST_PIN_ROLES: ReadonlySet<UserRole> = new Set([
   UserRole.SUPERADMIN,
-  UserRole.RECIPE_MANAGER,
-  UserRole.SUPERVISOR,
-  UserRole.KITCHEN_HEAD,
 ]);
 
 export const TEST_USERS = [

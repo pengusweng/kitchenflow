@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import Pagination from "@/src/components/ui/molecules/pagination";
 import PageTitle from "@/src/features/dashboard/components/atoms/page-title";
 import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
+import { replaceSearchParams } from "@/src/lib/search-params";
 import { nextSort } from "@/src/lib/table-sort";
 import RecipesFilterBar from "../components/organisms/recipes-filter-bar";
 import RecipesTable from "../components/organisms/recipes-table";
@@ -25,8 +26,11 @@ export default function RecipesPage({ canCreate }: { canCreate: boolean }) {
   const brandRecord = brandParam ? brands.brands.find((b) => b.code === brandParam) : undefined;
   const brand = brandRecord?.code;
 
+  const statusParam = searchParams.get("status")?.toLowerCase();
+  const status: RecipeStatusFilter | undefined =
+    statusParam === "all" ? undefined : statusParam === "inactive" ? "inactive" : "active";
+
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<RecipeStatusFilter | undefined>("active");
   const [sort, setSort] = useState<RecipeSort>(null);
   const search = useDebouncedValue(query.trim());
 
@@ -37,11 +41,18 @@ export default function RecipesPage({ canCreate }: { canCreate: boolean }) {
   const page = paging.filterKey === filterKey ? paging.page : 1;
 
   function setBrand(code: string | undefined) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (code) params.set("brand", code);
-    else params.delete("brand");
-    const qs = params.toString();
-    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+    replaceSearchParams(searchParams, (params) => {
+      if (code) params.set("brand", code);
+      else params.delete("brand");
+    });
+  }
+
+  function setStatus(next: RecipeStatusFilter | undefined) {
+    replaceSearchParams(searchParams, (params) => {
+      if (next === undefined) params.set("status", "all");
+      else if (next === "inactive") params.set("status", "inactive");
+      else params.delete("status");
+    });
   }
 
   // A ?brand= link waits for the brands, so the table doesn't flash every brand first.

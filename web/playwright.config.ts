@@ -1,9 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Next.js uses localhost as the origin for the local production server.
-const appURL = "http://localhost:3001";
-const fixtureURL = "http://127.0.0.1:3101";
+const appPort = process.env.PLAYWRIGHT_APP_PORT ?? "3001";
+const fixturePort = process.env.PLAYWRIGHT_FIXTURE_PORT ?? "3101";
+const appURL = `http://localhost:${appPort}`;
+const fixtureURL = `http://127.0.0.1:${fixturePort}`;
 const browserChannel = process.env.PLAYWRIGHT_CHANNEL;
+const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === "1";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -26,11 +29,13 @@ export default defineConfig({
     {
       command: "node tests/fixtures/auth-api.mjs",
       url: `${fixtureURL}/health`,
+      reuseExistingServer,
     },
     {
-      command: "node node_modules/next/dist/bin/next start --hostname localhost --port 3001",
+      command: `node node_modules/next/dist/bin/next start --hostname localhost --port ${appPort}`,
       env: { API_URL: fixtureURL },
       url: `${appURL}/login`,
+      reuseExistingServer,
       timeout: 120_000,
     },
   ],

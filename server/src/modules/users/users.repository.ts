@@ -193,6 +193,28 @@ export class UsersRepository {
     });
   }
 
+  /**
+   * A password reset: updates the user and signs them out everywhere in one
+   * transaction, so the old password can't keep a session alive. The caller's
+   * own session survives when they reset their own password.
+   */
+  async updateRevokingSessions(
+    userId: string,
+    dto: UpdateUserDTO,
+    keepSessionId?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const user = await this.update(userId, dto, tx);
+      await tx.userSession.deleteMany({
+        where: {
+          user_id: userId,
+          ...(keepSessionId ? { session_id: { not: keepSessionId } } : {}),
+        },
+      });
+      return user;
+    });
+  }
+
   async delete(
     userId: string,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,

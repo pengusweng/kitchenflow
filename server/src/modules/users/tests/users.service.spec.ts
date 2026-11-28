@@ -32,6 +32,7 @@ describe('UsersService', () => {
       | 'findByUsername'
       | 'safeFindByUsername'
       | 'update'
+      | 'updateRevokingSessions'
       | 'delete'
     >
   >;
@@ -51,6 +52,7 @@ describe('UsersService', () => {
       findByUsername: jest.fn().mockResolvedValue(null),
       safeFindByUsername: jest.fn().mockResolvedValue(null),
       update: jest.fn().mockResolvedValue({ ...user, first_name: 'Updated' }),
+      updateRevokingSessions: jest.fn().mockResolvedValue(user),
       delete: jest.fn().mockResolvedValue({ ...user, is_active: false }),
     };
     service = new UsersService(repository as unknown as UsersRepository);
@@ -91,6 +93,7 @@ describe('UsersService', () => {
       else {
         await expect(deletion).rejects.toMatchObject({ status: 403 });
         expect(repository.update).not.toHaveBeenCalled();
+        expect(repository.updateRevokingSessions).not.toHaveBeenCalled();
         expect(repository.delete).not.toHaveBeenCalled();
       }
     },
@@ -447,6 +450,38 @@ describe('UsersService', () => {
       repository[method].mockRejectedValue(error);
 
       await expect(run()).rejects.toBe(error);
+    },
+  );
+
+  it.each([
+    ['keeping the caller session', 'caller-session'],
+    ['with no caller session to keep', undefined],
+  ])(
+    'UT-USER-032: resets a password %s and revokes the other sessions, while plain edits keep sessions',
+    async (_case, keepSessionId) => {
+      const targetId = user.user_id;
+      const dto = { password: 'Password123!', first_name: 'Updated' };
+
+      await expect(
+        service.updateUser(targetId, dto, true, keepSessionId),
+      ).resolves.toEqual(user);
+      expect(repository.updateRevokingSessions).toHaveBeenCalledWith(
+        targetId,
+        dto,
+        keepSessionId,
+      );
+      expect(repository.update).not.toHaveBeenCalled();
+
+      await service.updateUser(
+        targetId,
+        { first_name: 'Again' },
+        true,
+        keepSessionId,
+      );
+      expect(repository.update).toHaveBeenCalledWith(targetId, {
+        first_name: 'Again',
+      });
+      expect(repository.updateRevokingSessions).toHaveBeenCalledTimes(1);
     },
   );
 });

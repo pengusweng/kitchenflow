@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ApiError } from "@/src/lib/api-error";
-import { loginSchema, type LoginUser } from "../schemas/loginSchema";
+import { loginSchema, pinSetupSchema, type LoginUser, type PinSetupInput } from "../schemas/loginSchema";
 import { loginSessionSchema, type LoginSession } from "../schemas/loginSessionSchema";
 
 const apiErrorSchema = z.object({
@@ -8,7 +8,7 @@ const apiErrorSchema = z.object({
 });
 
 const pinErrorSchema = z.object({
-  code: z.enum(["PIN_REQUIRED", "INVALID_PIN", "PIN_LOCKED", "PIN_NOT_CONFIGURED"]),
+  code: z.enum(["PIN_REQUIRED", "INVALID_PIN", "PIN_LOCKED", "PIN_NOT_CONFIGURED", "PIN_SETUP_REQUIRED"]),
   message: z.string(),
   locked_until: z.iso.datetime().optional(),
 });
@@ -16,7 +16,8 @@ const pinErrorSchema = z.object({
 /**
  * Signs in. Superadmins also need `pin`: without it the server answers with an
  * ApiError coded PIN_REQUIRED, and a wrong one with INVALID_PIN, PIN_LOCKED
- * (retryAfter in seconds) or PIN_NOT_CONFIGURED.
+ * (retryAfter in seconds) or PIN_NOT_CONFIGURED. A superadmin who has no PIN
+ * yet gets PIN_SETUP_REQUIRED and sets one up with `setupPin`.
  */
 export async function login(input: LoginUser, pin?: string): Promise<LoginSession> {
   const credentials = loginSchema.parse(input);
@@ -63,6 +64,54 @@ export async function login(input: LoginUser, pin?: string): Promise<LoginSessio
   }
 
   const session = loginSessionSchema.safeParse(body);
+  if (!session.success) throw new Error("The server returned an invalid login response.");
+
+  return session.data;
+}
+
+const pinSetupErrorSchema = z.object({
+  code: z.enum(["INVALID_CREDENTIALS", "PIN_SETUP_NOT_ALLOWED", "EXISTING_PIN_FOUND"]),
+  message: z.string(),
+});
+
+/**
+ * Saves a superadmin's first PIN and signs them in, as `login` does. The
+ * password confirms the change. Fails with an ApiError coded
+ * INVALID_CREDENTIALS, PIN_SETUP_NOT_ALLOWED or EXISTING_PIN_FOUND.
+ */
+export async function setupPin(input: PinSetupInput): Promise<LoginSession> {
+  const body = pinSetupSchema.parse(input);
+  let response: Response;
+
+  try {
+    response = await fetch("/api/auth/pin-setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    throw ApiError.network();
+  }
+
+  const result: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const known = pinSetupErrorSchema.safeParse(result);
+    if (known.success) throw new ApiError(response.status, known.data.code, known.data.message);
+
+    const error = apiErrorSchema.safeParse(result);
+    if (response.status === 400 && error.success) {
+      throw new ApiError(400, undefined, Array.isArray(error.data.message)
+        ? error.data.message.join(" ")
+        : error.data.message);
+    }
+
+    throw new ApiError(response.status, undefined, "Unable to save your PIN. Please try again.");
+  }
+
+  const session = loginSessionSchema.safeParse(result);
   if (!session.success) throw new Error("The server returned an invalid login response.");
 
   return session.data;

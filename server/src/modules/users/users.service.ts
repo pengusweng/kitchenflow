@@ -116,7 +116,16 @@ export class UsersService {
     return user;
   }
 
-  async updateUser(userId: string, dto: UpdateUserDTO, isSuperAdmin = false) {
+  /**
+   * `keepSessionId` is the caller's session: a password reset signs the user
+   * out of every other session, but not the superadmin making the change.
+   */
+  async updateUser(
+    userId: string,
+    dto: UpdateUserDTO,
+    isSuperAdmin = false,
+    keepSessionId?: string,
+  ) {
     this.logger.log(`Updating user ${userId}`);
 
     const user = await this.usersRepository.findOne(userId);
@@ -144,8 +153,19 @@ export class UsersService {
     }
 
     try {
-      const updated = await this.usersRepository.update(user.user_id, dto);
-      this.logger.log(`Updated user ${userId}`);
+      const updated =
+        dto.password === undefined
+          ? await this.usersRepository.update(user.user_id, dto)
+          : await this.usersRepository.updateRevokingSessions(
+              user.user_id,
+              dto,
+              keepSessionId,
+            );
+      this.logger.log(
+        dto.password === undefined
+          ? `Updated user ${userId}`
+          : `Updated user ${userId}; password reset revoked their other sessions`,
+      );
       return updated;
     } catch (error) {
       if (

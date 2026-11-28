@@ -12,3 +12,10 @@ export const loginSchema = z.object({
 });
 
 export type LoginUser = z.infer<typeof loginSchema>;
+
+/** A superadmin's first PIN, set while signing in and confirmed with their password. */
+export const pinSetupSchema = loginSchema.extend({
+  pin: z.string().regex(/^[0-9]{4}$/, "PIN must be exactly 4 digits."),
+});
+
+export type PinSetupInput = z.infer<typeof pinSetupSchema>;

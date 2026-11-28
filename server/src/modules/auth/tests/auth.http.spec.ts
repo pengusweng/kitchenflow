@@ -1,7 +1,11 @@
 import { PinGuard } from '../../pin/pin.guard';
 import { PinService } from '../../pin/pin.service';
 import type { PinVerificationResult } from '../../pin/pin.repository';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  ConflictException,
+  INestApplication,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { UserRole } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
@@ -46,6 +50,23 @@ describe('Auth HTTP endpoints', () => {
     (_userId: string, pin: string): Promise<PinVerificationResult> =>
       Promise.resolve({ status: pin === ADMIN_PIN ? 'valid' : 'invalid' }),
   );
+  // Users with a PIN credential; the admin has one unless a test removes it.
+  const configuredPins = new Set<string>();
+  const hasPin = jest.fn((userId: string) =>
+    Promise.resolve(configuredPins.has(userId)),
+  );
+  const createPin = jest.fn(({ pin }: { pin: string }, userId: string) => {
+    if (configuredPins.has(userId)) {
+      return Promise.reject(
+        new ConflictException({
+          code: 'EXISTING_PIN_FOUND',
+          message: 'User already has existing pin',
+        }),
+      );
+    }
+    configuredPins.add(userId);
+    return Promise.resolve({ user_id: userId, pin_length: pin.length });
+  });
   const safeSession = (session: Session) => ({
     session_id: session.session_id,
     user_id: session.user_id,
@@ -162,7 +183,7 @@ describe('Auth HTTP endpoints', () => {
         }),
       })
       .overrideProvider(PinService)
-      .useValue({ verifyPin })
+      .useValue({ verifyPin, hasPin, create: createPin })
       .overrideGuard(PinGuard)
       .useValue({ canActivate: () => true })
       .compile();
@@ -182,6 +203,10 @@ describe('Auth HTTP endpoints', () => {
 
   beforeEach(() => {
     verifyPin.mockClear();
+    hasPin.mockClear();
+    createPin.mockClear();
+    configuredPins.clear();
+    configuredPins.add(admin.user_id);
     sessions.clear();
     users.clear();
     users.set(admin.user_id, { ...admin });
@@ -537,6 +562,124 @@ describe('Auth HTTP endpoints', () => {
     async (pin) => {
       expect((await postLogin('staff', pin)).status).toBe(200);
       expect(verifyPin).not.toHaveBeenCalled();
+    },
+  );
+
+  async function postPinSetup(body: Record<string, unknown>) {
+    return fetch(`${url}/api/auth/pin-setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it.each([undefined, ADMIN_PIN])(
+    'IT-AUTH-020: asks a superadmin without a PIN to set one up, only after the password is correct: PIN header %s',
+    async (pin) => {
+      configuredPins.clear();
+
+      const wrong = await fetch(`${url}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'wrong-password' }),
+      });
+      expect(wrong.status).toBe(401);
+      expect(await wrong.json()).toMatchObject({ code: 'INVALID_CREDENTIALS' });
+      expect(hasPin).not.toHaveBeenCalled();
+
+      const response = await postLogin('admin', pin);
+      expect(response.status).toBe(403);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(await response.json()).toMatchObject({
+        code: 'PIN_SETUP_REQUIRED',
+      });
+      expect(hasPin).toHaveBeenCalledWith(admin.user_id);
+      expect(verifyPin).not.toHaveBeenCalled();
+      expect(sessions.size).toBe(0);
+    },
+  );
+
+  it('IT-AUTH-021: sets up a superadmin PIN confirmed by the password and signs them in', async () => {
+    configuredPins.clear();
+
+    const response = await postPinSetup({
+      username: 'admin',
+      password: 'correct-password',
+      pin: '0123',
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const body = (await response.json()) as {
+      token: string;
+      expires_at: string;
+      user: { user_id: string; role: string };
+    };
+    expect(body.user).toMatchObject({
+      user_id: admin.user_id,
+      role: UserRole.SUPERADMIN,
+    });
+    expect(body).not.toHaveProperty('pin');
+    expect(createPin).toHaveBeenCalledWith({ pin: '0123' }, admin.user_id);
+    expect(sessions.size).toBe(1);
+
+    const me = await fetch(`${url}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${body.token}` },
+    });
+    expect(me.status).toBe(200);
+  });
+
+  it.each([
+    [
+      'a wrong password',
+      { username: 'admin', password: 'wrong-password', pin: '0123' },
+      401,
+      'INVALID_CREDENTIALS',
+    ],
+    [
+      'a non-superadmin',
+      { username: 'staff', password: 'correct-password', pin: '0123' },
+      403,
+      'PIN_SETUP_NOT_ALLOWED',
+    ],
+    [
+      'an existing PIN',
+      { username: 'admin', password: 'correct-password', pin: '0123' },
+      409,
+      'EXISTING_PIN_FOUND',
+    ],
+  ])(
+    'IT-AUTH-022: refuses PIN setup at sign-in for %s without creating a session',
+    async (_case, body, status, code) => {
+      if (code !== 'EXISTING_PIN_FOUND') configuredPins.clear();
+
+      const response = await postPinSetup(body);
+
+      expect(response.status).toBe(status);
+      expect(await response.json()).toMatchObject({ code });
+      expect(sessions.size).toBe(0);
+      if (code === 'EXISTING_PIN_FOUND') {
+        expect(createPin).toHaveBeenCalledTimes(1);
+      } else {
+        expect(createPin).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it.each([undefined, null, 123, '', '123', '12345', 'abcd', ' 0123'])(
+    'IT-AUTH-023: rejects a PIN setup whose PIN is not four digits: %p',
+    async (pin) => {
+      configuredPins.clear();
+
+      const response = await postPinSetup({
+        username: 'admin',
+        password: 'correct-password',
+        pin,
+      });
+
+      expect(response.status).toBe(400);
+      expect(createPin).not.toHaveBeenCalled();
+      expect(sessions.size).toBe(0);
     },
   );
 });

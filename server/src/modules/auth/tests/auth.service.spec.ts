@@ -1,11 +1,14 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { createHash } from 'node:crypto';
+import * as argon2 from 'argon2';
 import { AuthRepository } from '../auth.repository';
 import { AuthService } from '../auth.service';
 import { UsersRepository } from '../../users/users.repository';
@@ -188,4 +191,155 @@ describe('AuthService', () => {
     });
     expect(authRepository.deleteMany).toHaveBeenCalledWith(user.user_id);
   });
+});
+
+describe('AuthService superadmin PIN setup', () => {
+  const password = 'correct-password';
+  const superadmin = {
+    user_id: '00000000-0000-4000-8000-000000000001',
+    username: 'admin',
+    first_name: 'Test',
+    last_name: 'Admin',
+    role: UserRole.SUPERADMIN,
+    is_active: true,
+    created_at: new Date('2030-01-01T00:00:00Z'),
+    modified_at: new Date('2030-01-01T00:00:00Z'),
+  };
+  let passwordHash: string;
+  let usersRepository: {
+    findByUsername: jest.Mock;
+    findOne: jest.Mock;
+  };
+  let authRepository: { create: jest.Mock };
+  let pinService: {
+    hasPin: jest.Mock;
+    verifyPin: jest.Mock;
+    create: jest.Mock;
+  };
+  let service: AuthService;
+
+  beforeAll(async () => {
+    passwordHash = await argon2.hash(password);
+  });
+
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    usersRepository = {
+      findByUsername: jest.fn().mockResolvedValue({
+        user_id: superadmin.user_id,
+        password_hash: passwordHash,
+      }),
+      findOne: jest.fn().mockResolvedValue(superadmin),
+    };
+    authRepository = {
+      create: jest.fn((dto: { user_id: string; expires_at: Date }) =>
+        Promise.resolve({ session_id: 'session-id', ...dto }),
+      ),
+    };
+    pinService = {
+      hasPin: jest.fn().mockResolvedValue(false),
+      verifyPin: jest.fn(),
+      create: jest.fn().mockResolvedValue({ user_id: superadmin.user_id }),
+    };
+    service = new AuthService(
+      authRepository as unknown as AuthRepository,
+      usersRepository as unknown as UsersRepository,
+      pinService as unknown as PinService,
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it.each([undefined, '1234'])(
+    'UT-AUTH-017: requires PIN setup before a superadmin without a PIN can sign in: PIN %s',
+    async (pin) => {
+      await expect(
+        service.login({ username: 'admin', password }, pin),
+      ).rejects.toMatchObject({
+        status: 403,
+        response: { code: 'PIN_SETUP_REQUIRED' },
+      });
+      expect(pinService.hasPin).toHaveBeenCalledWith(superadmin.user_id);
+      expect(pinService.verifyPin).not.toHaveBeenCalled();
+      expect(authRepository.create).not.toHaveBeenCalled();
+
+      await expect(
+        service.login({ username: 'admin', password: 'wrong-password' }, pin),
+      ).rejects.toMatchObject({
+        status: 401,
+        response: { code: 'INVALID_CREDENTIALS' },
+      });
+      expect(pinService.hasPin).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('UT-AUTH-018: saves the first superadmin PIN and returns a session after checking the password', async () => {
+    const result = await service.setupPinAndLogin({
+      username: 'admin',
+      password,
+      pin: '0123',
+    });
+
+    expect(pinService.create).toHaveBeenCalledWith(
+      { pin: '0123' },
+      superadmin.user_id,
+    );
+    expect(pinService.create.mock.invocationCallOrder[0]).toBeLessThan(
+      authRepository.create.mock.invocationCallOrder[0],
+    );
+    expect(result).toMatchObject({
+      token: expect.any(String) as string,
+      user: superadmin,
+    });
+    expect(authRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: superadmin.user_id,
+        token_hash: createHash('sha256').update(result.token).digest('hex'),
+      }),
+    );
+  });
+
+  it.each([
+    [
+      'a wrong password',
+      () => usersRepository.findByUsername,
+      UnauthorizedException,
+    ],
+    [
+      'a non-superadmin',
+      () =>
+        usersRepository.findOne.mockResolvedValue({
+          ...superadmin,
+          role: UserRole.SUPERVISOR,
+        }),
+      ForbiddenException,
+    ],
+    [
+      'an existing PIN',
+      () =>
+        pinService.create.mockRejectedValue(
+          new ConflictException({ code: 'EXISTING_PIN_FOUND' }),
+        ),
+      ConflictException,
+    ],
+  ])(
+    'UT-AUTH-019: refuses PIN setup at sign-in for %s without a session',
+    async (scenario, arrange, expected) => {
+      arrange();
+      const attempt = service.setupPinAndLogin({
+        username: 'admin',
+        password: scenario === 'a wrong password' ? 'wrong-password' : password,
+        pin: '0123',
+      });
+
+      await expect(attempt).rejects.toBeInstanceOf(expected);
+      expect(authRepository.create).not.toHaveBeenCalled();
+      if (scenario !== 'an existing PIN') {
+        expect(pinService.create).not.toHaveBeenCalled();
+      }
+    },
+  );
 });

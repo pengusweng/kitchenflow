@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { UsersRepository } from '../../users/users.repository';
 import { PinRepository, type PinVerificationResult } from '../pin.repository';
@@ -185,5 +187,72 @@ describe('PinService', () => {
 
     await expect(service.updatePin(updateDTO, userId)).rejects.toBe(error);
     expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  describe('superadmin reset of another user', () => {
+    const upsert = jest.fn();
+
+    beforeEach(() => {
+      upsert.mockReset().mockResolvedValue(credential);
+      Object.assign(repository, { upsert });
+    });
+
+    it.each([true, false])(
+      'UT-PIN-013: reports whether a PIN is configured without reading its hash: configured=%s',
+      async (configured) => {
+        repository.findOneSafe.mockResolvedValue(
+          configured ? credential : null,
+        );
+
+        await expect(service.hasPin(userId)).resolves.toBe(configured);
+        expect(repository.findOneSafe).toHaveBeenCalledWith(userId);
+        expect(repository.findByUserId).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([UserRole.SUPERADMIN])(
+      'UT-PIN-014: sets a new PIN for an active %s without asking for their password',
+      async (role) => {
+        usersRepository.findOne.mockResolvedValue({
+          user_id: userId,
+          role,
+          is_active: true,
+        } as never);
+
+        await expect(service.resetPin(userId, '0456')).resolves.toEqual(
+          credential,
+        );
+        expect(usersRepository.findOne).toHaveBeenCalledWith(userId);
+        expect(upsert).toHaveBeenCalledWith(userId, '0456');
+        expect(verifyPassword).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['a missing or inactive user', null, NotFoundException],
+      ...[
+        UserRole.SUPERVISOR,
+        UserRole.KITCHEN_HEAD,
+        UserRole.RECIPE_MANAGER,
+        UserRole.CASHIER_STAFF,
+      ].map(
+        (role) =>
+          [
+            `a ${role}, who has no PIN`,
+            { user_id: userId, role, is_active: true },
+            BadRequestException,
+          ] as const,
+      ),
+    ])(
+      'UT-PIN-015: refuses to reset the PIN of %s',
+      async (_case, user, expected) => {
+        usersRepository.findOne.mockResolvedValue(user as never);
+
+        await expect(service.resetPin(userId, '0456')).rejects.toBeInstanceOf(
+          expected,
+        );
+        expect(upsert).not.toHaveBeenCalled();
+      },
+    );
   });
 });

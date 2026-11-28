@@ -43,3 +43,13 @@ Feature: Users audit logging
     Given a protected account, a missing user and a role without access
     When the protected account is edited, the missing user is viewed and users are listed by the wrong role
     Then the protected edit and the wrong-role listing are DENIED with their codes and the missing user writes no row
+
+  # Jest: server/src/modules/users/tests/users-audit.http.spec.ts
+  # Context: Users audit logging
+  @IT-USER-029
+  Scenario: Audit PIN resets and their denials
+    Test Case ID: IT-USER-029
+    Given a superadmin and then a supervisor, each with a valid action PIN
+    When each resets another user's PIN
+    Then a PIN_RESET SUCCESS row and a PIN_RESET DENIED row with ACCESS_DENIED name the target credential
+    And no row contains the new PINs or the caller's action PIN

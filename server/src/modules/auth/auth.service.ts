@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -11,6 +12,7 @@ import { AuthRepository } from './auth.repository';
 import { UsersRepository } from '../users/users.repository';
 import { CreateSessionDTO } from './dto/create-session.dto';
 import { LoginDTO } from './dto/login.dto';
+import { SetupPinDTO } from './dto/setup-pin.dto';
 import { assertExists } from '../../shared/assertions/assert-exists';
 import { assertValidPin } from '../pin/pin.assertions';
 import { PinService } from '../pin/pin.service';
@@ -32,21 +34,20 @@ export class AuthService {
   }
 
   async login(dto: LoginDTO, pin?: string) {
-    const credentials = await this.usersRepository.findByUsername(dto.username);
-    if (
-      !credentials ||
-      !(await argon2.verify(credentials.password_hash, dto.password))
-    ) {
-      throw new UnauthorizedException({
-        code: 'INVALID_CREDENTIALS',
-        message: 'Invalid username or password.',
-      });
-    }
-
-    const user = await this.usersRepository.findOne(credentials.user_id);
-    assertExists(user, 'User', credentials.user_id, this.logger);
+    const user = await this.verifyCredentials(dto);
 
     if (user.role === UserRole.SUPERADMIN) {
+      // Checked only after the password, so PIN status never leaks to a
+      // caller who doesn't know it. The client then shows PIN setup.
+      if (!(await this.pinService.hasPin(user.user_id))) {
+        this.logger.warn(`PIN setup required for superadmin: ${user.user_id}`);
+
+        throw new ForbiddenException({
+          code: 'PIN_SETUP_REQUIRED',
+          message: 'Set up your 4-digit PIN to finish signing in.',
+        });
+      }
+
       if (!pin) {
         this.logger.warn(`PIN required for superadmin login: ${user.user_id}`);
 
@@ -72,10 +73,59 @@ export class AuthService {
       assertValidPin(result);
     }
 
+    return this.issueSession(user);
+  }
+
+  /**
+   * A superadmin without a PIN sets one up and signs in in one step. The
+   * password is checked again here, so this endpoint grants nothing that
+   * login with the password would not, and it can only ever create a first
+   * PIN: an existing one is never replaced (409 EXISTING_PIN_FOUND).
+   */
+  async setupPinAndLogin(dto: SetupPinDTO) {
+    const user = await this.verifyCredentials(dto);
+
+    if (user.role !== UserRole.SUPERADMIN) {
+      this.logger.warn(`PIN setup at sign-in denied for ${user.user_id}`);
+
+      throw new ForbiddenException({
+        code: 'PIN_SETUP_NOT_ALLOWED',
+        message:
+          'Only superadmins set up their PIN while signing in. Sign in first, then set up your PIN.',
+      });
+    }
+
+    await this.pinService.create({ pin: dto.pin }, user.user_id);
+    this.logger.log(`Superadmin ${user.user_id} set up their PIN at sign-in`);
+
+    return this.issueSession(user);
+  }
+
+  private async verifyCredentials(dto: LoginDTO) {
+    const credentials = await this.usersRepository.findByUsername(dto.username);
+    if (
+      !credentials ||
+      !(await argon2.verify(credentials.password_hash, dto.password))
+    ) {
+      throw new UnauthorizedException({
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid username or password.',
+      });
+    }
+
+    const user = await this.usersRepository.findOne(credentials.user_id);
+    assertExists(user, 'User', credentials.user_id, this.logger);
+
+    return user;
+  }
+
+  private async issueSession(
+    user: NonNullable<Awaited<ReturnType<UsersRepository['findOne']>>>,
+  ) {
     const token = randomBytes(32).toString('base64url');
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const session = await this.createSession({
-      user_id: credentials.user_id,
+      user_id: user.user_id,
       token_hash: createHash('sha256').update(token).digest('hex'),
       expires_at,
     });

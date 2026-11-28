@@ -40,3 +40,44 @@ Feature: Additional auth integration coverage
       | pin       |
       | (none)    |
       | 9999      |
+
+  # Jest: server/src/modules/auth/tests/auth.http.spec.ts
+  @IT-AUTH-020
+  Scenario: Ask a superadmin without a PIN to set one up after a correct password
+    Test Case ID: IT-AUTH-020
+    Given a superadmin account that has no PIN credential
+    When login is sent with a wrong password, and then with the correct password with or without a PIN header
+    Then the wrong password is 401 INVALID_CREDENTIALS before the PIN status is read
+    And the correct password is 403 PIN_SETUP_REQUIRED with Cache-Control no-store, no PIN verification and no session
+
+  # Jest: server/src/modules/auth/tests/auth.http.spec.ts
+  @IT-AUTH-021
+  Scenario: Set up a superadmin PIN confirmed by the password and sign in
+    Test Case ID: IT-AUTH-021
+    Given a superadmin account that has no PIN credential
+    When PIN setup is sent with the username, the correct password and the PIN 0123
+    Then the PIN is created for that superadmin and the response is 200 with a working session token
+    And the response uses Cache-Control no-store and never echoes the PIN
+
+  # Jest: server/src/modules/auth/tests/auth.http.spec.ts
+  @IT-AUTH-022
+  Scenario Outline: Refuse PIN setup at sign-in without creating a session
+    Test Case ID: IT-AUTH-022
+    Given <case>
+    When PIN setup is sent with the PIN 0123
+    Then the response is <status> <code> and no session is created
+    And no PIN is created, or the existing PIN is left in place
+
+    Examples:
+      | case              | status | code                  |
+      | a wrong password  | 401    | INVALID_CREDENTIALS   |
+      | a non-superadmin  | 403    | PIN_SETUP_NOT_ALLOWED |
+      | an existing PIN   | 409    | EXISTING_PIN_FOUND    |
+
+  # Jest: server/src/modules/auth/tests/auth.http.spec.ts
+  @IT-AUTH-023
+  Scenario: Reject a PIN setup whose PIN is not four digits
+    Test Case ID: IT-AUTH-023
+    Given a superadmin without a PIN and the correct password
+    When PIN setup is sent with a missing, non-string, short, long, non-numeric or padded PIN
+    Then the response is 400 without creating a PIN or a session
