@@ -33,6 +33,7 @@ import { KitchenTicketModule } from './modules/kitchen/kitchen-ticket/kitchen-ti
 import { KitchenQcModule } from './modules/kitchen/kitchen-qc/kitchen-qc.module';
 import { HandoffModule } from './modules/kitchen/handoff/handoff.module';
 import { KitchenFulfillmentModule } from './modules/kitchen/kitchen-fulfillment/kitchen-fulfillment.module';
+import { OrderFlowModule } from './modules/orders/order-flow/order-flow.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { KitchenFulfillmentModule } from './modules/kitchen/kitchen-fulfillment/
     KitchenQcModule,
     HandoffModule,
     KitchenFulfillmentModule,
+    OrderFlowModule,
   ],
   controllers: [HealthController],
   providers: [
