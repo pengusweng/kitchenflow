@@ -282,6 +282,6 @@ const DATE_VALUE_FORMAT = new Intl.DateTimeFormat("en-CA", {
 });
 
 /** Today's Asia/Manila date as YYYY-MM-DD, the latest date worth filtering to. */
-export function todayInManila() {
-  return DATE_VALUE_FORMAT.format(new Date());
+export function todayInManila(date = new Date()) {
+  return DATE_VALUE_FORMAT.format(date);
 }

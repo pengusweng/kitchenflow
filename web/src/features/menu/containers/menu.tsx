@@ -3,6 +3,7 @@
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { replaceSearchParams } from "@/src/lib/search-params";
 import { Button } from "@/components/ui/button";
 import Pagination from "@/src/components/ui/molecules/pagination";
 import PageTitle from "@/src/features/dashboard/components/atoms/page-title";
@@ -59,8 +60,11 @@ export default function MenuPage({ canManage }: MenuPageProps) {
   const brandRecord = brandParam ? allBrands.find((b) => b.code === brandParam) : undefined;
   const brand = brandRecord?.code;
 
+  const availabilityParam = searchParams.get("availability");
+  const availability: AvailabilityFilter =
+    availabilityParam === "available" || availabilityParam === "unavailable" ? availabilityParam : "all";
+
   const [query, setQuery] = useState("");
-  const [availability, setAvailability] = useState<AvailabilityFilter>("all");
   const [active, setActive] = useState<ActiveFilter | undefined>("active");
   const search = useDebouncedValue(query.trim());
 
@@ -101,11 +105,17 @@ export default function MenuPage({ canManage }: MenuPageProps) {
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
 
   function setBrand(code: string | undefined) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (code) params.set("brand", code);
-    else params.delete("brand");
-    const qs = params.toString();
-    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+    replaceSearchParams(searchParams, (params) => {
+      if (code) params.set("brand", code);
+      else params.delete("brand");
+    });
+  }
+
+  function setAvailability(next: AvailabilityFilter) {
+    replaceSearchParams(searchParams, (params) => {
+      if (next === "all") params.delete("availability");
+      else params.set("availability", next);
+    });
   }
 
   function view(item: MenuItem) {

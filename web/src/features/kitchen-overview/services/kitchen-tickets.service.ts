@@ -37,11 +37,6 @@ export function parse<S extends z.ZodType>(schema: S, data: unknown, status = 20
   return result.data;
 }
 
-/** Every ticket created today (Asia/Manila), open or not. */
-export function getTodayTickets(signal?: AbortSignal) {
-  return request("/kitchen-ticket/today", kitchenTicketListSchema, "Unable to load kitchen tickets.", signal);
-}
-
 /** Every ticket created on one Asia/Manila day (YYYY-MM-DD), open or not. */
 export function getTicketsForDay(day: string, signal?: AbortSignal) {
   return request(
