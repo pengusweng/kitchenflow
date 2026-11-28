@@ -102,7 +102,17 @@ export async function cleanupCatalogFixture(
     fixture.otherBrand.brand_id,
     ...extraBrandIds,
   ];
-  const orderWhere = { brand_id: { in: brandIds } };
+  // Orders have no brand, so find the fixture's orders through their items
+  // first: the items are deleted before the orders below.
+  const orders = await prisma.order.findMany({
+    where: {
+      order_items_order: {
+        some: { menu_item: { brand_id: { in: brandIds } } },
+      },
+    },
+    select: { order_id: true },
+  });
+  const orderWhere = { order_id: { in: orders.map((o) => o.order_id) } };
   await prisma.orderItemQcRejection.deleteMany({
     where: { qc_attempt: { kitchen_ticket: { order: orderWhere } } },
   });
@@ -117,7 +127,6 @@ export async function cleanupCatalogFixture(
   await prisma.kitchenTicket.deleteMany({ where: { order: orderWhere } });
   await prisma.orderItem.deleteMany({ where: { order: orderWhere } });
   await prisma.order.deleteMany({ where: orderWhere });
-  await prisma.orderDailyCounter.deleteMany({ where: orderWhere });
   await prisma.menuItemChannel.deleteMany({
     where: { menu_item: { brand_id: { in: brandIds } } },
   });

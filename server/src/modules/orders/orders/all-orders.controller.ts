@@ -12,8 +12,8 @@ import { FindUnpaidTodayOrdersDTO } from './dto/find-unpaid-today-orders.dto';
 import { OrdersService } from './orders.service';
 
 /**
- * The back-office view of orders across every brand. Order actions stay on
- * the brand-scoped OrdersController; this is read-only.
+ * The back-office order lists. Order actions stay on OrdersController; this
+ * is read-only.
  */
 @Controller('orders')
 @UseGuards(Authenticated, RolesGuard)

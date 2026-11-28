@@ -24,7 +24,6 @@ export type SavedOrder = Prisma.OrderGetPayload<{
 }>;
 
 type CreateOrderContext = {
-  brandId: string;
   actorId: string;
   orderCode: string;
   hash: string;
@@ -34,16 +33,9 @@ type CreateOrderContext = {
   lines: Awaited<ReturnType<OrderItemsService['snapshots']>>;
 };
 
-export type OrderListFilters = {
-  status?: OrderStatus;
-  order_channel?: OrderChannel;
-  order_date?: Date;
-};
-
-/** Filters for the cross-brand list. Dates are order_date values (Manila dates stored at midnight UTC). */
+/** Filters for the back-office list. Dates are order_date values (Manila dates stored at midnight UTC). */
 export type OrderOverviewFilters = {
   search?: string;
-  brand_id?: string;
   payment_status?: PaymentStatus;
   from?: Date;
   to?: Date;
@@ -53,8 +45,7 @@ const ORDER_STATUSES = Object.values(OrderStatus);
 
 const summaryQuery = {
   omit: { create_request_hash: true },
-  include: { brand: { select: { brand_id: true, code: true, name: true } } },
-} satisfies Pick<Prisma.OrderFindManyArgs, 'omit' | 'include'>;
+} satisfies Pick<Prisma.OrderFindManyArgs, 'omit'>;
 
 @Injectable()
 export class OrdersRepository {
@@ -73,7 +64,6 @@ export class OrdersRepository {
         external_order_reference: dto.external_order_reference,
         table_reference: dto.table_reference,
         notes: dto.notes,
-        brand_id: context.brandId,
         created_by_id: context.actorId,
         order_code: context.orderCode,
         order_number: context.number,
@@ -136,58 +126,6 @@ export class OrdersRepository {
       },
       include: includeOrder,
     });
-  }
-
-  findActiveBrand(brandId: string, tx: Prisma.TransactionClient) {
-    return tx.brand.findFirst({
-      where: { brand_id: brandId, is_active: true },
-    });
-  }
-
-  findByBrand(
-    brandId: string,
-    orderId: string,
-    tx: Prisma.TransactionClient | PrismaService = this.prisma,
-  ) {
-    return tx.order.findFirst({
-      where: { order_id: orderId, brand_id: brandId },
-      include: includeOrder,
-    });
-  }
-
-  async findManyByBrand(
-    brandId: string,
-    filters: OrderListFilters,
-    skip: number,
-    take: number,
-    tx: Prisma.TransactionClient | PrismaService = this.prisma,
-  ) {
-    const where: Prisma.OrderWhereInput = {
-      brand_id: brandId,
-      ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.order_channel
-        ? { order_channel: filters.order_channel }
-        : {}),
-      ...(filters.order_date ? { order_date: filters.order_date } : {}),
-    };
-    const ordersQuery = tx.order.findMany({
-      where,
-      skip,
-      take,
-      orderBy: [{ created_at: 'desc' }, { order_id: 'asc' }],
-      include: includeOrder,
-    });
-    const totalQuery = tx.order.count({ where });
-
-    // Keep the page and its total consistent when running on the root client.
-    const [orders, total] =
-      '$transaction' in tx
-        ? await tx.$transaction([ordersQuery, totalQuery], {
-            isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-          })
-        : await Promise.all([ordersQuery, totalQuery]);
-
-    return { orders, total };
   }
 
   async findOverview(
@@ -331,14 +269,14 @@ export class OrdersRepository {
     throw new ServiceUnavailableException();
   }
 
-  async nextOrderNumber(brandId: string, tx: Prisma.TransactionClient) {
+  async nextOrderNumber(tx: Prisma.TransactionClient) {
     // Keep creation time and the Manila date aligned regardless of database timezone.
     const [{ created_at, order_date }] = await tx.$queryRaw<
       { created_at: Date; order_date: Date }[]
     >`SELECT CURRENT_TIMESTAMP AS created_at, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date AS order_date`;
     const counter = await tx.orderDailyCounter.upsert({
-      where: { brand_id_order_date: { brand_id: brandId, order_date } },
-      create: { brand_id: brandId, order_date, last_number: 1 },
+      where: { order_date },
+      create: { order_date, last_number: 1 },
       update: { last_number: { increment: 1 } },
     });
     return { created_at, order_date, number: counter.last_number };
@@ -388,7 +326,6 @@ function isRetryableConflict(error: unknown): boolean {
 
 function overviewWhere({
   search,
-  brand_id,
   payment_status,
   from,
   to,
@@ -397,7 +334,6 @@ function overviewWhere({
     ...(search
       ? { order_code: { contains: search, mode: 'insensitive' as const } }
       : {}),
-    ...(brand_id ? { brand_id } : {}),
     ...(payment_status ? { payment_status } : {}),
     ...(from || to
       ? {

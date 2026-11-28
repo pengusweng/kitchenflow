@@ -5,7 +5,6 @@ import {
   IsEnum,
   IsISO8601,
   IsString,
-  IsUUID,
   Matches,
   MaxLength,
   ValidateIf,
@@ -14,7 +13,7 @@ import { PaginationDTO } from '../../../../shared/dto/pagination.dto';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Query for GET /orders: every brand, for the back-office orders list. */
+/** Query for GET /orders, the back-office orders list. */
 export class FindAllOrdersDTO extends PaginationDTO {
   // Blank or whitespace-only searches are treated as no search.
   @Transform(({ value }: { value: unknown }) =>
@@ -25,7 +24,7 @@ export class FindAllOrdersDTO extends PaginationDTO {
   @MaxLength(64, { message: 'search must be at most 64 characters.' })
   @ApiPropertyOptional({
     maxLength: 64,
-    example: 'GC-0001',
+    example: 'ORD-00001',
     description: 'Case-insensitive partial match on order_code.',
   })
   search?: string;
@@ -38,15 +37,6 @@ export class FindAllOrdersDTO extends PaginationDTO {
       'Only return orders with this status. Does not affect meta.counts.',
   })
   status?: OrderStatus;
-
-  @ValidateIf((_object, value: unknown) => value !== undefined)
-  @IsUUID('all', { message: 'brand_id must be a UUID.' })
-  @ApiPropertyOptional({
-    type: String,
-    format: 'uuid',
-    description: 'Only return orders for this brand.',
-  })
-  brand_id?: string;
 
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(PaymentStatus, {

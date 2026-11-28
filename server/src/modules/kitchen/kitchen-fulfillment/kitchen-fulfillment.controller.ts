@@ -212,7 +212,7 @@ export class KitchenFulfillmentController {
     );
   }
 
-  @Post('brands/:brandId/orders/:orderId/cancel')
+  @Post('orders/:orderId/cancel')
   // Same action as the draft cancel so one filter finds every cancellation.
   @Audit({
     action: 'ORDER_CANCELLED',
@@ -224,13 +224,11 @@ export class KitchenFulfillmentController {
   @CancelDocs()
   @Roles(UserRole.SUPERADMIN, UserRole.KITCHEN_HEAD, UserRole.SUPERVISOR)
   async cancel(
-    @Param('brandId', ParseUUIDPipe) brandId: string,
     @Param('orderId', ParseUUIDPipe) orderId: string,
     @Body() dto: CancelOrderDTO,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.kitchenFulfillmentService.cancel(
-      brandId,
       orderId,
       req.session.user.user_id,
       dto,

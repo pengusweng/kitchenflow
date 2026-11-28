@@ -44,7 +44,7 @@ const checkerRoles = 'SUPERADMIN, SUPERVISOR, and KITCHEN_HEAD.';
 const ticketExample = {
   kitchen_ticket_id: '00000000-0000-4000-8000-000000000001',
   order_id: '00000000-0000-4000-8000-000000000002',
-  order_code: 'GC-00001',
+  order_code: 'ORD-00001',
   ticket_number: 'T-001',
   status: 'CHECKING',
   preparer_id: '00000000-0000-4000-8000-000000000003',
@@ -70,10 +70,9 @@ const attemptExample = {
 };
 const orderExample = {
   order_id: ticketExample.order_id,
-  order_code: 'GC-00001',
+  order_code: 'ORD-00001',
   order_date: '2026-11-04T00:00:00.000Z',
   order_number: 1,
-  brand_id: '00000000-0000-4000-8000-000000000007',
   created_by_id: ticketExample.created_by_id,
   order_channel: 'TAKEAWAY',
   merchant_store_reference: null,

@@ -8,8 +8,8 @@ import {
 } from '@prisma/client';
 
 // Kitchen views need item identities (for QC rejections) but never prices or
-// restricted recipe snapshots. The order's brand, channel and confirmation time
-// let a board group tickets and time them from when the order was sent.
+// restricted recipe snapshots. The order's channel and confirmation time let a
+// board group tickets and time them from when the order was sent.
 const includeOrderItems = {
   _count: {
     select: {
@@ -18,7 +18,6 @@ const includeOrderItems = {
   },
   order: {
     select: {
-      brand_id: true,
       order_channel: true,
       confirmed_at: true,
       order_items_order: {
@@ -49,7 +48,6 @@ function withOrderItems(ticket: TicketWithOrderItems) {
   const { order, _count, ...rest } = ticket;
   return {
     ...rest,
-    brand_id: order.brand_id,
     order_channel: order.order_channel,
     order_confirmed_at: order.confirmed_at,
     qc_failure_count: _count.qc_attempts,

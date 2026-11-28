@@ -19,7 +19,6 @@ import { createHash } from 'node:crypto';
 import { assertExists } from '../../../shared/assertions/assert-exists';
 import { assertValidPagination } from '../../../shared/assertions/assert-valid-pagination';
 import { FindAllOrdersDTO } from './dto/find-all-orders.dto';
-import { FindOrdersDTO } from './dto/find-orders.dto';
 import { FindUnpaidTodayOrdersDTO } from './dto/find-unpaid-today-orders.dto';
 import { OrdersRepository, type SavedOrder } from './orders.repository';
 import { CreateOrderDTO, CancelOrderDTO } from './dto/order.dto';
@@ -36,20 +35,20 @@ export class OrdersService {
     private readonly payments: PaymentsRepository,
   ) {}
 
-  async create(brandId: string, actorId: string, dto: CreateOrderDTO) {
+  async create(actorId: string, dto: CreateOrderDTO) {
     this.items.validateLines(dto.lines);
 
-    const hash = this.buildHash(brandId, dto);
+    const hash = this.buildHash(dto);
     return this.repository.transaction(async (tx) => {
       const existing = await this.repository.findById(dto.order_id, tx);
 
       if (existing) {
-        this.assertNoRequestConflicts(brandId, existing, hash);
+        this.assertNoRequestConflicts(existing, hash);
         return this.response(existing);
       }
 
       if (isPlatformChannel(dto.order_channel)) {
-        await this.assertValidDeliveryOrder(dto, brandId, tx);
+        await this.assertValidDeliveryOrder(dto, tx);
       } else if (dto.merchant_store_reference || dto.external_order_reference) {
         throw new BadRequestException({
           code: 'INVALID_ORDER_REQUEST',
@@ -64,22 +63,16 @@ export class OrdersService {
         });
       }
 
-      const { brand, lines } = await this.snapshots(
-        tx,
-        brandId,
-        dto.order_channel,
-        dto.lines,
-      );
+      const { lines } = await this.snapshots(tx, dto.order_channel, dto.lines);
 
       const { created_at, order_date, number } =
-        await this.repository.nextOrderNumber(brandId, tx);
+        await this.repository.nextOrderNumber(tx);
 
       const order = await this.repository.create(
         dto,
         {
-          brandId,
           actorId,
-          orderCode: `${brand.code.trim()}-${number.toString().padStart(5, '0')}`,
+          orderCode: `ORD-${number.toString().padStart(5, '0')}`,
           hash,
           number,
           order_date,
@@ -93,37 +86,9 @@ export class OrdersService {
     });
   }
 
-  async findAll(brandId: string, query: FindOrdersDTO) {
-    const skip = (query.page - 1) * query.limit;
-    this.logger.debug(
-      `Listing orders: brand=${brandId}, skip=${skip}, take=${query.limit}`,
-    );
-    assertValidPagination(skip, this.logger);
-
-    const { orders, total } = await this.repository.findManyByBrand(
-      brandId,
-      {
-        status: query.status,
-        order_channel: query.order_channel,
-        // Order dates are stored as Manila calendar dates (midnight UTC).
-        order_date: query.order_date
-          ? new Date(`${query.order_date}T00:00:00.000Z`)
-          : undefined,
-      },
-      skip,
-      query.limit,
-    );
-
-    this.logger.log(
-      `Listed orders: brand=${brandId}, returned=${orders.length}, total=${total}`,
-    );
-    return { orders: orders.map((order) => this.response(order)), total };
-  }
-
-  /** Every brand's orders for the back-office list, newest first, with per-status counts. */
+  /** All orders for the back-office list, newest first, with per-status counts. */
   async findOverview(query: FindAllOrdersDTO) {
-    const { page, limit, status, search, brand_id, payment_status, from, to } =
-      query;
+    const { page, limit, status, search, payment_status, from, to } = query;
     // YYYY-MM-DD strings compare in calendar order.
     if (from !== undefined && to !== undefined && from > to) {
       throw new BadRequestException('from must be on or before to.');
@@ -135,7 +100,6 @@ export class OrdersService {
     const { orders, total, counts } = await this.repository.findOverview(
       {
         search,
-        brand_id,
         payment_status,
         // Order dates are stored as Manila calendar dates (midnight UTC).
         from: from ? new Date(`${from}T00:00:00.000Z`) : undefined,
@@ -161,7 +125,7 @@ export class OrdersService {
     };
   }
 
-  /** Every brand's confirmed, unpaid orders for today's Asia/Manila business date. */
+  /** Confirmed, unpaid orders for today's Asia/Manila business date. */
   async findUnpaidToday({ page, limit, search }: FindUnpaidTodayOrdersDTO) {
     const skip = (page - 1) * limit;
     assertValidPagination(skip, this.logger);
@@ -184,21 +148,27 @@ export class OrdersService {
     };
   }
 
-  async findOne(brandId: string, orderId: string) {
-    const order = await this.repository.findByBrand(brandId, orderId);
-    if (!order) throw new NotFoundException('Order not found.');
+  async findOne(orderId: string, tx?: Prisma.TransactionClient) {
+    this.logger.debug(`Finding order ${orderId}`);
+
+    const order = await this.repository.findById(orderId, tx);
+    assertExists(order, 'Order', orderId, this.logger);
+
+    this.logger.log(
+      `Found order ${orderId}, createdAt: ${order.created_at.toDateString()}`,
+    );
+
     return this.response(order);
   }
 
-  async verify(brandId: string, orderId: string) {
+  async verify(orderId: string) {
     return this.repository.transaction(async (tx) => {
-      const order = await this.load(tx, brandId, orderId);
+      const order = await this.load(tx, orderId);
       this.assertConfirmable(order);
       if (order.status !== 'DRAFT')
         throw new ConflictException('Only draft orders can be verified.');
       const { lines } = await this.snapshots(
         tx,
-        brandId,
         order.order_channel,
         this.draftLines(order),
       );
@@ -210,16 +180,15 @@ export class OrdersService {
     });
   }
 
-  async confirm(brandId: string, orderId: string, actorId: string) {
+  async confirm(orderId: string, actorId: string) {
     return this.repository.transaction(async (tx) => {
-      const order = await this.load(tx, brandId, orderId);
+      const order = await this.load(tx, orderId);
       this.assertConfirmable(order);
       if (order.kitchen_tickets_order) return this.response(order);
       if (order.status !== 'DRAFT')
         throw new ConflictException('Only draft orders can be confirmed.');
       const { lines } = await this.snapshots(
         tx,
-        brandId,
         order.order_channel,
         this.draftLines(order),
       );
@@ -331,7 +300,6 @@ export class OrdersService {
   }
 
   async cancel(
-    brandId: string,
     orderId: string,
     actorId: string,
     dto: CancelOrderDTO,
@@ -344,7 +312,7 @@ export class OrdersService {
       );
     }
     const cancelOrder = async (client: Prisma.TransactionClient) => {
-      const order = await this.load(client, brandId, orderId);
+      const order = await this.load(client, orderId);
       if (order.status === 'CANCELLED') {
         return this.response(order);
       }
@@ -370,14 +338,9 @@ export class OrdersService {
     return tx ? cancelOrder(tx) : this.repository.transaction(cancelOrder);
   }
 
-  async cancelDraft(
-    brandId: string,
-    orderId: string,
-    actorId: string,
-    dto: CancelOrderDTO,
-  ) {
+  async cancelDraft(orderId: string, actorId: string, dto: CancelOrderDTO) {
     return this.repository.transaction(async (tx) => {
-      const order = await this.load(tx, brandId, orderId);
+      const order = await this.load(tx, orderId);
       const isCancelledDraft =
         order.status === OrderStatus.CANCELLED && order.confirmed_at == null;
 
@@ -392,13 +355,12 @@ export class OrdersService {
         });
       }
 
-      return this.cancel(brandId, orderId, actorId, dto, tx);
+      return this.cancel(orderId, actorId, dto, tx);
     });
   }
 
-  private buildHash(brandId: string, dto: CreateOrderDTO) {
+  private buildHash(dto: CreateOrderDTO) {
     const request = {
-      brandId,
       channel: dto.order_channel,
       merchant: dto.merchant_store_reference ?? null,
       external: dto.external_order_reference ?? null,
@@ -415,15 +377,8 @@ export class OrdersService {
     return createHash('sha256').update(JSON.stringify(request)).digest('hex');
   }
 
-  private assertNoRequestConflicts(
-    brandId: string,
-    existing: Order,
-    hash: string,
-  ) {
-    if (
-      existing.brand_id !== brandId ||
-      existing.create_request_hash !== hash
-    ) {
+  private assertNoRequestConflicts(existing: Order, hash: string) {
+    if (existing.create_request_hash !== hash) {
       throw new ConflictException({
         statusCode: 409,
         error: 'Conflict',
@@ -435,7 +390,6 @@ export class OrdersService {
 
   private async assertValidDeliveryOrder(
     dto: CreateOrderDTO,
-    brandId: string,
     tx: Prisma.TransactionClient,
   ) {
     const { merchant_store_reference, external_order_reference } = dto;
@@ -457,25 +411,21 @@ export class OrdersService {
       tx,
     );
 
-    this.assertNoDuplicateOrder(duplicate, brandId);
+    this.assertNoDuplicateOrder(duplicate);
   }
 
-  private assertNoDuplicateOrder(
-    duplicate: SavedOrder | null,
-    brandId: string,
-  ) {
+  private assertNoDuplicateOrder(duplicate: SavedOrder | null) {
     if (duplicate)
       throw new ConflictException({
         statusCode: 409,
         error: 'Conflict',
         code: 'DUPLICATE_PLATFORM_ORDER',
         message: 'Platform order already exists.',
-        existing_order:
-          duplicate.brand_id === brandId ? this.response(duplicate) : null,
+        existing_order: this.response(duplicate),
       });
   }
 
-  private assertConfirmable(order: SavedOrder) {
+  assertConfirmable(order: SavedOrder) {
     if (order.status === 'DRAFT' && order.kitchen_tickets_order)
       throw new ConflictException(
         'Draft order unexpectedly has a ticket; repair is required.',
@@ -499,23 +449,16 @@ export class OrdersService {
 
   private async snapshots(
     tx: Prisma.TransactionClient,
-    brandId: string,
     channel: OrderChannel,
     lines: OrderLineDTO[],
   ) {
     this.items.validateLines(lines);
-    const brand = await this.repository.findActiveBrand(brandId, tx);
-    if (!brand) throw new BadRequestException('Brand is unavailable.');
     const snapshots = await this.items.snapshots(tx, channel, lines);
-    return { brand, lines: snapshots };
+    return { lines: snapshots };
   }
 
-  private async load(
-    tx: Prisma.TransactionClient,
-    brandId: string,
-    orderId: string,
-  ) {
-    const order = await this.repository.findByBrand(brandId, orderId, tx);
+  private async load(tx: Prisma.TransactionClient, orderId: string) {
+    const order = await this.repository.findById(orderId, tx);
     if (!order) throw new NotFoundException('Order not found.');
     return order;
   }

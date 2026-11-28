@@ -154,9 +154,6 @@ export class OrderResponseDTO {
   order_date: string;
 
   @ApiProperty({ type: String, format: 'uuid' })
-  brand_id: string;
-
-  @ApiProperty({ type: String, format: 'uuid' })
   created_by_id: string;
 
   @ApiProperty({ type: String, nullable: true })
@@ -223,34 +220,12 @@ export class OrderResponseDTO {
   discount_order: OrderDiscountResponseDTO | null;
 }
 
-export class OrderListResponseDTO {
-  @ApiProperty({ type: [OrderResponseDTO] })
-  orders: OrderResponseDTO[];
-
-  @ApiProperty({ type: 'integer', minimum: 0 })
-  total: number;
-}
-
-export class OrderBrandResponseDTO {
-  @ApiProperty({ type: String, format: 'uuid' })
-  brand_id: string;
-
-  @ApiProperty({ type: String, example: 'GC' })
-  code: string;
-
-  @ApiProperty({ type: String, example: 'Gamcheon' })
-  name: string;
-}
-
-/** A row of GET /orders: the order without its lines or ticket, plus its brand. */
+/** A row of GET /orders: the order without its lines or ticket. */
 export class OrderSummaryResponseDTO extends OmitType(OrderResponseDTO, [
   'order_items_order',
   'kitchen_tickets_order',
   'discount_order',
-] as const) {
-  @ApiProperty({ type: OrderBrandResponseDTO })
-  brand: OrderBrandResponseDTO;
-}
+] as const) {}
 
 export class OrderStatusCountsDTO {
   @ApiProperty({ example: 40, description: 'Every status.' })
@@ -329,7 +304,7 @@ export class CreateOrderConflictResponseDTO {
     nullable: true,
     required: false,
     description:
-      'Only present for DUPLICATE_PLATFORM_ORDER. Saved order in the requested brand, otherwise null. Restricted recipe snapshots and request hashes are omitted.',
+      'Only present for DUPLICATE_PLATFORM_ORDER: the saved order. Restricted recipe snapshots and request hashes are omitted.',
   })
   existing_order?: OrderResponseDTO | null;
 }

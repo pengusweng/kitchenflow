@@ -44,13 +44,6 @@ export class KitchenTicketItemDTO {
 
 export class KitchenTicketWithItemsDTO extends OrderTicketResponseDTO {
   @ApiProperty({
-    type: String,
-    format: 'uuid',
-    description: "The order's brand.",
-  })
-  brand_id: string;
-
-  @ApiProperty({
     enum: OrderChannel,
     description: 'Where the order came from.',
   })

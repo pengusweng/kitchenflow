@@ -19,7 +19,7 @@ export class CreateKitchenTicketDTO {
   @ApiProperty({
     maxLength: 64,
     description: 'Saved order code copied from the confirmed order.',
-    example: 'GC-00001',
+    example: 'ORD-00001',
   })
   @IsString()
   @Matches(/\S/, { message: 'Order code must not be blank.' })

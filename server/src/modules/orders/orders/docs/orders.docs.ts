@@ -8,7 +8,6 @@ import {
 } from '@nestjs/swagger';
 import {
   OrderResponseDTO,
-  OrderListResponseDTO,
   OrdersPageResponseDTO,
   UnpaidOrdersPageResponseDTO,
   VerifyOrderResponseDTO,
@@ -19,11 +18,6 @@ export function OrdersDocs() {
   return applyDecorators(
     ApiTags('Orders'),
     ApiBearerAuth(),
-    ApiParam({
-      name: 'brandId',
-      format: 'uuid',
-      description: 'Brand UUID. Allowed roles may operate on any brand.',
-    }),
     ApiResponse({
       status: 400,
       description:
@@ -36,7 +30,7 @@ export function OrdersDocs() {
     ApiResponse({ status: 403, description: 'Role access denied.' }),
     ApiResponse({
       status: 404,
-      description: 'Order not found in the requested brand.',
+      description: 'Order not found.',
     }),
     ApiResponse({
       status: 409,
@@ -46,33 +40,17 @@ export function OrdersDocs() {
   );
 }
 
-export function FindOrdersDocs() {
-  return applyDecorators(
-    ApiOperation({
-      summary: 'List orders for a brand',
-      description:
-        'Paginated with page (default 1) and limit (default 10, maximum 100). Optional status, order_channel and order_date (Asia/Manila YYYY-MM-DD) filters. Sorted by created_at descending, then order_id ascending. Includes every status, items and the kitchen ticket. Request hashes and recipe snapshots are omitted.',
-    }),
-    ApiResponse({
-      status: 200,
-      type: OrderListResponseDTO,
-      description:
-        'A page of orders and the total number of matching orders, without a data/meta wrapper. Returns an empty array when nothing matches.',
-    }),
-  );
-}
-
 export function FindOneOrderDocs() {
   return applyDecorators(
     ApiOperation({
       summary: 'Get an order by UUID',
       description:
-        'Returns the saved order with items and kitchen ticket in any status. Orders belonging to another brand return 404. Kitchen head and kitchen staff may also read orders.',
+        'Returns the saved order with items and kitchen ticket in any status. Kitchen head and kitchen staff may also read orders.',
     }),
     ApiParam({
       name: 'orderId',
       format: 'uuid',
-      description: 'Order UUID belonging to brandId.',
+      description: 'Order UUID.',
     }),
     ApiResponse({ status: 200, type: OrderResponseDTO }),
   );
@@ -83,7 +61,7 @@ export function CreateOrderDocs() {
     ApiOperation({
       summary: 'Create an order draft',
       description:
-        'Requires a client UUID, channel and 1-100 lines. Lines may contain menu items from multiple active brands in one order and kitchen ticket. The URL brand determines the order code, sequence and listing scope, not the permitted item brands. DINE_IN requires a table reference; GRABFOOD/FOODPANDA require store and external order references. Replays with identical payload return the existing order, which may already be confirmed.',
+        "Requires a client UUID, channel and 1-100 lines. Lines may contain menu items from multiple active brands in one order and kitchen ticket. The order code is ORD- plus the day's Asia/Manila order number, shared across every brand. DINE_IN requires a table reference; GRABFOOD/FOODPANDA require store and external order references. Replays with identical payload return the existing order, which may already be confirmed.",
     }),
     ApiResponse({
       status: 201,
@@ -95,7 +73,7 @@ export function CreateOrderDocs() {
       status: 409,
       type: CreateOrderConflictResponseDTO,
       description:
-        'DUPLICATE_PLATFORM_ORDER blocks a second draft and includes existing_order only within the requested brand (otherwise null). ORDER_ID_CONFLICT rejects a changed payload or brand. ORDER_RETRY_REQUIRED means retry the same UUID and payload.',
+        'DUPLICATE_PLATFORM_ORDER blocks a second draft and includes the existing_order. ORDER_ID_CONFLICT rejects a changed payload. ORDER_RETRY_REQUIRED means retry the same UUID and payload.',
     }),
   );
 }
@@ -110,7 +88,7 @@ export function VerifyOrderDocs() {
     ApiParam({
       name: 'orderId',
       format: 'uuid',
-      description: 'Order UUID belonging to brandId.',
+      description: 'Order UUID.',
     }),
     ApiResponse({
       status: 200,
@@ -131,7 +109,7 @@ export function ConfirmOrderDocs() {
     ApiParam({
       name: 'orderId',
       format: 'uuid',
-      description: 'Order UUID belonging to brandId.',
+      description: 'Order UUID.',
     }),
     ApiResponse({
       status: 200,
@@ -156,7 +134,7 @@ export function CancelOrderDocs() {
     ApiParam({
       name: 'orderId',
       format: 'uuid',
-      description: 'Order UUID belonging to brandId.',
+      description: 'Order UUID.',
     }),
     ApiResponse({
       status: 200,
@@ -172,9 +150,9 @@ export function FindAllOrdersDocs() {
     ApiTags('Orders'),
     ApiBearerAuth(),
     ApiOperation({
-      summary: 'List orders across every brand',
+      summary: 'List orders',
       description:
-        'For the back-office orders list. Paginated with page (default 1) and limit (default 10, maximum 100). Optional search (order_code, case-insensitive partial), status, brand_id, payment_status and an Asia/Manila from/to order_date range; filters combine using AND. Sorted by created_at descending, then order_id ascending. Rows carry their brand but no lines or kitchen ticket; read one order through GET /brands/{brandId}/orders/{orderId} for those.',
+        'For the back-office orders list. Paginated with page (default 1) and limit (default 10, maximum 100). Optional search (order_code, case-insensitive partial), status, payment_status and an Asia/Manila from/to order_date range; filters combine using AND. Sorted by created_at descending, then order_id ascending. Rows have no lines or kitchen ticket; read one order through GET /orders/{orderId} for those.',
     }),
     ApiResponse({
       status: 200,
@@ -199,7 +177,7 @@ export function FindUnpaidTodayOrdersDocs() {
     ApiTags('Orders'),
     ApiBearerAuth(),
     ApiOperation({
-      summary: "List today's unpaid orders across every brand",
+      summary: "List today's unpaid orders",
       description:
         'Orders whose order_date is today in Asia/Manila and whose payment_status is UNPAID. Drafts and cancelled orders are excluded. Paginated with page (default 1) and limit (default 10, maximum 100); optional search is a case-insensitive partial match on order_code. Sorted by created_at ascending, then order_id ascending, so the longest-waiting order comes first. Rows have the same shape as GET /orders.',
     }),

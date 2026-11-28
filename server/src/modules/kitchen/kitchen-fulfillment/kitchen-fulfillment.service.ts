@@ -197,18 +197,9 @@ export class KitchenFulfillmentService {
     return result;
   }
 
-  async cancel(
-    brandId: string,
-    orderId: string,
-    actorId: string,
-    dto: CancelOrderDTO,
-  ) {
+  async cancel(orderId: string, actorId: string, dto: CancelOrderDTO) {
     const result = await this.ordersRepository.transaction(async (tx) => {
-      const existing = await this.ordersRepository.findByBrand(
-        brandId,
-        orderId,
-        tx,
-      );
+      const existing = await this.ordersRepository.findById(orderId, tx);
       assertExists(existing, 'Order', orderId);
 
       if (!existing.kitchen_tickets_order) {
@@ -222,13 +213,7 @@ export class KitchenFulfillmentService {
         existing.kitchen_tickets_order.kitchen_ticket_id,
         tx,
       );
-      const order = await this.ordersService.cancel(
-        brandId,
-        orderId,
-        actorId,
-        dto,
-        tx,
-      );
+      const order = await this.ordersService.cancel(orderId, actorId, dto, tx);
 
       return { order, ticket };
     });

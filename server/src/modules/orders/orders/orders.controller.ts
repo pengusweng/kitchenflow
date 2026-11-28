@@ -4,7 +4,6 @@ import {
   VerifyOrderDocs,
   ConfirmOrderDocs,
   CancelOrderDocs,
-  FindOrdersDocs,
   FindOneOrderDocs,
 } from './docs/orders.docs';
 import {
@@ -15,7 +14,6 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
-  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -27,7 +25,6 @@ import {
 import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { Roles } from '../../../shared/decorators/roles.decorator';
 import { CreateOrderDTO, CancelOrderDTO } from './dto/order.dto';
-import { FindOrdersDTO } from './dto/find-orders.dto';
 import { KitchenTicketChanges } from '../../kitchen/kitchen-ticket/kitchen-ticket-changes.service';
 import { OrdersService } from './orders.service';
 import {
@@ -37,7 +34,7 @@ import {
   NoAudit,
 } from '../../../shared/audit/audit.decorator';
 
-@Controller('brands/:brandId/orders')
+@Controller('orders')
 @OrdersDocs()
 @UseGuards(Authenticated, RolesGuard)
 @Roles(UserRole.SUPERVISOR, UserRole.CASHIER_STAFF, UserRole.SUPERADMIN)
@@ -46,15 +43,6 @@ export class OrdersController {
     private readonly orders: OrdersService,
     private readonly kitchenTicketChanges: KitchenTicketChanges,
   ) {}
-
-  @FindOrdersDocs()
-  @Get()
-  findAll(
-    @Param('brandId', ParseUUIDPipe) brandId: string,
-    @Query() query: FindOrdersDTO,
-  ) {
-    return this.orders.findAll(brandId, query);
-  }
 
   @FindOneOrderDocs()
   @Get(':orderId')
@@ -65,11 +53,8 @@ export class OrdersController {
     UserRole.KITCHEN_HEAD,
     UserRole.KITCHEN_STAFF,
   )
-  findOne(
-    @Param('brandId', ParseUUIDPipe) brandId: string,
-    @Param('orderId', ParseUUIDPipe) orderId: string,
-  ) {
-    return this.orders.findOne(brandId, orderId);
+  findOne(@Param('orderId', ParseUUIDPipe) orderId: string) {
+    return this.orders.findOne(orderId);
   }
 
   @CreateOrderDocs()
@@ -80,23 +65,16 @@ export class OrdersController {
     entity: 'orders',
     id: fromResult('order_id'),
   })
-  create(
-    @Param('brandId', ParseUUIDPipe) brandId: string,
-    @Body() dto: CreateOrderDTO,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return this.orders.create(brandId, req.session.user.user_id, dto);
+  create(@Body() dto: CreateOrderDTO, @Req() req: AuthenticatedRequest) {
+    return this.orders.create(req.session.user.user_id, dto);
   }
 
   @VerifyOrderDocs()
   @Post(':orderId/verify')
   @NoAudit('read-only price and availability check; writes nothing')
   @HttpCode(200)
-  verify(
-    @Param('brandId', ParseUUIDPipe) brandId: string,
-    @Param('orderId', ParseUUIDPipe) orderId: string,
-  ) {
-    return this.orders.verify(brandId, orderId);
+  verify(@Param('orderId', ParseUUIDPipe) orderId: string) {
+    return this.orders.verify(orderId);
   }
 
   @ConfirmOrderDocs()
@@ -109,15 +87,10 @@ export class OrdersController {
   })
   @HttpCode(200)
   async confirm(
-    @Param('brandId', ParseUUIDPipe) brandId: string,
     @Param('orderId', ParseUUIDPipe) orderId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    const order = await this.orders.confirm(
-      brandId,
-      orderId,
-      req.session.user.user_id,
-    );
+    const order = await this.orders.confirm(orderId, req.session.user.user_id);
     // Confirming creates the kitchen ticket; the transaction has committed here.
     this.kitchenTicketChanges.notify();
     return order;
@@ -133,16 +106,10 @@ export class OrdersController {
   })
   @HttpCode(200)
   cancel(
-    @Param('brandId', ParseUUIDPipe) brandId: string,
     @Param('orderId', ParseUUIDPipe) orderId: string,
     @Body() dto: CancelOrderDTO,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.orders.cancelDraft(
-      brandId,
-      orderId,
-      req.session.user.user_id,
-      dto,
-    );
+    return this.orders.cancelDraft(orderId, req.session.user.user_id, dto);
   }
 }
