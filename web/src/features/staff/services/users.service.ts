@@ -106,3 +106,25 @@ export async function updateUser(userId: string, input: UpdateStaffInput, pin: s
   if (!result.success) throw new ApiError(response.status, undefined, "The server returned an invalid account.");
   return result.data;
 }
+
+// PUT /api/users/:id/pin is superadmin-only and PIN-protected: `actionPin` is the
+// signed-in superadmin's own PIN, `newPin` the one being given to the user.
+export async function resetUserPin(userId: string, newPin: string, actionPin: string): Promise<true> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/users/${encodeURIComponent(userId)}/pin`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Accept: "application/json", "X-Action-Pin": actionPin },
+      body: JSON.stringify({ pin: newPin }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    throw ApiError.network();
+  }
+
+  if (!response.ok) throw await ApiError.fromResponse(response, "Unable to reset the PIN. Please try again.");
+  // The body is credential metadata the UI doesn't show; resolving true tells a
+  // finished reset apart from a cancelled PIN prompt.
+  return true;
+}

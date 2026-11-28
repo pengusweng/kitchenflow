@@ -6,11 +6,21 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/src/components/ui/atoms/input";
 import { Button } from "@/components/ui/button";
 import type { useLogin } from "../hooks/useLogin";
+import LoginPinSetupStep from "./login-pin-setup-step";
 import LoginPinStep from "./login-pin-step";
 
 type LoginCardProps = Pick<
   ReturnType<typeof useLogin>,
-  "form" | "serverError" | "pinStep" | "pinPending" | "submitPin" | "cancelPin"
+  | "form"
+  | "serverError"
+  | "pinStep"
+  | "pinPending"
+  | "submitPin"
+  | "cancelPin"
+  | "pinSetup"
+  | "pinSetupPending"
+  | "submitPinSetup"
+  | "cancelPinSetup"
 > & {
   redirecting?: boolean;
 };
@@ -22,17 +32,40 @@ export default function LoginCard({
   pinPending,
   submitPin,
   cancelPin,
+  pinSetup,
+  pinSetupPending,
+  submitPinSetup,
+  cancelPinSetup,
   redirecting = false,
 }: LoginCardProps) {
   const [showPassword, setShowPassword] = useState(false);
   // Back from the PIN step, the form slides in once instead of replaying the staggered page entrance.
   const [returned, setReturned] = useState(false);
-  if (pinStep && !returned) setReturned(true);
+  if ((pinStep || pinSetup) && !returned) setReturned(true);
 
   // Each block rises in slightly after the one above it.
   const rise = (step: number): { className: string; style?: CSSProperties } => returned
     ? { className: "motion-safe:animate-page-in" }
     : { className: "motion-safe:animate-rise", style: { animationDelay: `${180 + step * 70}ms` } };
+
+  if (pinSetup) {
+    return (
+      <section aria-labelledby="login-title" className="w-full max-w-sm lg:-mt-8">
+        <form.Subscribe selector={(state) => state.values.username}>
+          {(username) => (
+            <LoginPinSetupStep
+              username={username}
+              step={pinSetup}
+              pending={pinSetupPending}
+              redirecting={redirecting}
+              onSubmit={submitPinSetup}
+              onBack={cancelPinSetup}
+            />
+          )}
+        </form.Subscribe>
+      </section>
+    );
+  }
 
   if (pinStep) {
     return (

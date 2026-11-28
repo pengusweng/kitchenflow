@@ -13,13 +13,25 @@ type PinInputProps = {
   invalid?: boolean;
   disabled?: boolean;
   describedBy?: string;
+  /** Accessible name; defaults to "4-digit PIN". Needed when a form has more than one PIN. */
+  label?: string;
   /** Fill the container's width with larger slots, so it lines up with full-width fields. */
   stretch?: boolean;
 };
 
 // One real input stretched invisibly over four drawn slots: typing, deleting,
 // pasting and the numeric keypad all behave natively, the slots are visual only.
-export default function PinInput({ ref, value, onChange, onComplete, invalid, disabled, describedBy, stretch = false }: PinInputProps) {
+export default function PinInput({
+  ref,
+  value,
+  onChange,
+  onComplete,
+  invalid,
+  disabled,
+  describedBy,
+  label = `${PIN_LENGTH}-digit PIN`,
+  stretch = false,
+}: PinInputProps) {
   const [focused, setFocused] = useState(false);
   const active = Math.min(value.length, PIN_LENGTH - 1);
 
@@ -34,7 +46,7 @@ export default function PinInput({ ref, value, onChange, onComplete, invalid, di
         maxLength={PIN_LENGTH}
         value={value}
         disabled={disabled}
-        aria-label={`${PIN_LENGTH}-digit PIN`}
+        aria-label={label}
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
         onFocus={() => setFocused(true)}

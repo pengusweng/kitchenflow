@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { PIN_ROLES } from './pin.roles';
 import { PinRepository } from './pin.repository';
 import { CreatePinDTO } from './dto/create-pin.dto';
 import { UsersRepository } from '../users/users.repository';
@@ -49,6 +51,36 @@ export class PinService {
     this.logger.log(`Found pin credentials for ${userId}`);
 
     return pinCredentials;
+  }
+
+  /** Whether the user has a PIN credential, without reading its hash. */
+  async hasPin(userId: string) {
+    return (await this.pinRepository.findOneSafe(userId)) !== null;
+  }
+
+  /**
+   * Superadmin reset of another user's PIN (or their own). Replaces any
+   * existing PIN and clears its lockout, or creates one if none exists.
+   */
+  async resetPin(userId: string, pin: string) {
+    this.logger.debug(`Resetting pin for ${userId}`);
+
+    const user = await this.usersRepository.findOne(userId);
+    assertExists(user, 'User', userId, this.logger);
+
+    if (!PIN_ROLES.includes(user.role)) {
+      this.logger.warn(`Role ${user.role} cannot use a PIN: ${userId}`);
+
+      throw new BadRequestException({
+        code: 'PIN_NOT_SUPPORTED_FOR_ROLE',
+        message: 'Only superadmin accounts have a PIN.',
+      });
+    }
+
+    const credential = await this.pinRepository.upsert(userId, pin);
+    this.logger.log(`Reset pin for ${userId}`);
+
+    return credential;
   }
 
   async verifyPin(userId: string, pin: string) {

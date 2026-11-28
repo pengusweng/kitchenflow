@@ -93,6 +93,31 @@ export class PinRepository {
     });
   }
 
+  /**
+   * Sets a user's PIN whether or not one exists, clearing any lockout. Used
+   * only by the superadmin reset, which acts on another user's credential.
+   */
+  async upsert(
+    userId: string,
+    pin: string,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const pinHash = await argon2.hash(pin);
+    const now = new Date();
+
+    return tx.userPinCredential.upsert({
+      where: { user_id: userId },
+      create: { user_id: userId, pin_hash: pinHash },
+      update: {
+        pin_hash: pinHash,
+        failed_attempts: 0,
+        locked_until: null,
+        modified_at: now,
+      },
+      omit: { pin_hash: true },
+    });
+  }
+
   async verifyPin(userId: string, pin: string): Promise<PinVerificationResult> {
     return this.prisma.$transaction(async (tx) => {
       const credential = await this.lockByUserId(userId, tx);

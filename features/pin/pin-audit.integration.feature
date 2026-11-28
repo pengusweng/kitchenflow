@@ -12,7 +12,7 @@ Feature: PIN audit logging
   @IT-PIN-024
   Scenario: Audit setting and changing a PIN
     Test Case ID: IT-PIN-024
-    Given a supervisor
+    Given a superadmin
     When they set a PIN and then change it with their password
     Then PIN_CREATED and PIN_UPDATED SUCCESS rows name their own credential
     And no row contains either PIN or the password
@@ -22,7 +22,7 @@ Feature: PIN audit logging
   @IT-PIN-025
   Scenario: Audit a duplicate PIN and a wrong password
     Test Case ID: IT-PIN-025
-    Given a supervisor who already has a PIN and supplies a wrong password
+    Given a superadmin who already has a PIN and supplies a wrong password
     When they set a PIN and then change it
     Then PIN_CREATED is FAILED with EXISTING_PIN_FOUND and PIN_UPDATED is DENIED with INVALID_CREDENTIALS
 
@@ -31,6 +31,22 @@ Feature: PIN audit logging
   @IT-PIN-026
   Scenario: Audit role denials but not status reads or malformed PINs
     Test Case ID: IT-PIN-026
-    Given a PIN status read, a malformed PIN and a role that cannot use PINs
+    Given a superadmin's PIN status read and malformed PIN, and a supervisor, who has no PIN
     When the PIN endpoints are called
     Then only the role denial produces a PIN_CREATED DENIED row with ACCESS_DENIED
+
+  # Jest: server/src/modules/pin/tests/pin-audit.http.spec.ts
+  # Context: PIN audit logging
+  @IT-PIN-027
+  Scenario Outline: Audit a non-superadmin's denied PIN reset
+    Test Case ID: IT-PIN-027
+    Given a signed-in <role>
+    When they try to reset their own PIN with their password
+    Then the response is 403 and the PIN service is never called
+    And a PIN_UPDATED DENIED row with ACCESS_DENIED names them as the actor
+
+    Examples:
+      | role           |
+      | SUPERVISOR     |
+      | KITCHEN_HEAD   |
+      | RECIPE_MANAGER |

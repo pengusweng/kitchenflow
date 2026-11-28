@@ -17,11 +17,16 @@ export type StaffMember = {
   lastName: string;
   username: string;
   role: string;
+  /** The API role, e.g. "SUPERVISOR"; `role` is its display label. */
+  roleCode: UserRole;
   status: StaffStatus;
   /** Display-ready, e.g. "Oct 31, 2026, 4:00 PM" (Manila time). */
   createdAt: string;
   modifiedAt: string;
 };
+
+/** Only superadmins have a PIN, so only their profiles offer a PIN reset; same as the API's PIN_ROLES. */
+export const PIN_ROLES: ReadonlySet<UserRole> = new Set(["SUPERADMIN"]);
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   SUPERADMIN: "Superadmin",
@@ -47,6 +52,7 @@ export function toStaffMember(user: User): StaffMember {
     lastName: user.last_name,
     username: user.username,
     role: ROLE_LABEL[user.role],
+    roleCode: user.role,
     status: user.is_active ? "active" : "inactive",
     createdAt: dateTime.format(new Date(user.created_at)),
     modifiedAt: dateTime.format(new Date(user.modified_at)),

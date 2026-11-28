@@ -117,3 +117,30 @@ Feature: Additional pin unit coverage
     Given password verification raises an error
     When a PIN reset is requested
     Then the error is propagated without changing the PIN
+
+  # Jest: server/src/modules/pin/tests/pin.service.spec.ts
+  # Context: PinService › superadmin reset of another user
+  @UT-PIN-013
+  Scenario: Report whether a PIN is configured without reading its hash
+    Test Case ID: UT-PIN-013
+    Given a user with or without a PIN credential
+    When the service checks whether the user has a PIN
+    Then it answers true or false from the safe credential lookup only
+
+  # Jest: server/src/modules/pin/tests/pin.service.spec.ts
+  # Context: PinService › superadmin reset of another user
+  @UT-PIN-014
+  Scenario: Set a new PIN for an active superadmin
+    Test Case ID: UT-PIN-014
+    Given an active superadmin
+    When a superadmin resets their PIN to 0456
+    Then the credential is upserted with the new PIN without checking the user's password
+
+  # Jest: server/src/modules/pin/tests/pin.service.spec.ts
+  # Context: PinService › superadmin reset of another user
+  @UT-PIN-015
+  Scenario: Refuse to reset the PIN of a missing user or a non-superadmin
+    Test Case ID: UT-PIN-015
+    Given a missing or inactive user, or an active supervisor, kitchen head, recipe manager or cashier
+    When a superadmin resets their PIN
+    Then it rejects with not-found or PIN_NOT_SUPPORTED_FOR_ROLE and no credential is written

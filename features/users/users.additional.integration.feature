@@ -99,3 +99,31 @@ Feature: Additional users integration coverage
     Given an authenticated superadmin
     When user creation, listing, lookup, password update, and deactivation are requested
     Then the current service contracts receive validated inputs and superadmin authority
+
+  # Jest: server/src/modules/users/tests/users.http.spec.ts
+  # Context: Users HTTP endpoints (IT-USER)
+  @IT-USER-026
+  Scenario: Let a superadmin reset a user's PIN
+    Test Case ID: IT-USER-026
+    Given a superadmin caller with a valid action PIN
+    When they reset a user's PIN by UUID to 0456
+    Then the PIN service resets that user's PIN and the response is 200 with Cache-Control no-store
+    And the response carries credential metadata without the PIN
+
+  # Jest: server/src/modules/users/tests/users.http.spec.ts
+  # Context: Users HTTP endpoints (IT-USER)
+  @IT-USER-027
+  Scenario: Forbid every other role from resetting a PIN
+    Test Case ID: IT-USER-027
+    Given a supervisor, kitchen head, recipe manager, cashier, kitchen staff or inventory staff caller
+    When they reset a user's PIN
+    Then the response is 403 and the PIN service is never called
+
+  # Jest: server/src/modules/users/tests/users.http.spec.ts
+  # Context: Users HTTP endpoints (IT-USER)
+  @IT-USER-028
+  Scenario: Reject an invalid PIN reset request
+    Test Case ID: IT-USER-028
+    Given a superadmin caller
+    When a PIN reset names a non-UUID user, or sends a missing, numeric, short, long, non-digit PIN or an extra field
+    Then the response is 400 and the PIN service is never called

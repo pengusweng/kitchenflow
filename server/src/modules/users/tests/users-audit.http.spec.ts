@@ -31,7 +31,7 @@ describe('Users audit logging', () => {
     updateUser: jest.fn(),
     deleteUser: jest.fn(),
   };
-  const pins = { verifyPin: jest.fn() };
+  const pins = { verifyPin: jest.fn(), resetPin: jest.fn() };
   const auth = {
     validateSession: jest.fn(() =>
       Promise.resolve({
@@ -71,7 +71,11 @@ describe('Users audit logging', () => {
   beforeEach(() => {
     role = UserRole.SUPERADMIN;
     audit.create.mockClear().mockResolvedValue({});
-    for (const mock of [...Object.values(users), pins.verifyPin]) {
+    for (const mock of [
+      ...Object.values(users),
+      pins.verifyPin,
+      pins.resetPin,
+    ]) {
       mock.mockReset();
     }
     pins.verifyPin.mockResolvedValue({ status: 'valid' });
@@ -220,5 +224,36 @@ describe('Users audit logging', () => {
         reason: 'ACCESS_DENIED',
       }),
     ]);
+  });
+
+  it('IT-USER-029: Given a superadmin and then a supervisor, When each resets a PIN, Then audit the reset and the denial against the target credential without the PIN', async () => {
+    pins.resetPin.mockResolvedValue({ user_id: targetId });
+
+    const reset = await call('PUT', `/${targetId}/pin`, { pin: '7395' });
+    role = UserRole.SUPERVISOR;
+    const denied = await call('PUT', `/${targetId}/pin`, { pin: '8462' });
+
+    expect([reset.status, denied.status]).toEqual([200, 403]);
+    expect(pins.resetPin).toHaveBeenCalledTimes(1);
+    expect(audit.rows()).toEqual([
+      expect.objectContaining({
+        actor_id: actorId,
+        action: 'PIN_RESET',
+        entity_type: 'user_pin_credentials',
+        entity_id: targetId,
+        outcome: 'SUCCESS',
+      }),
+      expect.objectContaining({
+        actor_id: actorId,
+        action: 'PIN_RESET',
+        entity_id: targetId,
+        outcome: 'DENIED',
+        reason: 'ACCESS_DENIED',
+      }),
+    ]);
+    const stored = JSON.stringify(audit.rows());
+    for (const secret of ['7395', '8462', '1234']) {
+      expect(stored).not.toContain(secret);
+    }
   });
 });

@@ -57,7 +57,7 @@ export function UpdateUserDocs() {
     ApiOperation({
       summary: 'Update a user (superadmin).',
       description:
-        'Accepts a user UUID, not a username. Only superadmins can edit users and reset their passwords. Supports username, first_name, last_name, and password. Omitted fields are unchanged; null is invalid.',
+        'Accepts a user UUID, not a username. Only superadmins can edit users and reset their passwords. Supports username, first_name, last_name, and password. Omitted fields are unchanged; null is invalid. A password reset also ends every session the user has, except the caller’s own, in the same transaction.',
     }),
     ApiParam({
       name: 'id',
@@ -187,5 +187,43 @@ export function DeleteUserDocs() {
       status: 404,
       description: 'User not found or already inactive.',
     }),
+  );
+}
+
+export function ResetUserPinDocs() {
+  return applyDecorators(
+    PinRequiredDocs(),
+    ApiOperation({
+      summary: 'Reset a user’s PIN (superadmin).',
+      description:
+        'Accepts a user UUID. Only superadmins can reset PINs; X-Action-Pin is the caller’s own PIN. Sets the new four-digit PIN whether or not the user had one, and clears failed attempts and any lockout. Only superadmin accounts have a PIN; other roles cannot be given one. The response uses Cache-Control: no-store.',
+    }),
+    ApiParam({
+      name: 'id',
+      schema: { type: 'string', format: 'uuid' },
+      description: 'User ID.',
+    }),
+    ApiResponse({
+      status: 200,
+      description:
+        'Credential metadata with failed attempts reset and lockout cleared. The plaintext PIN and its hash are excluded.',
+      content: {
+        'application/json': {
+          example: {
+            user_id: userExample.user_id,
+            failed_attempts: 0,
+            locked_until: null,
+            created_at: '2026-10-31T08:00:00.000Z',
+            modified_at: '2026-10-31T09:00:00.000Z',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description:
+        'The PIN is not four digits, or the user is not a superadmin (PIN_NOT_SUPPORTED_FOR_ROLE).',
+    }),
+    ApiResponse({ status: 404, description: 'User not found or inactive.' }),
   );
 }

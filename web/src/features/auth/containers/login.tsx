@@ -6,11 +6,16 @@ import LoginSide from "../components/login-side";
 import { useLogin } from "../hooks/useLogin";
 import { WEB_ROLES } from "../utils/webRoles";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ThemeToggle } from "@/src/components/ui/atoms/theme-toggle";
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { session, ...login } = useLogin(({ user }) => {
+    // A session that expired without signing out leaves the last account's
+    // queries behind; never show them to whoever signs in next.
+    queryClient.removeQueries();
     router.replace(WEB_ROLES.has(user.role) ? "/dashboard" : "/unauthorized");
   });
 

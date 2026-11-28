@@ -1,10 +1,10 @@
 "use client";
 
-import { Ban, CircleAlert, Pencil, X } from "lucide-react";
+import { Ban, CircleAlert, CircleCheck, KeyRound, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePin } from "@/src/features/pin/hooks/usePin";
-import type { StaffMember } from "../../utils/staff";
+import { PIN_ROLES, type StaffMember } from "../../utils/staff";
 import DetailRow from "@/src/components/ui/molecules/detail-row";
 import StaffIdentity from "../molecules/staff-identity";
 
@@ -14,8 +14,12 @@ type StaffDetailModalProps = {
   onOpenChange: (open: boolean) => void;
   onEdit?: (member: StaffMember) => void;
   onDeactivate?: (member: StaffMember) => void;
+  /** Offered on superadmin profiles, the only accounts with a PIN. Only superadmins reach this page. */
+  onResetPin?: (member: StaffMember) => void;
   /** Shown above the footer, e.g. when deactivating fails. */
   error?: string | null;
+  /** A confirmation shown above the footer, e.g. after a PIN reset. */
+  notice?: string | null;
 };
 
 // DESIGN.md › Elevation: dialogs get Shadow 3. Shadows vanish on the dark
@@ -29,7 +33,9 @@ export default function StaffDetailModal({
   onOpenChange,
   onEdit,
   onDeactivate,
+  onResetPin,
   error,
+  notice,
 }: StaffDetailModalProps) {
   const { isPrompting } = usePin();
 
@@ -71,6 +77,16 @@ export default function StaffDetailModal({
           </div>
         ) : null}
 
+        {notice && !error ? (
+          <p
+            role="status"
+            className="mx-6 mb-4 flex items-start gap-2.5 rounded-lg bg-primary/8 px-3 py-2.5 text-sm leading-5 text-primary-ink"
+          >
+            <CircleCheck aria-hidden="true" className="mt-px size-4 shrink-0 text-primary" />
+            {notice}
+          </p>
+        ) : null}
+
         {error ? (
           <p
             role="alert"
@@ -94,10 +110,23 @@ export default function StaffDetailModal({
               <Ban aria-hidden="true" />
               Deactivate
             </Button>
-            <Button size="lg" className="h-10 px-4 font-semibold cursor-pointer" onClick={() => onEdit?.(member)}>
-              <Pencil aria-hidden="true" />
-              Edit
-            </Button>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              {PIN_ROLES.has(member.roleCode) ? (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-10 px-4 font-semibold cursor-pointer"
+                  onClick={() => onResetPin?.(member)}
+                >
+                  <KeyRound aria-hidden="true" />
+                  Reset PIN
+                </Button>
+              ) : null}
+              <Button size="lg" className="h-10 px-4 font-semibold cursor-pointer" onClick={() => onEdit?.(member)}>
+                <Pencil aria-hidden="true" />
+                Edit
+              </Button>
+            </div>
           </DialogFooter>
         ) : null}
       </DialogContent>

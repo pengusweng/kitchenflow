@@ -14,6 +14,7 @@ void main() {
         LoginStatus.missingFields,
         LoginStatus.invalidCredentials,
         LoginStatus.networkError,
+        LoginStatus.pinSetupRequired,
       };
 
       for (final status in LoginStatus.values) {
@@ -27,6 +28,7 @@ void main() {
       expect(LoginStatus.missingFields.fieldsInError, isTrue);
       expect(LoginStatus.invalidCredentials.fieldsInError, isTrue);
       expect(LoginStatus.networkError.fieldsInError, isFalse);
+      expect(LoginStatus.pinSetupRequired.fieldsInError, isFalse);
       expect(LoginStatus.idle.fieldsInError, isFalse);
       expect(LoginStatus.submitting.fieldsInError, isFalse);
     });

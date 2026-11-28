@@ -173,6 +173,26 @@ void main() {
     },
   );
 
+  test('UT-MOB-AUTH-REPO-010 a 403 with PIN_SETUP_REQUIRED becomes pinSetupRequired failure', () async {
+    final store = _FakeTokenStore();
+    final adapter = _FakeAdapter(
+      (_) async => _json({
+        'code': 'PIN_SETUP_REQUIRED',
+        'message': 'Set up your 4-digit PIN to finish signing in.',
+      }, status: 403),
+    );
+    final repo = _repo(adapter, store);
+
+    try {
+      await repo.login(username: 'admin', password: 'Password123!');
+      fail('Expected an AuthException.');
+    } on AuthException catch (e) {
+      expect(e.kind, AuthFailure.pinSetupRequired);
+      expect(e.message, contains('web dashboard'));
+    }
+    expect(store.written, isNull);
+  });
+
   test('UT-MOB-AUTH-REPO-002 a 401 becomes an invalidCredentials failure with the server message', () async {
     final store = _FakeTokenStore();
     final adapter = _FakeAdapter(

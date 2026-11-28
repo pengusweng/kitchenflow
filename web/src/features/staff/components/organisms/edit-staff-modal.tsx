@@ -149,7 +149,7 @@ function EditStaffForm({ member, onSaved }: { member: StaffMember; onSaved: (use
               <FormField
                 id="edit-password"
                 label="New password"
-                hint="Leave blank to keep their current password. 8 to 32 characters."
+                hint="Leave blank to keep their current password. A new password signs them out everywhere else. 8 to 32 characters."
                 error={error}
               >
                 <PasswordInput

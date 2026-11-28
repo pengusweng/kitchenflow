@@ -51,7 +51,7 @@ Feature: Additional pin integration coverage
   @IT-PIN-005
   Scenario: Checks the PIN for actions across brands
     Test Case ID: IT-PIN-005
-    Given an authenticated supervisor and a valid PIN with shared brand access
+    Given an authenticated superadmin and a valid PIN with shared brand access
     When a protected menu write targets another brand
     Then the PIN is verified and the action succeeds
 
@@ -76,9 +76,9 @@ Feature: Additional pin integration coverage
   # Jest: server/src/modules/pin/tests/pin.http.spec.ts
   # Context: PIN HTTP endpoints and guard
   @IT-PIN-008
-  Scenario: Allow authorized roles to manage their own PIN
+  Scenario: Allow superadmins to manage their own PIN
     Test Case ID: IT-PIN-008
-    Given an authenticated role permitted to manage its PIN
+    Given an authenticated superadmin, the only role with a PIN
     When the user sets up, reads, and password-resets the PIN
     Then the correct credential operations run and responses use Cache-Control no-store
 
@@ -87,7 +87,7 @@ Feature: Additional pin integration coverage
   @IT-PIN-009
   Scenario: Deny PIN management to unauthorized roles
     Test Case ID: IT-PIN-009
-    Given an authenticated role without PIN management permission
+    Given an authenticated non-superadmin role, including supervisor, kitchen head and recipe manager
     When PIN setup, lookup, and reset are requested
     Then all responses are 403
 
@@ -123,7 +123,7 @@ Feature: Additional pin integration coverage
   @IT-PIN-013
   Scenario: Rejects a reset with the wrong account password
     Test Case ID: IT-PIN-013
-    Given an incorrect account password
+    Given a superadmin with an incorrect account password
     When the PIN is reset
     Then the response is 401 with INVALID_CREDENTIALS and no PIN update
 
@@ -132,7 +132,7 @@ Feature: Additional pin integration coverage
   @IT-PIN-014
   Scenario: Require the account password for PIN reset
     Test Case ID: IT-PIN-014
-    Given a reset payload omits a valid account password
+    Given a superadmin's reset payload omits a valid account password
     When the PIN is reset
     Then the response is 400
 
@@ -141,7 +141,7 @@ Feature: Additional pin integration coverage
   @IT-PIN-015
   Scenario: Allows repeated password-authorized resets without an action PIN
     Test Case ID: IT-PIN-015
-    Given the correct account password and no action PIN header
+    Given a superadmin with the correct account password and no action PIN header
     When two PIN resets are requested
     Then both password-authorized resets succeed
 
@@ -159,7 +159,7 @@ Feature: Additional pin integration coverage
   @IT-PIN-017
   Scenario: Permit authorized roles to act with a valid PIN
     Test Case ID: IT-PIN-017
-    Given an authenticated allowed role with a valid action PIN
+    Given an authenticated superadmin with a valid action PIN
     When a protected action is requested
     Then the response is 201 and the PIN is verified against the session user
 
@@ -168,7 +168,7 @@ Feature: Additional pin integration coverage
   @IT-PIN-018
   Scenario: Deny unauthorized roles even with a correct PIN
     Test Case ID: IT-PIN-018
-    Given an authenticated disallowed role with a correct PIN
+    Given an authenticated non-superadmin role with a correct PIN
     When a protected action is requested
     Then the response is 403
 

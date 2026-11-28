@@ -1,8 +1,5 @@
 import { UserRole } from '@prisma/client';
 
-export const PIN_ROLES: readonly UserRole[] = [
-  UserRole.SUPERADMIN,
-  UserRole.RECIPE_MANAGER,
-  UserRole.SUPERVISOR,
-  UserRole.KITCHEN_HEAD,
-];
+// Only superadmins have a PIN. They use it to sign in and to confirm
+// sensitive actions; every other role works with their password alone.
+export const PIN_ROLES: readonly UserRole[] = [UserRole.SUPERADMIN];

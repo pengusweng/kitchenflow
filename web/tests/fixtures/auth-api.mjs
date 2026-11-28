@@ -42,6 +42,22 @@ const USERS = {
       modified_at: "2025-01-01T00:00:00.000Z",
     },
   },
+  // A superadmin with no PIN yet: login asks for PIN setup, and setup signs in.
+  // Stateless, so every run (and every retry) starts from the setup step.
+  "qa-newadmin": {
+    token: "playwright-fixture-token-newadmin",
+    needsPinSetup: true,
+    user: {
+      user_id: "a1111111-1111-4111-8111-111111111104",
+      username: "qa-newadmin",
+      first_name: "Nina",
+      last_name: "Cruz",
+      role: "SUPERADMIN",
+      is_active: true,
+      created_at: "2025-01-01T00:00:00.000Z",
+      modified_at: "2025-01-01T00:00:00.000Z",
+    },
+  },
   "qa-recipes": {
     token: "playwright-fixture-token-recipes",
     user: {
@@ -467,6 +483,33 @@ createServer(async (request, response) => {
     const entry = USERS[credentials.username];
     if (!entry || credentials.password !== PASSWORD) {
       return json(401, { message: "Invalid credentials" });
+    }
+    if (entry.needsPinSetup) {
+      return json(403, { code: "PIN_SETUP_REQUIRED", message: "Set up your 4-digit PIN to finish signing in." });
+    }
+    return json(200, {
+      token: entry.token,
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      user: entry.user,
+    });
+  }
+
+  if (request.method === "POST" && pathname === "/api/auth/pin-setup") {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body || "{}");
+    const entry = USERS[input.username];
+    if (!entry || input.password !== PASSWORD) {
+      return json(401, { code: "INVALID_CREDENTIALS", message: "Invalid username or password." });
+    }
+    if (typeof input.pin !== "string" || !/^[0-9]{4}$/.test(input.pin)) {
+      return json(400, { message: ["PIN must contain exactly four digits."] });
+    }
+    if (entry.user.role !== "SUPERADMIN") {
+      return json(403, { code: "PIN_SETUP_NOT_ALLOWED", message: "Only superadmins set up their PIN while signing in." });
+    }
+    if (!entry.needsPinSetup) {
+      return json(409, { code: "EXISTING_PIN_FOUND", message: "User already has existing pin" });
     }
     return json(200, {
       token: entry.token,

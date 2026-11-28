@@ -233,7 +233,7 @@ async function check() {
   await seedDatabase(database);
   assert.equal(brands.size, 3);
   assert.equal(users.size, 17);
-  assert.equal(pinCredentials.size, 8);
+  assert.equal(pinCredentials.size, 1);
   for (const user of [...TEST_USERS, TEST_UNASSIGNED_OWNER]) {
     assert(
       user.username.length <= 16,
@@ -392,7 +392,7 @@ async function check() {
   );
 
   users.delete('test_ai_kitchen');
-  const missingPinUserId = users.get('test_owner').user_id;
+  const missingPinUserId = users.get('test_superadmin').user_id;
   pinCredentials.delete(missingPinUserId);
   recipes.delete('RCP-AI-PAA-INASAL');
   // Mirror the onDelete: Cascade on recipe ingredients and steps.
@@ -406,7 +406,7 @@ async function check() {
   menuItemModifiers.delete(firstAssignmentKey);
   await seedDatabase(database);
   assert.equal(users.size, 17);
-  assert.equal(pinCredentials.size, 8);
+  assert.equal(pinCredentials.size, 1);
   assert(
     await argon2.verify(
       pinCredentials.get(missingPinUserId).pin_hash,

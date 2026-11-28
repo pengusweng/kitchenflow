@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { loginSchema } from "@/src/features/auth/schemas/loginSchema";
 import { loginSessionSchema } from "@/src/features/auth/schemas/loginSessionSchema";
-
-const headers = { "Cache-Control": "no-store" };
+import { NO_STORE as headers, signedInResponse } from "@/src/features/auth/services/session-cookie";
 
 const pinErrorSchema = z.object({
-  code: z.enum(["PIN_REQUIRED", "INVALID_PIN", "PIN_LOCKED", "PIN_NOT_CONFIGURED"]),
+  code: z.enum(["PIN_REQUIRED", "INVALID_PIN", "PIN_LOCKED", "PIN_NOT_CONFIGURED", "PIN_SETUP_REQUIRED"]),
   message: z.string(),
   locked_until: z.iso.datetime().optional(),
 });
@@ -50,8 +49,8 @@ export async function POST(request: Request) {
     if (upstream.status === 400 && body) {
       return NextResponse.json(body, { status: 400, headers });
     }
-    // Keep the PIN codes (PIN_REQUIRED, INVALID_PIN, PIN_LOCKED, PIN_NOT_CONFIGURED)
-    // so the login form knows which step to show.
+    // Keep the PIN codes (PIN_REQUIRED, INVALID_PIN, PIN_LOCKED, PIN_NOT_CONFIGURED,
+    // PIN_SETUP_REQUIRED) so the login form knows which step to show.
     const pinError = pinErrorSchema.safeParse(body);
     if (pinError.success) {
       return NextResponse.json(pinError.data, { status: upstream.status, headers });
@@ -71,13 +70,5 @@ export async function POST(request: Request) {
     );
   }
 
-  const response = NextResponse.json(session.data, { headers });
-  response.cookies.set("kkfc_session", session.data.token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: new Date(session.data.expires_at),
-  });
-  return response;
+  return signedInResponse(session.data);
 }

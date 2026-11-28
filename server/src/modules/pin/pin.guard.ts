@@ -28,7 +28,7 @@ export class PinGuard implements CanActivate {
     if (!PIN_ROLES.includes(user.role)) {
       throw new ForbiddenException({
         code: 'ACCESS_DENIED',
-        message: 'Your role cannot use PIN-protected actions.',
+        message: 'Only superadmins can use PIN-protected actions.',
       });
     }
 

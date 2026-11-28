@@ -40,3 +40,30 @@ test("restricts staff accounts for a signed-in supervisor", async ({ page }) => 
   await page.goto("/dashboard/staff");
   await expect(page.getByRole("heading", { name: "Only superadmins can manage staff accounts" })).toBeVisible();
 });
+
+test("asks a superadmin without a PIN to set one up, confirmed with their password, then signs in", async ({ page, context }) => {
+  await page.goto("/login");
+  await page.getByLabel("Username").fill("qa-newadmin");
+  await page.getByLabel("Password", { exact: true }).fill("qa-password");
+  await page.getByRole("button", { name: "Sign In", exact: true }).click();
+
+  await expect(page.getByRole("heading", { name: "Set up your PIN" })).toBeVisible();
+  expect((await context.cookies()).some(({ name }) => name === "kkfc_session")).toBe(false);
+
+  await page.getByLabel("New 4-digit PIN").fill("0123");
+  await page.getByLabel("Confirm 4-digit PIN").fill("0123");
+  await page.getByLabel("Password", { exact: true }).fill("wrong-password");
+  await page.getByRole("button", { name: "Save PIN and sign in" }).click();
+  await expect(page.getByRole("region", { name: "Set up your PIN" }).getByRole("alert"))
+    .toContainText("That password isn't right.");
+  expect((await context.cookies()).some(({ name }) => name === "kkfc_session")).toBe(false);
+
+  await page.getByLabel("Password", { exact: true }).fill("qa-password");
+  await page.getByRole("button", { name: "Save PIN and sign in" }).click();
+
+  await expect(page).toHaveURL(/\/dashboard$/);
+  expect(await context.cookies()).toContainEqual(expect.objectContaining({
+    name: "kkfc_session",
+    httpOnly: true,
+  }));
+});

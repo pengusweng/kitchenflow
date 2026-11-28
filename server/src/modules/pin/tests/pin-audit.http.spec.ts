@@ -58,7 +58,7 @@ describe('PIN audit logging', () => {
   afterAll(async () => app.close());
 
   beforeEach(() => {
-    role = UserRole.SUPERVISOR;
+    role = UserRole.SUPERADMIN;
     audit.create.mockClear().mockResolvedValue({});
     for (const mock of Object.values(pins)) mock.mockReset();
   });
@@ -74,7 +74,7 @@ describe('PIN audit logging', () => {
     });
   }
 
-  it('IT-PIN-024: Given a supervisor, When they set and change their PIN, Then audit both against their own credential without secrets', async () => {
+  it('IT-PIN-024: Given a superadmin, When they set and change their PIN, Then audit both against their own credential without secrets', async () => {
     pins.create.mockResolvedValue({ user_id: actorId });
     pins.updatePin.mockResolvedValue({ user_id: actorId });
 
@@ -137,7 +137,7 @@ describe('PIN audit logging', () => {
 
     const status = await call('GET');
     const malformed = await call('POST', { pin: '12' });
-    role = UserRole.KITCHEN_STAFF;
+    role = UserRole.SUPERVISOR;
     const wrongRole = await call('POST', { pin: '4821' });
 
     expect([status.status, malformed.status, wrongRole.status]).toEqual([
@@ -153,4 +153,31 @@ describe('PIN audit logging', () => {
       }),
     ]);
   });
+
+  it.each([
+    UserRole.SUPERVISOR,
+    UserRole.KITCHEN_HEAD,
+    UserRole.RECIPE_MANAGER,
+  ])(
+    'IT-PIN-027: Given %s, When they try to reset their own PIN, Then audit the denial without changing the PIN',
+    async (caller) => {
+      role = caller;
+
+      const response = await call('PATCH', {
+        pin: '7395',
+        password: 'Password123!',
+      });
+
+      expect(response.status).toBe(403);
+      expect(pins.updatePin).not.toHaveBeenCalled();
+      expect(audit.rows()).toEqual([
+        expect.objectContaining({
+          actor_id: actorId,
+          action: 'PIN_UPDATED',
+          outcome: 'DENIED',
+          reason: 'ACCESS_DENIED',
+        }),
+      ]);
+    },
+  );
 });

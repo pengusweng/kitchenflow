@@ -156,6 +156,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           AuthFailure.pinRequired => LoginStatus.invalidCredentials,
           AuthFailure.network ||
           AuthFailure.unexpected => LoginStatus.networkError,
+          AuthFailure.pinSetupRequired => LoginStatus.pinSetupRequired,
         };
       });
     } catch (_) {

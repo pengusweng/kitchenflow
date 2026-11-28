@@ -101,3 +101,24 @@ Feature: Authentication Service Unit Logic
     Given an incoming request where validateSession throws an unexpected error
     When Authenticated guard checks authorization
     Then it should rethrow the exception
+
+  Scenario: Require PIN setup before a superadmin without a PIN can sign in
+    Test Case ID: UT-AUTH-017
+    Given a superadmin account with no PIN credential
+    When AuthService logs in with the correct password, with or without a PIN, and then with a wrong password
+    Then the correct password is refused with 403 PIN_SETUP_REQUIRED without verifying a PIN or creating a session
+    And the wrong password is refused with 401 INVALID_CREDENTIALS before the PIN status is read
+
+  Scenario: Save the first superadmin PIN and sign in after checking the password
+    Test Case ID: UT-AUTH-018
+    Given a superadmin account with no PIN credential and its correct password
+    When AuthService sets up the PIN 0123 at sign-in
+    Then the PIN is created for that superadmin before a session is stored
+    And the response carries a token whose SHA-256 hash is the stored session hash
+
+  Scenario: Refuse PIN setup at sign-in without creating a session
+    Test Case ID: UT-AUTH-019
+    Given a wrong password, a non-superadmin account, or a superadmin who already has a PIN
+    When AuthService sets up a PIN at sign-in
+    Then it rejects with 401, 403, or 409 respectively and creates no session
+    And no PIN is created unless the existing-PIN conflict came from the PIN service

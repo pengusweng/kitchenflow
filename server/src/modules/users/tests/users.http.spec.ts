@@ -12,6 +12,7 @@ import { Authenticated } from '../../auth/auth.guard';
 import { UsersController } from '../users.controller';
 import { UsersService } from '../users.service';
 import { UsersRepository } from '../users.repository';
+import { PinService } from '../../pin/pin.service';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { AllExceptionsFilter } from '../../../shared/filters/all-exceptions.filter';
 import { PrismaExceptionFilter } from '../../../shared/filters/prisma-exception.filter';
@@ -24,6 +25,7 @@ describe('Users HTTP endpoints (IT-USER)', () => {
   const userId = '00000000-0000-4000-8000-000000000010';
   const brandId = '00000000-0000-4000-8000-000000000020';
 
+  const sessionId = '00000000-0000-4000-8000-000000000099';
   const service = {
     createUser: jest.fn(),
     updateUser: jest.fn(),
@@ -31,12 +33,14 @@ describe('Users HTTP endpoints (IT-USER)', () => {
     findOneUser: jest.fn(),
     deleteUser: jest.fn(),
   };
+  const pinService = { resetPin: jest.fn() };
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [UsersController],
       providers: [
         { provide: UsersService, useValue: service },
+        { provide: PinService, useValue: pinService },
         RolesGuard,
         { provide: APP_FILTER, useClass: AllExceptionsFilter },
         { provide: APP_FILTER, useClass: PrismaExceptionFilter },
@@ -50,6 +54,7 @@ describe('Users HTTP endpoints (IT-USER)', () => {
           }
           const request = context.switchToHttp().getRequest<{
             session: {
+              session_id: string;
               user: {
                 user_id: string;
                 role: UserRole;
@@ -57,6 +62,7 @@ describe('Users HTTP endpoints (IT-USER)', () => {
             };
           }>();
           request.session = {
+            session_id: sessionId,
             user: {
               user_id: '00000000-0000-4000-8000-000000000001',
               role: currentRole,
@@ -86,7 +92,7 @@ describe('Users HTTP endpoints (IT-USER)', () => {
   beforeEach(() => {
     authenticated = true;
     currentRole = UserRole.SUPERADMIN;
-    for (const method of Object.values(service)) {
+    for (const method of [...Object.values(service), pinService.resetPin]) {
       method.mockReset().mockResolvedValue({ ok: true });
     }
   });
@@ -138,6 +144,9 @@ describe('Users HTTP endpoints (IT-USER)', () => {
           .fn()
           .mockResolvedValue({ user_id: userId, role: UserRole.SUPERADMIN }),
         update: jest.fn().mockResolvedValue({ user_id: userId }),
+        updateRevokingSessions: jest
+          .fn()
+          .mockResolvedValue({ user_id: userId }),
         delete: jest
           .fn()
           .mockResolvedValue({ user_id: userId, is_active: false }),
@@ -160,7 +169,17 @@ describe('Users HTTP endpoints (IT-USER)', () => {
       expect(
         (await fetch(`${url}/${userId}`, { method: 'DELETE' })).status,
       ).toBe(status);
-      expect(repository.update).toHaveBeenCalledTimes(status === 200 ? 1 : 0);
+      expect(repository.updateRevokingSessions).toHaveBeenCalledTimes(
+        status === 200 ? 1 : 0,
+      );
+      if (status === 200) {
+        expect(repository.updateRevokingSessions).toHaveBeenCalledWith(
+          userId,
+          { password: 'Password123!' },
+          sessionId,
+        );
+      }
+      expect(repository.update).not.toHaveBeenCalled();
       expect(repository.delete).toHaveBeenCalledTimes(status === 200 ? 1 : 0);
     },
   );
@@ -359,6 +378,7 @@ describe('Users HTTP endpoints (IT-USER)', () => {
       userId,
       dto,
       currentRole === UserRole.SUPERADMIN,
+      sessionId,
     );
   });
 
@@ -376,6 +396,7 @@ describe('Users HTTP endpoints (IT-USER)', () => {
         userId,
         { username },
         true,
+        sessionId,
       );
     },
   );
@@ -529,6 +550,7 @@ describe('Users HTTP endpoints (IT-USER)', () => {
       userId,
       dto,
       currentRole === UserRole.SUPERADMIN,
+      sessionId,
     );
     expect((await fetch(`${url}/${userId}`, { method: 'DELETE' })).status).toBe(
       200,
@@ -538,4 +560,71 @@ describe('Users HTTP endpoints (IT-USER)', () => {
       currentRole === UserRole.SUPERADMIN,
     );
   });
+
+  it('IT-USER-026: lets a superadmin reset a user PIN by UUID without echoing it', async () => {
+    pinService.resetPin.mockResolvedValue({
+      user_id: userId,
+      failed_attempts: 0,
+      locked_until: null,
+    });
+
+    const response = await fetch(`${url}/${userId}/pin`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '0456' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body).toEqual({
+      user_id: userId,
+      failed_attempts: 0,
+      locked_until: null,
+    });
+    expect(JSON.stringify(body)).not.toContain('0456');
+    expect(pinService.resetPin).toHaveBeenCalledWith(userId, '0456');
+  });
+
+  it.each([
+    UserRole.SUPERVISOR,
+    UserRole.KITCHEN_HEAD,
+    UserRole.RECIPE_MANAGER,
+    UserRole.CASHIER_STAFF,
+    UserRole.KITCHEN_STAFF,
+    UserRole.INVENTORY_STAFF,
+  ])('IT-USER-027: forbids %s from resetting any PIN', async (role) => {
+    currentRole = role;
+
+    const response = await fetch(`${url}/${userId}/pin`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '0456' }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(pinService.resetPin).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['/not-a-uuid/pin', { pin: '0456' }],
+    [`/${userId}/pin`, {}],
+    [`/${userId}/pin`, { pin: 456 }],
+    [`/${userId}/pin`, { pin: '456' }],
+    [`/${userId}/pin`, { pin: '04567' }],
+    [`/${userId}/pin`, { pin: 'abcd' }],
+    [`/${userId}/pin`, { pin: '0456', user_id: userId }],
+  ])(
+    'IT-USER-028: rejects an invalid PIN reset request: %s %j',
+    async (path, body) => {
+      const response = await fetch(`${url}${path}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      expect(response.status).toBe(400);
+      expect(pinService.resetPin).not.toHaveBeenCalled();
+    },
+  );
 });

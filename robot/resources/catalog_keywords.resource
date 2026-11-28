@@ -16,7 +16,7 @@ An authenticated catalog user exists
     ${response}=    POST On Session    api    /api/auth/login    json=${payload}    headers=${login_headers}    expected_status=200
     ${body}=    Set Variable    ${response.json()}
     ${headers}=    Create Dictionary    Authorization=Bearer ${body}[token]
-    IF    $body['user']['role'] in ('SUPERADMIN', 'RECIPE_MANAGER', 'SUPERVISOR', 'KITCHEN_HEAD')
+    IF    $body['user']['role'] == 'SUPERADMIN'
         Set To Dictionary    ${headers}    X-Action-Pin=${CATALOG_PIN}
     END
     RETURN    ${headers}

@@ -4,6 +4,7 @@ import {
   MeDocs,
   LogoutDocs,
   LogoutAllDocs,
+  PinSetupDocs,
 } from './docs/auth.docs';
 import {
   Body,
@@ -21,6 +22,7 @@ import type { AuthenticatedRequest } from './auth.guard';
 import { Authenticated } from './auth.guard';
 import { AuthService } from './auth.service';
 import { LoginDTO } from './dto/login.dto';
+import { SetupPinDTO } from './dto/setup-pin.dto';
 import { Audit, type AuditResolver } from '../../shared/audit/audit.decorator';
 
 // Login has no session yet: the actor is the user the response logged in. Only
@@ -48,6 +50,20 @@ export class AuthController {
   @LoginDocs()
   async login(@Body() dto: LoginDTO, @Headers('x-action-pin') pin?: string) {
     return this.authService.login(dto, pin);
+  }
+
+  @Post('pin-setup')
+  @Audit({
+    action: 'AUTH_PIN_SETUP',
+    entity: 'users',
+    id: loggedInUser,
+    actor: loggedInUser,
+  })
+  @Header('Cache-Control', 'no-store')
+  @HttpCode(HttpStatus.OK)
+  @PinSetupDocs()
+  async setupPin(@Body() dto: SetupPinDTO) {
+    return this.authService.setupPinAndLogin(dto);
   }
 
   @Get('me')
